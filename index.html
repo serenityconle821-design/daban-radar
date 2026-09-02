@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>打板情绪雷达</title>
+<style>
+:root {
+  --bg: #F2F2F7; --card: #FFFFFF; --primary: #007AFF; --primary-soft: rgba(0,122,255,.08);
+  --text: #1D1D1F; --secondary: #86868B; --tertiary: #AEAEB2;
+  --green: #34C759; --green-soft: rgba(52,199,89,.10);
+  --red: #FF3B30; --red-soft: rgba(255,59,48,.08);
+  --orange: #FF9500; --orange-soft: rgba(255,149,0,.10);
+  --gray-badge: #8E8E93; --sep: rgba(60,60,67,.10);
+  --radius: 16px; --touch: 44px;
+  --shadow: 0 1px 3px rgba(0,0,0,.04), 0 6px 18px rgba(0,0,0,.05);
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html { scroll-behavior:smooth; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 17px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.page { max-width: 1100px; margin: 0 auto; padding: 0 20px 60px; }
+
+/* ── Hero ── */
+.hero { position:relative; overflow:hidden; padding: 56px 0 34px; }
+#bgParticles { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+.hero-inner { position:relative; z-index:1; }
+.hero .date-line { color: var(--secondary); font-size: 15px; font-weight:500; letter-spacing:.5px; }
+.hero h1 { font-size: 56px; font-weight:800; letter-spacing:-1px; margin: 2px 0 12px; }
+.hero .sub { color: var(--secondary); font-size: 16px; }
+.badges { display:flex; gap:10px; margin-top:18px; flex-wrap:wrap; }
+.badge {
+  display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:0 14px;
+  border-radius: 18px; font-size:14px; font-weight:600; background:var(--card); box-shadow:var(--shadow);
+}
+.badge .dot { width:8px; height:8px; border-radius:50%; }
+.badge.blue { color:var(--primary); } .badge.blue .dot { background:var(--primary); }
+.badge.green { color:var(--green); } .badge.green .dot { background:var(--green); }
+.badge.gray { color:var(--secondary); } .badge.gray .dot { background:var(--tertiary); }
+
+/* ── Cards ── */
+.card {
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 26px 28px; margin-top: 22px;
+}
+section { scroll-margin-top: 24px; }
+.sec-title { display:flex; align-items:center; gap:10px; font-size:22px; font-weight:700; margin-bottom:16px; letter-spacing:-.3px; }
+.sec-title .ico { width:28px; height:28px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; background:var(--primary-soft); color:var(--primary); }
+.sec-title .ico svg { width:16px; height:16px; }
+.sec-sub { color:var(--secondary); font-size:14px; margin:-8px 0 16px 38px; }
+
+/* ── 信号卡 ── */
+.signal-grid { display:grid; grid-template-columns: auto 1fr; gap: 32px; align-items:center; }
+.verdict { text-align:center; min-width: 200px; }
+.verdict .v-state { font-size: 30px; font-weight:800; letter-spacing:-.5px; }
+.verdict .v-state.ok { color: var(--green); } .verdict .v-state.no { color: var(--red); } .verdict .v-state.mid { color: var(--orange); }
+.verdict .v-label { color:var(--secondary); font-size:13px; margin-top:2px; }
+.checks { display:flex; flex-direction:column; gap:10px; }
+.check-row {
+  display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:12px; background:var(--bg);
+  font-size:15px; font-weight:500;
+}
+.check-row .mark { width:24px; height:24px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; flex:none; }
+.check-row.pass .mark { background:var(--green); color:#fff; }
+.check-row.fail .mark { background:var(--red); color:#fff; }
+.check-row .mark svg { width:13px; height:13px; }
+.check-row .val { margin-left:auto; font-variant-numeric: tabular-nums; font-weight:600; }
+.check-row.pass .val { color:var(--green); } .check-row.fail .val { color:var(--red); }
+
+/* 市场分 */
+.mk-row { display:flex; align-items:center; gap:12px; margin-top:14px; padding-top:14px; border-top:1px solid var(--sep); }
+.mk-ring { position:relative; width:76px; height:76px; flex:none; }
+.mk-ring svg { transform: rotate(-90deg); }
+.mk-ring .num { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.mk-ring .num b { font-size:20px; font-weight:800; line-height:1.1; }
+.mk-ring .num span { font-size:10px; color:var(--secondary); }
+.mk-bars { flex:1; display:flex; flex-direction:column; gap:7px; }
+.mk-bar { display:grid; grid-template-columns: 92px 1fr 34px; align-items:center; gap:10px; font-size:13px; }
+.mk-bar .lab { color:var(--secondary); font-weight:500; }
+.mk-bar .track { height:7px; border-radius:4px; background:var(--bg); overflow:hidden; }
+.mk-bar .fill { height:100%; border-radius:4px; background:var(--primary); transition: width .8s cubic-bezier(.2,.8,.2,1); }
+.mk-bar .v { text-align:right; font-weight:600; font-variant-numeric:tabular-nums; }
+
+/* ── 三段式时间线 ── */
+.tl { display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; }
+.tl-node {
+  position:relative; border-radius:14px; padding:18px 18px 16px; background:var(--bg);
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+.tl-node.active { background:var(--primary-soft); box-shadow: inset 0 0 0 1.5px var(--primary); transform: translateY(-2px); }
+.tl-node.done { background:var(--green-soft); }
+.tl-node .tl-top { display:flex; align-items:center; gap:10px; }
+.tl-node .tl-time { font-size:13px; font-weight:700; color:var(--secondary); font-variant-numeric:tabular-nums; }
+.tl-node.active .tl-time { color:var(--primary); }
+.tl-node .tl-state {
+  margin-left:auto; width:26px; height:26px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center;
+}
+.tl-node.pending .tl-state { background:var(--sep); color:var(--tertiary); }
+.tl-node.active .tl-state { background:var(--primary); color:#fff; animation: pulse 1.8s ease-out infinite; }
+.tl-node.done .tl-state { background:var(--green); color:#fff; }
+.tl-node .tl-state svg { width:14px; height:14px; }
+.tl-node .tl-title { font-size:17px; font-weight:700; margin-top:10px; }
+.tl-node .tl-desc { font-size:13px; color:var(--secondary); margin-top:2px; }
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(0,122,255,.35); }
+  70% { box-shadow: 0 0 0 12px rgba(0,122,255,0); }
+  100% { box-shadow: 0 0 0 0 rgba(0,122,255,0); }
+}
+.tl-connector { position:absolute; top:31px; right:-11px; width:8px; height:2px; background:var(--sep); z-index:1; }
+.tl-node.active .tl-connector, .tl-node.done .tl-connector { background:var(--green); }
+
+/* ── 候选股卡片 ── */
+.cand {
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 22px 24px; margin-top: 16px; transition: transform .22s ease, box-shadow .22s ease;
+}
+.cand:hover { transform: translateY(-3px); box-shadow: 0 4px 8px rgba(0,0,0,.05), 0 14px 32px rgba(0,0,0,.08); }
+.cand-head { display:flex; align-items:center; gap:14px; }
+.cand-rank {
+  width:34px; height:34px; border-radius:10px; background:var(--bg); display:flex; align-items:center; justify-content:center;
+  font-weight:800; font-size:15px; color:var(--secondary); flex:none;
+}
+.cand-name { flex:1; min-width:0; }
+.cand-name .n1 { font-size:20px; font-weight:800; letter-spacing:-.3px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.cand-name .n1 .code { font-size:14px; font-weight:600; color:var(--secondary); font-variant-numeric:tabular-nums; }
+.cand-name .n2 { font-size:13px; color:var(--secondary); margin-top:1px; }
+.pill { display:inline-flex; align-items:center; padding:2px 9px; border-radius:9px; font-size:12px; font-weight:700; }
+.pill.strong { background:var(--green-soft); color:var(--green); }
+.pill.steady { background:var(--primary-soft); color:var(--primary); }
+.pill.cautious { background:var(--orange-soft); color:var(--orange); }
+.pill.wait { background:var(--sep); color:var(--gray-badge); }
+.pill.ind { background:var(--bg); color:var(--secondary); font-weight:500; }
+.cand-ring { position:relative; width:88px; height:88px; flex:none; }
+.cand-ring svg { transform: rotate(-90deg); }
+.cand-ring .num { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.cand-ring .num b { font-size:24px; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; }
+.cand-ring .num span { font-size:10px; color:var(--secondary); margin-top:2px; }
+.factor-grid { display:grid; grid-template-columns: repeat(5, 1fr); gap:8px; margin-top:16px; }
+.f-cell { background:var(--bg); border-radius:12px; padding:10px 8px; text-align:center; }
+.f-cell .fv { font-size:16px; font-weight:700; font-variant-numeric:tabular-nums; }
+.f-cell .fv.good { color:var(--green); } .f-cell .fv.bad { color:var(--red); }
+.f-cell .fl { font-size:11px; color:var(--secondary); margin-top:1px; }
+.f-cell .fs { font-size:10px; color:var(--tertiary); }
+.plan { margin-top:14px; border-top:1px solid var(--sep); padding-top:4px; }
+.plan details { border-radius:10px; }
+.plan summary {
+  list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px;
+  min-height:44px; font-size:14px; font-weight:600; color:var(--primary); user-select:none;
+}
+.plan summary::-webkit-details-marker { display:none; }
+.plan summary .chev { margin-left:auto; transition: transform .2s; }
+.plan details[open] summary .chev { transform: rotate(90deg); }
+.plan .p-body { padding:2px 0 12px 26px; font-size:13.5px; color:var(--text); display:flex; flex-direction:column; gap:8px; }
+.plan .p-row { display:flex; gap:8px; align-items:baseline; }
+.plan .p-tag { flex:none; font-size:11px; font-weight:700; padding:2px 7px; border-radius:6px; background:var(--primary-soft); color:var(--primary); white-space:nowrap; }
+.plan .p-tag.warn { background:var(--orange-soft); color:var(--orange); }
+.plan .p-tag.sell { background:var(--green-soft); color:var(--green); }
+.plan .p-txt b { font-variant-numeric:tabular-nums; }
+
+/* ── 监控表 ── */
+.tbl { width:100%; border-collapse:collapse; font-size:14px; }
+.tbl th { text-align:left; color:var(--secondary); font-weight:600; font-size:12.5px; padding:8px 10px; border-bottom:1px solid var(--sep); white-space:nowrap; }
+.tbl td { padding:9px 10px; border-bottom:1px solid var(--sep); font-variant-numeric:tabular-nums; }
+.tbl tr:last-child td { border-bottom:none; }
+.tbl .mono { font-weight:600; }
+.up { color: var(--red); } .down { color: var(--green); }
+.st-ok { color:var(--green); font-weight:700; } .st-bad { color:var(--red); font-weight:700; } .st-mid { color:var(--orange); font-weight:600; }
+
+/* ── 情绪统计 ── */
+.emo-grid { display:grid; grid-template-columns: repeat(6, 1fr); gap:12px; margin-bottom:18px; }
+.emo-cell { background:var(--bg); border-radius:14px; padding:14px 10px; text-align:center; }
+.emo-cell .v { font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.5px; }
+.emo-cell .l { font-size:12px; color:var(--secondary); margin-top:1px; }
+.charts { display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+.chart-box { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 16px 10px; }
+.chart-box h3 { font-size:15px; font-weight:700; padding:0 6px 10px; display:flex; align-items:center; gap:8px; }
+.chart-box h3 .hint { font-size:11.5px; color:var(--tertiary); font-weight:500; margin-left:auto; }
+.chart { width:100%; height: 240px; }
+.chart.tall { height: 280px; }
+
+/* ── 回测 ── */
+.bt-hero { display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; margin-bottom:18px; }
+.bt-cell { background:var(--bg); border-radius:14px; padding:16px 12px; text-align:center; }
+.bt-cell .v { font-size:24px; font-weight:800; font-variant-numeric:tabular-nums; }
+.bt-cell .l { font-size:12px; color:var(--secondary); }
+.bt-note { font-size:13px; color:var(--secondary); background:var(--orange-soft); border-radius:12px; padding:10px 14px; margin-bottom:16px; }
+.grp-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+
+/* ── 规则 ── */
+.rule-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:14px; }
+.rule-box { background:var(--bg); border-radius:14px; padding:16px 18px; }
+.rule-box h4 { font-size:15px; font-weight:700; display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.rule-box h4 .r-ico { width:24px; height:24px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; }
+.rule-box ul { list-style:none; display:flex; flex-direction:column; gap:7px; }
+.rule-box li { font-size:13.5px; padding-left:16px; position:relative; }
+.rule-box li::before { content:''; position:absolute; left:2px; top:9px; width:5px; height:5px; border-radius:50%; background:var(--primary); }
+
+/* ── 侧边导航 ── */
+.side-nav {
+  position:fixed; right:18px; top:50%; transform:translateY(-50%); z-index:50;
+  background:rgba(255,255,255,.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-radius:22px; box-shadow: 0 2px 10px rgba(0,0,0,.08), 0 8px 28px rgba(0,0,0,.06);
+  padding:10px 7px; display:flex; flex-direction:column; gap:4px;
+}
+.side-nav a {
+  display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%;
+  color:var(--tertiary); text-decoration:none; position:relative; transition: all .2s;
+}
+.side-nav a svg { width:15px; height:15px; }
+.side-nav a:hover, .side-nav a.on { background:var(--primary); color:#fff; }
+.side-nav a .tip {
+  position:absolute; right:44px; top:50%; transform:translateY(-50%); white-space:nowrap;
+  background:rgba(29,29,31,.92); color:#fff; font-size:12px; padding:4px 10px; border-radius:8px;
+  opacity:0; pointer-events:none; transition:opacity .15s;
+}
+.side-nav a:hover .tip { opacity:1; }
+
+/* ── Footer ── */
+footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12.5px; line-height:1.9; }
+
+/* 渐入 */
+.fade { opacity:0; transform: translateY(16px); transition: opacity .55s ease, transform .55s ease; }
+.fade.vis { opacity:1; transform:none; }
+
+/* ECharts 缺失降级 */
+.nochart { display:none; height:200px; align-items:center; justify-content:center; color:var(--secondary); font-size:13px; flex-direction:column; gap:8px; }
+
+@media (max-width: 900px) {
+  .hero h1 { font-size: 40px; }
+  .tl { grid-template-columns: 1fr; }
+  .tl-connector { display:none; }
+  .signal-grid { grid-template-columns: 1fr; }
+  .charts, .grp-grid, .rule-grid { grid-template-columns: 1fr; }
+  .emo-grid { grid-template-columns: repeat(3, 1fr); }
+  .bt-hero { grid-template-columns: repeat(2, 1fr); }
+  .factor-grid { grid-template-columns: repeat(3, 1fr); }
+  .side-nav { display:none; }
+}
+</style>
+</head>
+<body>
+
+<nav class="side-nav" id="sideNav"></nav>
+
+<div class="page">
+
+  <!-- ═══ Hero ═══ -->
+  <header class="hero">
+    <canvas id="bgParticles"></canvas>
+    <div class="hero-inner fade vis">
+      <p class="date-line" id="heroDate"></p>
+      <h1>打板情绪雷达</h1>
+      <p class="sub">三段式节奏 · 胜率确定性评分 · 买卖时机预案 — 基于两年回测(5013股/484日)校准</p>
+      <div class="badges" id="heroBadges"></div>
+    </div>
+  </header>
+
+  <!-- ═══ 今日信号 ═══ -->
+  <section id="sec-signal" class="card fade">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg></span>
+      <span id="signalTitle">今日信号</span>
+    </div>
+    <div class="signal-grid">
+      <div class="verdict">
+        <div class="v-state" id="vState">—</div>
+        <div class="v-label" id="vLabel"></div>
+      </div>
+      <div>
+        <div class="checks" id="checks"></div>
+        <div class="mk-row">
+          <div class="mk-ring" id="mkRing"></div>
+          <div class="mk-bars" id="mkBars"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 三段式节奏 ═══ -->
+  <section id="sec-rhythm" class="card fade">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+      <span>三段式作战节奏</span>
+    </div>
+    <p class="sec-sub">名单在前、竞价验证、盘中定型 — 每个阶段由定时任务自动刷新本页数据</p>
+    <div class="tl" id="timeline"></div>
+  </section>
+
+  <!-- ═══ 候选股 ═══ -->
+  <section id="sec-candidates" class="fade">
+    <div class="sec-title" style="margin:34px 0 4px;">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
+      <span>次日候选 · 2进3 黄金组合</span>
+    </div>
+    <p class="sec-sub" id="c23Sub">回测胜率 76% 区间 · 换手&lt;10% + 封单强 + 首封早 + 0炸板</p>
+    <div id="c23List"></div>
+
+    <div class="sec-title" style="margin:34px 0 4px;">
+      <span class="ico" style="background:var(--orange-soft); color:var(--orange);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span>
+      <span>高位接力 · 3进4</span>
+    </div>
+    <p class="sec-sub">回测胜率 45.6% / 期望 -1.9% · 仅轻仓参与最强标的</p>
+    <div id="c34List"></div>
+  </section>
+
+  <!-- ═══ 高位板监控 ═══ -->
+  <section id="sec-watch" class="card fade">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>
+      <span>昨日高位板 · 今日监控</span>
+    </div>
+    <p class="sec-sub" id="watchSub"></p>
+    <div style="overflow-x:auto;"><table class="tbl" id="watchTbl"></table></div>
+  </section>
+
+  <!-- ═══ 情绪数据 ═══ -->
+  <section id="sec-emotion" class="fade">
+    <div class="sec-title" style="margin:34px 0 4px;">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 9l-5 5-3-3-4 4"/></svg></span>
+      <span>市场情绪全景</span>
+    </div>
+    <div class="card" style="margin-top:12px;">
+      <div class="emo-grid" id="emoGrid"></div>
+      <div class="charts">
+        <div class="chart-box"><h3>涨停家数趋势 <span class="hint">近120交易日</span></h3><div id="chTrend" class="chart"></div><div class="nochart" id="ncTrend">图表库离线 · 数据仍可读</div></div>
+        <div class="chart-box"><h3>连板梯队结构 <span class="hint">当日</span></h3><div id="chLadder" class="chart"></div><div class="nochart" id="ncLadder">图表库离线 · 数据仍可读</div></div>
+        <div class="chart-box"><h3>1进2 / 2进3 晋级率 <span class="hint">阈值 20% / 50%</span></h3><div id="chPromo" class="chart"></div><div class="nochart" id="ncPromo">图表库离线 · 数据仍可读</div></div>
+        <div class="chart-box"><h3>涨停 vs 炸板 <span class="hint">晋级率观察窗口</span></h3><div id="chZb" class="chart"></div><div class="nochart" id="ncZb">图表库离线 · 数据仍可读</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ 回测基准 ═══ -->
+  <section id="sec-backtest" class="card fade">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg></span>
+      <span>回测基准 · 两年验证</span>
+    </div>
+    <div class="bt-hero" id="btHero"></div>
+    <div class="bt-note" id="btNote"></div>
+    <div style="overflow-x:auto;"><table class="tbl" id="btRecent"></table></div>
+    <div class="grp-grid" id="grpGrid" style="margin-top:16px;"></div>
+  </section>
+
+  <!-- ═══ 规则与风控 ═══ -->
+  <section id="sec-rules" class="card fade">
+    <div class="sec-title">
+      <span class="ico" style="background:var(--green-soft); color:var(--green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
+      <span>战法规则与风控纪律</span>
+    </div>
+    <div class="rule-grid" id="ruleGrid"></div>
+  </section>
+
+  <footer id="footer"></footer>
+</div>
+
+<script src="echarts.min.js"></script>
+<script src="data.js"></script>
+<script>
+'use strict';
+const D = (typeof SITE_DATA !== 'undefined') ? SITE_DATA : null;
+const $ = id => document.getElementById(id);
+const FONT = '"PingFang SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif';
+const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+const ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+const ICON_CHEV = '<svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+const TIER_COLOR = { strong:'#34C759', steady:'#007AFF', cautious:'#FF9500', wait:'#8E8E93' };
+
+function fmtDate(d){ return d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6); }
+function shortD(d){ return (parseInt(d.slice(4,6))) + '/' + parseInt(d.slice(6)); }
+function pctCls(v){ return v > 0 ? 'up' : (v < 0 ? 'down' : ''); }
+function sign(v, suf){ return (v>0?'+':'') + v + (suf||''); }
+
+/* ── Hero ── */
+function renderHero(){
+  const m = D.meta, sg = D.signal;
+  $('heroDate').textContent = m.date_label + ' · ' + m.stage_label + ' · 数据构建 ' + m.built_at;
+  const bd = [];
+  const st = sg.pass ? ['green','信号有效'] : ['gray','信号失效'];
+  bd.push(`<span class="badge ${st[0]}"><span class="dot"></span>昨日信号 ${st[1]}</span>`);
+  bd.push(`<span class="badge blue"><span class="dot"></span>市场评分 ${D.market.score}/35</span>`);
+  if (sg.p12 != null) bd.push(`<span class="badge ${sg.p12>=50?'green':sg.p12>=20?'blue':'gray'}"><span class="dot"></span>1进2 ${sg.p12}%</span>`);
+  bd.push(`<span class="badge gray"><span class="dot"></span>候选 ${D.candidates_2to3.length + D.candidates_3to4.length} 只</span>`);
+  $('heroBadges').innerHTML = bd.join('');
+}
+
+/* ── 信号卡 ── */
+function ringHTML(size, stroke, pct, color, inner){
+  const r = (size - stroke)/2, c = 2*Math.PI*r;
+  return `<svg width="${size}" height="${size}">
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="rgba(60,60,67,.08)" stroke-width="${stroke}" fill="none"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="${color}" stroke-width="${stroke}" fill="none"
+      stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-Math.max(0,Math.min(1,pct)))}"
+      style="transition: stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1)"/></svg>` + inner;
+}
+function renderSignal(){
+  const sg = D.signal, mk = D.market;
+  const inDay = (D.meta.stage === 'auction' || D.meta.stage === 'final');
+  $('signalTitle').textContent = inDay ? '今日信号判定' : (D.meta.stage === 'after' ? '明日信号预判' : '信号状态');
+  const v = $('vState');
+  if (sg.pass === true){ v.textContent = '信号有效'; v.className = 'v-state ok'; }
+  else if (sg.pass === false){
+    const failP12 = sg.checks && !sg.checks[2];
+    v.textContent = '信号失效'; v.className = 'v-state no';
+    if (failP12 && sg.p12 != null && sg.p12 >= 15) { v.textContent = '临界观察'; v.className='v-state mid'; }
+  }
+  $('vLabel').textContent = (sg.pass ? '三条件齐备 · 符合入场资格' : '条件不足 · 规则下观望为主');
+  const items = [
+    ['昨日涨停家数', sg.y_zt, '≥45', sg.checks[0]],
+    ['昨日最高连板', sg.y_max_lb, '≥4板', sg.checks[1]],
+    ['1进2晋级率', sg.p12 == null ? '—' : sg.p12 + '%', '≥20%', sg.checks[2]],
+  ];
+  $('checks').innerHTML = items.map(it => `
+    <div class="check-row ${it[3]?'pass':'fail'}">
+      <span class="mark">${it[3]?ICON_CHECK:ICON_X}</span>
+      <span>${it[0]} <span style="color:var(--tertiary);font-size:12.5px;">(要求 ${it[2]})</span></span>
+      <span class="val">${it[1]}</span>
+    </div>`).join('');
+  // 市场分环
+  const inner = `<div class="num"><b style="color:${mk.score>=25?'var(--green)':mk.score>=15?'var(--primary)':'var(--orange)'}">${mk.score}</b><span>/35 市场</span></div>`;
+  $('mkRing').innerHTML = ringHTML(76, 7, mk.score/35, mk.score>=25?'#34C759':mk.score>=15?'#007AFF':'#FF9500', inner);
+  const bars = [
+    ['p12 趋势', mk.p12_score, 20, (mk.p12==null?'无数据':mk.p12+'% · '+mk.p12_txt)],
+    ['信号三条件', mk.cond_score, 10, '涨停/最高板/晋级率'],
+    ['情绪温度', mk.temp_score, 5, '今日涨停'+(mk.zt||0)+'家 · '+mk.temp_txt],
+  ];
+  $('mkBars').innerHTML = bars.map(b => `
+    <div class="mk-bar"><span class="lab">${b[0]}</span>
+      <div class="track"><div class="fill" style="width:0" data-w="${b[1]/b[2]*100}"></div></div>
+      <span class="v">${b[1]}/${b[2]}</span></div>
+    <div style="font-size:11.5px;color:var(--tertiary);margin:-3px 0 0 102px;">${b[3]}</div>`).join('');
+  setTimeout(() => document.querySelectorAll('.mk-bar .fill').forEach(el => el.style.width = el.dataset.w + '%'), 80);
+}
+
+/* ── 时间线 ── */
+function renderTimeline(){
+  const stateIco = {
+    pending: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="4"/></svg>',
+    active: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+    done: ICON_CHECK,
+  };
+  $('timeline').innerHTML = D.timeline.map((t, i) => `
+    <div class="tl-node ${t.status}">
+      ${i < D.timeline.length-1 ? '<span class="tl-connector"></span>' : ''}
+      <div class="tl-top"><span class="tl-time">${t.time}</span><span class="tl-state">${stateIco[t.status]}</span></div>
+      <div class="tl-title">${t.title}</div>
+      <div class="tl-desc">${t.desc}</div>
+    </div>`).join('');
+}
+
+/* ── 候选卡 ── */
+function candCard(c, planOpen){
+  const color = TIER_COLOR[c.tier];
+  const factors = [
+    { l:'换手率', v: (c.turn ?? 0).toFixed(2) + '%', s:c.score_parts.turn + '/20', good: c.turn < 10, bad: c.turn >= 20 },
+    { l:'封单', v: (c.seal ?? 0).toFixed(2) + '亿', s:c.score_parts.seal + '/15', good: c.seal >= 1.5, bad: c.seal < 0.4 },
+    { l:'首封时间', v: c.first, s:c.score_parts.first + '/15', good: c.first <= '10:30', bad: c.first >= '13:30' },
+    { l:'炸板次数', v: c.zbc + '次', s:c.score_parts.zbc + '/10', good: c.zbc === 0, bad: c.zbc >= 2 },
+    { l:'流通市值', v: (c.mv ?? 0).toFixed(2) + '亿', s:c.score_parts.lb + '/5', good:false, bad:false },
+  ];
+  const inner = `<div class="num"><b style="color:${color}">${Math.round(c.score)}</b><span>确定性</span></div>`;
+  const tag = c.tag ? `<span class="pill cautious">${c.tag}</span>` : '';
+  return `
+  <div class="cand">
+    <div class="cand-head">
+      <div class="cand-rank">${c.rank}</div>
+      <div class="cand-name">
+        <div class="n1">${c.name} <span class="code">${c.code}</span>
+          <span class="pill ${c.tier}">${c.tier_txt}</span> ${tag}</div>
+        <div class="n2">${c.lb}板→${c.lb+1}板 · ${c.industry} · 明日打板价参考 <b>${c.next_zt}</b></div>
+      </div>
+      <div class="cand-ring">${ringHTML(88, 8, c.score/100, color, inner)}</div>
+    </div>
+    <div class="factor-grid">${factors.map(f => `
+      <div class="f-cell"><div class="fv ${f.good?'good':''} ${f.bad?'bad':''}">${f.v}</div>
+      <div class="fl">${f.l}</div><div class="fs">${f.s}</div></div>`).join('')}
+    </div>
+    <div class="plan">
+      <details ${planOpen?'open':''}>
+        <summary><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>最佳买入时机${ICON_CHEV}</summary>
+        <div class="p-body">
+          <div class="p-row"><span class="p-tag">9:25 竞价</span><span class="p-txt">${c.buy.auction}</span></div>
+          <div class="p-row"><span class="p-tag">9:30-10:30</span><span class="p-txt">${c.buy.confirm}</span></div>
+          <div class="p-row"><span class="p-tag warn">放弃条件</span><span class="p-txt">${c.buy.abandon}</span></div>
+        </div>
+      </details>
+      <details>
+        <summary><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>卖出预案与止损${ICON_CHEV}</summary>
+        <div class="p-body"><div class="p-row"><span class="p-tag sell">T+2 卖出</span><span class="p-txt">${c.sell}</span></div></div>
+      </details>
+    </div>
+  </div>`;
+}
+function renderCands(){
+  $('c23List').innerHTML = D.candidates_2to3.length
+    ? D.candidates_2to3.map(c => candCard(c, false)).join('')
+    : '<div class="card" style="color:var(--secondary);">今日无符合条件的 2进3 候选</div>';
+  $('c34List').innerHTML = D.candidates_3to4.length
+    ? D.candidates_3to4.map(c => candCard(c, false)).join('')
+    : '<div class="card" style="color:var(--secondary);">今日无符合条件的 3进4 候选</div>';
+  $('c23Sub').textContent = `回测胜率 76% 区间 · 换手<10% + 封单强 + 首封早 + 0炸板 · 共 ${D.candidates_2to3.length} 只（个股65分+市场35分，开盘强度待竞价验证）`;
+}
+
+/* ── 监控表 ── */
+function renderWatch(){
+  const w = D.watch || [];
+  $('watchSub').textContent = w.length ? `共 ${w.length} 只昨日2板以上标的 · 新浪批量行情实时刷新` : '暂无监控数据（盘中运行自动生成）';
+  if (!w.length){ $('watchTbl').innerHTML = ''; return; }
+  $('watchTbl').innerHTML = `<tr><th>代码</th><th>名称</th><th>晋级</th><th>状态</th><th>现价</th><th>涨跌幅</th><th>封单</th><th>换手</th><th>炸板</th></tr>` +
+    w.map(x => {
+      const st = x.status.startsWith('✓') ? 'st-ok' : (x.status.startsWith('✗') ? 'st-bad' : 'st-mid');
+      return `<tr><td class="mono">${x.code}</td><td>${x.name}</td><td>${x.type}</td>
+        <td class="${st}">${x.status}</td><td class="mono">${x.price.toFixed(2)}</td>
+        <td class="mono ${pctCls(x.pct)}">${sign(x.pct, '%')}</td>
+        <td class="mono">${x.seal ? x.seal.toFixed(2)+'亿' : '—'}</td>
+        <td class="mono">${x.turn ? x.turn.toFixed(2)+'%' : '—'}</td><td class="mono">${x.zbc}次</td></tr>`;
+    }).join('');
+}
+
+/* ── 情绪 ── */
+function renderEmotion(){
+  const e = D.emotion;
+  const cells = [
+    [e.zt, '涨停家数', 'var(--red)'], [e.zb, '炸板家数', 'var(--orange)'],
+    [e.dt, '跌停家数', 'var(--green)'], [(e.seal_rate??'—') + (e.seal_rate!=null?'%':''), '封板率', 'var(--primary)'],
+    [e.max_lb + '板', '最高连板', 'var(--red)'], [e.first_board, '今日首板', 'var(--secondary)'],
+  ];
+  $('emoGrid').innerHTML = cells.map(c => `<div class="emo-cell"><div class="v" style="color:${c[2]}">${c[0]}</div><div class="l">${c[1]}</div></div>`).join('');
+}
+
+/* ── 图表 ── */
+function renderCharts(){
+  if (typeof echarts === 'undefined'){
+    ['ncTrend','ncLadder','ncPromo','ncZb'].forEach(id => { $(id).style.display='flex'; });
+    ['chTrend','chLadder','chPromo','chZb'].forEach(id => { $(id).style.display='none'; });
+    return;
+  }
+  const base = { textStyle:{ fontFamily: FONT }, grid:{ left:44, right:14, top:28, bottom:26 } };
+  const axStyle = { axisLine:{show:false}, axisTick:{show:false}, axisLabel:{ color:'#86868B', fontSize:11 }, splitLine:{ lineStyle:{ color:'rgba(60,60,67,.08)' } } };
+
+  // 1) 涨停趋势 (近120日)
+  const H = D.history, n = Math.min(120, H.dates.length);
+  const hd = H.dates.slice(-n).map(shortD), hz = H.zt.slice(-n), hm = H.max_lb.slice(-n);
+  echarts.init($('chTrend')).setOption({
+    ...base, tooltip:{ trigger:'axis', textStyle:{fontFamily:FONT} },
+    legend:{ data:['涨停家数','最高连板'], textStyle:{ fontFamily:FONT, fontSize:11, color:'#86868B' }, top:0, right:0, itemWidth:14 },
+    xAxis:{ type:'category', data:hd, ...axStyle, axisLabel:{...axStyle.axisLabel, interval: Math.floor(n/6)} },
+    yAxis:[ { type:'value', name:'家', ...axStyle, splitNumber:4 }, { type:'value', name:'板', ...axStyle, splitNumber:4 } ],
+    series:[
+      { name:'涨停家数', type:'line', data:hz, smooth:true, symbol:'none', lineWidth:1.5,
+        lineStyle:{ width:2, color:'#FF3B30' }, itemStyle:{ color:'#FF3B30' },
+        areaStyle:{ color:{ type:'linear', x:0,y:0,x2:0,y2:1, colorStops:[{offset:0,color:'rgba(255,59,48,.16)'},{offset:1,color:'rgba(255,59,48,0)'}]}}},
+      { name:'最高连板', type:'line', yAxisIndex:1, data:hm, smooth:true, symbol:'none',
+        lineStyle:{ width:1.5, color:'#007AFF', type:'dashed' }, itemStyle:{ color:'#007AFF' } },
+    ]});
+
+  // 2) 连板梯队
+  const lad = D.emotion.ladder || {};
+  echarts.init($('chLadder')).setOption({
+    ...base, tooltip:{ trigger:'axis', textStyle:{fontFamily:FONT} },
+    xAxis:{ type:'category', data:Object.keys(lad).map(k=>k+'板'), ...axStyle },
+    yAxis:{ type:'value', ...axStyle, splitNumber:4 },
+    series:[{ type:'bar', data:Object.values(lad), barWidth:'52%',
+      itemStyle:{ borderRadius:[6,6,0,0], color: p => p.dataIndex === 0 ? '#FF3B30' : (p.dataIndex <= 2 ? '#FF9500' : '#007AFF') } }],
+  });
+
+  // 3) 晋级率历史
+  const P = D.promo_history;
+  echarts.init($('chPromo')).setOption({
+    ...base, tooltip:{ trigger:'axis', textStyle:{fontFamily:FONT}, valueFormatter: v => v + '%' },
+    legend:{ data:['1进2','2进3'], textStyle:{ fontFamily:FONT, fontSize:11, color:'#86868B' }, top:0, right:0, itemWidth:14 },
+    xAxis:{ type:'category', data:P.dates.map(shortD), ...axStyle },
+    yAxis:{ type:'value', max:100, ...axStyle, splitNumber:4, axisLabel:{...axStyle.axisLabel, formatter:'{value}%'} },
+    series:[
+      { name:'1进2', type:'line', data:P.p12, smooth:true, symbolSize:5, lineStyle:{ width:2.2, color:'#007AFF' }, itemStyle:{ color:'#007AFF' },
+        markLine:{ symbol:'none', silent:true, label:{ show:true, position:'insideEndTop', fontFamily:FONT, fontSize:10 },
+          data:[ { yAxis:20, lineStyle:{ color:'#FF3B30', type:'dashed', width:1 }, label:{ formatter:'入场线 20%', color:'#FF3B30' } },
+                 { yAxis:50, lineStyle:{ color:'#34C759', type:'dashed', width:1 }, label:{ formatter:'强势线 50%', color:'#34C759' } } ] } },
+      { name:'2进3', type:'line', data:P.p23, smooth:true, symbolSize:5, lineStyle:{ width:2, color:'#FF9500' }, itemStyle:{ color:'#FF9500' } },
+    ]});
+
+  // 4) 涨停 vs 炸板
+  echarts.init($('chZb')).setOption({
+    ...base, tooltip:{ trigger:'axis', textStyle:{fontFamily:FONT} },
+    legend:{ data:['涨停','炸板'], textStyle:{ fontFamily:FONT, fontSize:11, color:'#86868B' }, top:0, right:0, itemWidth:14 },
+    xAxis:{ type:'category', data:P.dates.map(shortD), ...axStyle },
+    yAxis:{ type:'value', ...axStyle, splitNumber:4 },
+    series:[
+      { name:'涨停', type:'bar', stack:'a', data:P.dates.map((d,i) => D.history.zt[D.history.dates.indexOf(d)] ?? null),
+        barWidth:'55%', itemStyle:{ color:'rgba(255,59,48,.75)', borderRadius:[0,0,0,0] } },
+      { name:'炸板', type:'bar', stack:'a', data:P.zb, itemStyle:{ color:'rgba(255,149,0,.8)', borderRadius:[5,5,0,0] } },
+    ]});
+}
+
+/* ── 回测 ── */
+function renderBacktest(){
+  const B = D.backtest, g = B.golden || {}, m2 = (B.metrics||{})['2to3'] || {};
+  $('btHero').innerHTML = [
+    [g.win_rate + '%', '黄金组合胜率', 'var(--green)'], [sign(g.avg_ret, '%'), '平均单笔收益', 'var(--red)'],
+    [g.n + '笔', '黄金组合样本', 'var(--primary)'], [(B.meta||{}).n_days + '日', '回测区间跨度', 'var(--secondary)'],
+  ].map(c => `<div class="bt-cell"><div class="v" style="color:${c[2]}">${c[0]}</div><div class="l">${c[1]}</div></div>`).join('');
+  $('btNote').innerHTML = `⚠ 诚实提示: <b>未过滤的全量 2进3 为 ${m2.n||393}笔 / 胜率 ${m2.win_rate||44.8}% / 平均 ${sign(m2.avg_ret??-1.18,'%')}</b> — 期望为负。76% 胜率仅属于「情绪过滤 + 换手&lt;10% + 强封单 + 首封早 + 0炸板」的黄金组合子集。评分系统即按该子集因子构建, 低分标的本质是回到了负期望区。`;
+  const rec = g.recent || [];
+  if (rec.length){
+    $('btRecent').innerHTML = `<tr><th>信号日</th><th>代码</th><th>名称</th><th>入场日封板</th><th>收益</th><th>出场</th></tr>` +
+      rec.map(t => `<tr><td class="mono">${fmtDate(t.date)}</td><td class="mono">${t.code}</td><td>${t.name}</td>
+        <td>${t.sealed ? '<span class="st-ok">✓ 封住</span>' : '<span class="st-bad">✗ 炸板</span>'}</td>
+        <td class="mono ${pctCls(t.ret)}" style="font-weight:700">${sign(t.ret, '%')}</td>
+        <td style="font-size:12.5px;color:var(--secondary)">${t.exit.includes('high') ? 'T+2高开卖开盘' : 'T+2卖收盘'}</td></tr>`).join('');
+  }
+  // 分组胜率
+  const grp = (B.groups||{});
+  const mkGrp = (title, obj) => {
+    const rows = Object.entries(obj||{}).map(([k,v]) =>
+      `<tr><td style="font-weight:600;">${k.replace(/^[A-D]\./,'')}</td><td class="mono">${v.n}笔</td>
+       <td class="mono" style="color:${v.win_rate>=55?'var(--green)':v.win_rate>=45?'var(--orange)':'var(--red)'};font-weight:700">${v.win_rate}%</td>
+       <td class="mono ${pctCls(v.avg_ret)}">${sign(v.avg_ret,'%')}</td></tr>`).join('');
+    return `<div class="chart-box" style="padding:16px 14px 8px;"><h3 style="padding:0 4px 8px;">${title}</h3>
+      <table class="tbl"><tr><th>分组</th><th>样本</th><th>胜率</th><th>均收益</th></tr>${rows}</table></div>`;
+  };
+  $('grpGrid').innerHTML = mkGrp('信号日情绪分组', grp.emotion) + mkGrp('入场日开盘强度分组', grp.t1_open);
+}
+
+/* ── 规则 ── */
+function renderRules(){
+  const R = D.rules;
+  const box = (title, ico, bg, color, items) => `
+    <div class="rule-box"><h4><span class="r-ico" style="background:${bg};color:${color};">${ico}</span>${title}</h4>
+    <ul>${items.map(i => `<li>${i}</li>`).join('')}</ul></div>`;
+  $('ruleGrid').innerHTML =
+    box('入场信号门槛', '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>', 'var(--primary-soft)', 'var(--primary)', R.signal) +
+    box('买入窗口纪律', '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', 'var(--primary-soft)', 'var(--primary)', R.buy) +
+    box('卖出与止损', '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>', 'var(--green-soft)', 'var(--green)', R.sell) +
+    box('风控红线', '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>', 'var(--red-soft)', 'var(--red)', R.risk);
+}
+
+/* ── 侧边导航 ── */
+const NAV = [
+  ['sec-signal','信号','M13 2 3 14h7l-1 8 10-12h-7l1-8z'],
+  ['sec-rhythm','节奏','M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'],
+  ['sec-candidates','候选','M12 12c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4zm0 2c-4 0-8 2-8 5v3h16v-3c0-3-4-5-8-5z'],
+  ['sec-watch','监控','M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'],
+  ['sec-emotion','情绪','M3 3v18h18M18 9l-5 5-3-3-4 4'],
+  ['sec-backtest','回测','M12 20V10M18 20V4M6 20v-4'],
+  ['sec-rules','规则','M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'],
+];
+function renderNav(){
+  $('sideNav').innerHTML = NAV.map(n => `
+    <a href="#${n[0]}" data-t="${n[0]}"><span class="tip">${n[1]}</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${n[2]}"/></svg></a>`).join('');
+  const io = new IntersectionObserver(es => {
+    es.forEach(e => { if (e.isIntersecting){
+      document.querySelectorAll('.side-nav a').forEach(a => a.classList.toggle('on', a.dataset.t === e.target.id));
+    }});
+  }, { rootMargin: '-40% 0px -50% 0px' });
+  NAV.forEach(n => { const el = $(n[0]); if (el) io.observe(el); });
+}
+
+/* ── 粒子背景 ── */
+function particles(){
+  const cv = $('bgParticles'), ctx = cv.getContext('2d');
+  let W, Hh, pts = [];
+  function resize(){
+    W = cv.width = cv.offsetWidth * devicePixelRatio; Hh = cv.height = cv.offsetHeight * devicePixelRatio;
+    pts = Array.from({length: 26}, () => ({
+      x: Math.random()*W, y: Math.random()*Hh, r: (Math.random()*1.6+0.6)*devicePixelRatio,
+      vx: (Math.random()-.5)*.18*devicePixelRatio, vy: (Math.random()-.5)*.14*devicePixelRatio, a: Math.random()*.28+.06,
+    }));
+  }
+  resize(); addEventListener('resize', resize);
+  (function tick(){
+    ctx.clearRect(0,0,W,Hh);
+    for (const p of pts){
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = W; if (p.x > W) p.x = 0; if (p.y < 0) p.y = Hh; if (p.y > Hh) p.y = 0;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 7);
+      ctx.fillStyle = 'rgba(0,122,255,' + p.a + ')'; ctx.fill();
+    }
+    requestAnimationFrame(tick);
+  })();
+}
+
+/* ── Footer ── */
+function renderFooter(){
+  const m = D.meta;
+  $('footer').innerHTML = `打板情绪雷达 v${m.version} · 数据源: AkShare 整池接口 + 新浪批量行情 · 扫描耗时 ${m.scan_cost_s}s<br>
+  每日 15:10 / 09:26 / 10:30 自动刷新 · 评分体系基于 2024-09 ~ 2026-09 回测校准<br>
+  本页所有内容仅为历史数据回测与情绪解读, 不构成任何投资建议 · 股市有风险, 入市需谨慎`;
+}
+
+/* ── 渐入 ── */
+function fadeAll(){
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting){ e.target.classList.add('vis'); io.unobserve(e.target); }}), { threshold: .06 });
+  document.querySelectorAll('.fade').forEach(el => io.observe(el));
+}
+
+/* ── 启动 ── */
+if (D){
+  renderHero(); renderSignal(); renderTimeline(); renderCands(); renderWatch();
+  renderEmotion(); renderCharts(); renderBacktest(); renderRules(); renderNav(); renderFooter();
+  fadeAll(); particles();
+} else {
+  document.body.innerHTML = '<div style="padding:60px;text-align:center;color:#86868B;">数据文件缺失: 请先运行 web_build.py 生成 web/data.js</div>';
+}
+</script>
+</body>
+</html>
