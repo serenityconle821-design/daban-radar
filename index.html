@@ -46,7 +46,7 @@ body {
   background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
   padding: 26px 28px; margin-top: 22px;
 }
-section { scroll-margin-top: 24px; }
+section { scroll-margin-top: 88px; }
 .sec-title { display:flex; align-items:center; gap:10px; font-size:22px; font-weight:700; margin-bottom:16px; letter-spacing:-.3px; }
 .sec-title .ico { width:28px; height:28px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; background:var(--primary-soft); color:var(--primary); }
 .sec-title .ico svg { width:16px; height:16px; }
@@ -326,6 +326,97 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 /* ECharts 缺失降级 */
 .nochart { display:none; height:200px; align-items:center; justify-content:center; color:var(--secondary); font-size:13px; flex-direction:column; gap:8px; }
 
+/* ── 顶部导航栏(点击展开详情) ── */
+.topbar {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(255,255,255,.72);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 0 1px 0 rgba(60,60,67,.05), 0 10px 30px rgba(0,0,0,.03);
+}
+.topbar-inner { max-width:1100px; margin:0 auto; padding:10px 20px 8px; display:flex; align-items:center; gap:14px; }
+.brand { display:flex; align-items:center; gap:10px; flex:none; }
+.brand-dot { width:10px; height:10px; border-radius:50%; background:var(--primary); flex:none; animation: brandPulse 2.6s ease-in-out infinite; }
+@keyframes brandPulse { 0%,100%{ box-shadow:0 0 0 3px rgba(0,122,255,.14);} 50%{ box-shadow:0 0 0 7px rgba(0,122,255,.04);} }
+.brand-name { font-size:15.5px; font-weight:800; letter-spacing:-.3px; line-height:1.2; }
+.brand-meta { font-size:11px; color:var(--secondary); font-variant-numeric:tabular-nums; line-height:1.3; }
+.topnav { display:flex; align-items:center; gap:2px; margin-left:auto; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+.topnav::-webkit-scrollbar{ display:none; }
+.tnav-item {
+  display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:0 12px;
+  border-radius:18px; border:none; background:transparent; font-family:inherit;
+  font-size:13.5px; font-weight:600; line-height:1; color:var(--secondary);
+  cursor:pointer; white-space:nowrap; user-select:none; transition: background .2s ease, color .2s ease;
+}
+.tnav-item svg { width:15px; height:15px; }
+.tnav-item:hover { background:var(--bg); color:var(--text); }
+.tnav-item.on { background:var(--primary); color:#fff; }
+.tnav-item .arr { width:12px; height:12px; transition: transform .32s cubic-bezier(.32,.72,.35,1); }
+.tnav-item.on .arr { transform: rotate(180deg); }
+
+/* 展开面板 */
+.np-wrap { display:grid; grid-template-rows:0fr; transition: grid-template-rows .42s cubic-bezier(.32,.72,.35,1); }
+.np-wrap.open { grid-template-rows:1fr; }
+.np-clip { overflow:hidden; min-height:0; }
+.np-body { max-width:1100px; margin:0 auto; padding:2px 20px 18px; }
+.np-card {
+  background:var(--card); border-radius:16px; box-shadow: 0 4px 12px rgba(0,0,0,.05), 0 16px 40px rgba(0,0,0,.06);
+  padding:18px 20px 14px; opacity:0; transform:translateY(-8px);
+  transition: opacity .3s ease .06s, transform .42s cubic-bezier(.32,.72,.35,1) .06s;
+}
+.np-wrap.open .np-card { opacity:1; transform:translateY(0); }
+.np-head { display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+.np-head .h-ico { width:26px; height:26px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; background:var(--primary-soft); color:var(--primary); flex:none; }
+.np-head .h-ico svg { width:14px; height:14px; }
+.np-title { font-size:15.5px; font-weight:700; }
+.np-badge { display:inline-flex; align-items:center; min-height:24px; padding:0 10px; border-radius:12px; font-size:12px; font-weight:700; }
+.np-badge.ok, .np-badge.green { background:var(--green-soft); color:var(--green); }
+.np-badge.no { background:var(--red-soft); color:var(--red); }
+.np-badge.blue { background:var(--primary-soft); color:var(--primary); }
+.np-badge.gray { background:var(--sep); color:var(--secondary); }
+.np-goto {
+  margin-left:auto; display:inline-flex; align-items:center; gap:5px; min-height:34px; padding:0 14px;
+  border:none; border-radius:17px; background:var(--primary-soft); color:var(--primary);
+  font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer; transition: background .2s;
+}
+.np-goto:hover { background:rgba(0,122,255,.15); }
+.np-stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap:8px; }
+.np-stat { background:var(--bg); border-radius:12px; padding:11px 13px; }
+.np-stat .v { font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.3px; }
+.np-stat .l { font-size:11px; color:var(--secondary); margin-top:2px; }
+.np-rows { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+.np-row {
+  display:grid; grid-template-columns: 1fr auto auto auto; align-items:center; gap:14px;
+  background:var(--bg); border-radius:12px; padding:9px 14px; font-size:13.5px;
+}
+.np-row .nm { font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-width:0; }
+.np-row .nm .code { font-weight:600; color:var(--secondary); font-size:12px; font-variant-numeric:tabular-nums; }
+.np-row .v { font-variant-numeric:tabular-nums; font-weight:600; }
+.np-note { margin-top:10px; font-size:12.5px; color:var(--secondary); background:var(--bg); border-radius:10px; padding:9px 13px; line-height:1.55; }
+.np-stages { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.np-stage { background:var(--bg); border-radius:12px; padding:12px 14px; }
+.np-stage .t { font-size:12px; font-weight:700; color:var(--secondary); font-variant-numeric:tabular-nums; }
+.np-stage .n { font-size:14.5px; font-weight:700; margin-top:2px; }
+.np-stage .d { font-size:11.5px; color:var(--secondary); margin-top:1px; }
+.np-stage.active { background:var(--primary-soft); } .np-stage.active .t { color:var(--primary); }
+.np-stage.done { background:var(--green-soft); } .np-stage.done .t { color:var(--green); }
+.np-rules { background:var(--bg); border-radius:12px; padding:11px 14px; font-size:12.5px; color:var(--secondary); line-height:1.55; }
+.np-rules b { display:block; color:var(--text); font-size:13px; margin-bottom:4px; }
+.np-rules + .np-rules { margin-top:8px; }
+@keyframes npIn { from { opacity:0; transform:translateY(7px);} to { opacity:1; transform:none; } }
+.np-wrap.open .np-anim { animation: npIn .38s cubic-bezier(.2,.8,.2,1) both; }
+.np-wrap.open .np-anim:nth-child(2){ animation-delay:.05s; }
+.np-wrap.open .np-anim:nth-child(3){ animation-delay:.1s; }
+.np-wrap.open .np-anim:nth-child(4){ animation-delay:.15s; }
+@media (max-width:720px){
+  .topbar-inner { flex-wrap:wrap; padding:8px 16px 4px; gap:6px 12px; }
+  .topnav { order:2; width:100%; margin-left:0; padding-bottom:4px; }
+  .np-body { padding:2px 16px 16px; }
+  .np-stages { grid-template-columns:1fr; }
+  .np-row { grid-template-columns: 1fr auto; row-gap:4px; }
+  .np-goto { margin-left:0; }
+}
+
 @media (max-width: 900px) {
   .hero h1 { font-size: 40px; }
   .tl { grid-template-columns: 1fr; }
@@ -342,6 +433,123 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 </style>
 </head>
 <body>
+
+<!-- ═══ 顶部导航栏(点击展开详情) ═══ -->
+<div class="topbar" id="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-dot"></div>
+      <div>
+        <div class="brand-name">打板情绪雷达</div>
+        <div class="brand-meta" id="brandMeta">加载中…</div>
+      </div>
+    </div>
+    <div class="topnav">
+      <button class="tnav-item" data-target="np-overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        概览<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <button class="tnav-item" data-target="np-signal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+        信号<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <button class="tnav-item" data-target="np-rhythm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        节奏<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <button class="tnav-item" data-target="np-cands">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4zm0 2c-4 0-8 2-8 5v3h16v-3c0-3-4-5-8-5z"/></svg>
+        候选<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <button class="tnav-item" data-target="np-dragon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6 M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+        龙回头<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <button class="tnav-item" data-target="np-backtest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+        回测<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- 面板① 概览 -->
+  <div class="np-wrap" id="np-overview">
+    <div class="np-clip"><div class="np-body"><div class="np-card">
+      <div class="np-head">
+        <div class="h-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+        <div class="np-title">策略概览</div>
+        <span class="np-badge" id="npOvBadge">—</span>
+        <button class="np-goto" data-goto="sec-signal">查看详情<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+      </div>
+      <div id="npOvBody"></div>
+    </div></div></div>
+  </div>
+
+  <!-- 面板② 信号 -->
+  <div class="np-wrap" id="np-signal">
+    <div class="np-clip"><div class="np-body"><div class="np-card">
+      <div class="np-head">
+        <div class="h-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg></div>
+        <div class="np-title">信号三条件</div>
+        <span class="np-badge" id="npSgBadge">—</span>
+        <button class="np-goto" data-goto="sec-signal">查看详情<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+      </div>
+      <div id="npSgBody"></div>
+    </div></div></div>
+  </div>
+
+  <!-- 面板③ 节奏 -->
+  <div class="np-wrap" id="np-rhythm">
+    <div class="np-clip"><div class="np-body"><div class="np-card">
+      <div class="np-head">
+        <div class="h-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div class="np-title">三段式节奏</div>
+        <span class="np-badge" id="npRhBadge">—</span>
+        <button class="np-goto" data-goto="sec-rhythm">查看详情<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+      </div>
+      <div id="npRhBody"></div>
+    </div></div></div>
+  </div>
+
+  <!-- 面板④ 候选 -->
+  <div class="np-wrap" id="np-cands">
+    <div class="np-clip"><div class="np-body"><div class="np-card">
+      <div class="np-head">
+        <div class="h-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4zm0 2c-4 0-8 2-8 5v3h16v-3c0-3-4-5-8-5z"/></svg></div>
+        <div class="np-title">明日候选名单</div>
+        <span class="np-badge" id="npCdBadge">—</span>
+        <button class="np-goto" data-goto="sec-candidates">查看详情<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+      </div>
+      <div id="npCdBody"></div>
+    </div></div></div>
+  </div>
+
+  <!-- 面板⑤ 龙回头 -->
+  <div class="np-wrap" id="np-dragon">
+    <div class="np-clip"><div class="np-body"><div class="np-card">
+      <div class="np-head">
+        <div class="h-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6 M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></div>
+        <div class="np-title">龙回头 · 分层策略</div>
+        <span class="np-badge" id="npDrBadge">—</span>
+        <button class="np-goto" data-goto="sec-dragons">查看详情<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+      </div>
+      <div id="npDrBody"></div>
+    </div></div></div>
+  </div>
+
+  <!-- 面板⑥ 回测 -->
+  <div class="np-wrap" id="np-backtest">
+    <div class="np-clip"><div class="np-body"><div class="np-card">
+      <div class="np-head">
+        <div class="h-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10M18 20V4M6 20v-4"/></svg></div>
+        <div class="np-title">回测基准</div>
+        <span class="np-badge" id="npBtBadge">—</span>
+        <button class="np-goto" data-goto="sec-backtest">查看详情<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+      </div>
+      <div id="npBtBody"></div>
+    </div></div></div>
+  </div>
+</div>
 
 <nav class="side-nav" id="sideNav"></nav>
 
@@ -1006,10 +1214,168 @@ function fadeAll(){
   document.querySelectorAll('.fade').forEach(el => io.observe(el));
 }
 
+/* ── 顶部导航栏: 面板渲染 ── */
+function npStat(v, l, color){
+  return `<div class="np-stat np-anim"><div class="v" ${color ? `style="color:${color}"` : ''}>${v}</div><div class="l">${l}</div></div>`;
+}
+function npRow(nm, v1, v2, v3, color){
+  return `<div class="np-row np-anim">
+    <span class="nm">${nm}</span>
+    <span class="v">${v1}</span>
+    <span class="v" style="color:var(--tertiary);font-size:12px;">${v2}</span>
+    <span class="v" style="color:${color||'var(--secondary)'};font-weight:700;">${v3}</span>
+  </div>`;
+}
+function renderPanels(){
+  const m = D.meta || {}, sg = D.signal || {}, mk = D.market || {};
+  const c23 = D.candidates_2to3 || [], c34 = D.candidates_3to4 || [], dr = D.dragons || [];
+  const B = D.backtest || {}, g = B.golden || {}, dbt = B.dragon || {};
+  const opt = dbt.optimized || {}, vs = dbt.vs_daban || {};
+  const aT = opt.a_tier || {}, bT = opt.b_tier || {};
+  const comboAnn = vs.combo_optimized || vs.combo_annual || 142.5;
+
+  $('brandMeta').textContent = 'v' + m.version + ' · ' + (m.date_label || '') + ' · ' + (m.stage_label || '');
+
+  // ① 概览
+  const cands = c23.length + c34.length;
+  const all = c23.concat(c34).sort((a,b) => (b.score||0) - (a.score||0));
+  const top = all[0];
+  $('npOvBadge').textContent = sg.pass ? '信号有效' : '信号失效';
+  $('npOvBadge').className = 'np-badge ' + (sg.pass ? 'ok' : 'no');
+  $('npOvBody').innerHTML = `
+    <div class="np-stats">
+      ${npStat(sg.pass ? '有效' : '失效', '今日信号', sg.pass ? 'var(--green)' : 'var(--red)')}
+      ${npStat((mk.score ?? 0) + '/35', '市场环境分')}
+      ${npStat(sg.p12 == null ? '—' : sg.p12 + '%', '1进2晋级率', sg.p12 >= 50 ? 'var(--green)' : sg.p12 >= 20 ? 'var(--primary)' : 'var(--orange)')}
+      ${npStat(cands + '只', '明日候选名单')}
+      ${npStat(dr.length + '只', '龙回头信号')}
+    </div>
+    <div class="np-note">${top
+      ? `当前评分最高: <b>${top.name}</b>（${(top.score||0).toFixed(1)}分 · ${top.tier_txt||''} · ${((top.action||{}).label)||''}）· `
+      : '今日无符合条件的候选 · 规则下观望为主 · '}
+      每日三段式节奏: 15:10 名单生成 → 09:26 竞价验证 → 10:30 定型复查</div>`;
+
+  // ② 信号
+  const ck = sg.checks || [null, null, null];
+  const rows2 = [
+    ['昨日涨停家数', sg.y_zt, '≥45家', ck[0]],
+    ['昨日最高连板', sg.y_max_lb, '≥4板', ck[1]],
+    ['1进2晋级率', sg.p12 == null ? '—' : sg.p12 + '%', '≥20%', ck[2]],
+  ];
+  $('npSgBadge').textContent = sg.pass ? '三条件齐备' : '条件不足';
+  $('npSgBadge').className = 'np-badge ' + (sg.pass ? 'ok' : 'no');
+  $('npSgBody').innerHTML = `
+    <div class="np-rows">
+      ${rows2.map(r => npRow(r[0], r[1] == null ? '—' : r[1], '要求 ' + r[2], r[3] ? '✓ 通过' : '✗ 未达', r[3] ? 'var(--green)' : 'var(--red)')).join('')}
+    </div>
+    <div class="np-stats" style="margin-top:10px;">
+      ${npStat((mk.p12_score ?? 0) + '/20', 'p12趋势分')}
+      ${npStat((mk.cond_score ?? 0) + '/10', '三条件分')}
+      ${npStat((mk.temp_score ?? 0) + '/5', '情绪温度(' + (mk.zt||0) + '家涨停)')}
+    </div>
+    <div class="np-note">信号有效 = 三条件同时满足，才有入场资格；p12 需次日 9:25 竞价数据最终验证。失效日以观望为主，不逆势操作。</div>`;
+
+  // ③ 节奏
+  const tl = D.timeline || [];
+  $('npRhBadge').textContent = m.stage_label || '—';
+  $('npRhBadge').className = 'np-badge blue';
+  $('npRhBody').innerHTML = `
+    <div class="np-stages">
+      ${tl.map(t => `<div class="np-stage ${t.status === 'done' ? 'done' : t.status === 'active' ? 'active' : ''} np-anim">
+        <div class="t">${t.time}</div><div class="n">${t.title}</div><div class="d">${t.desc}</div>
+      </div>`).join('')}
+    </div>
+    <div class="np-note">当前阶段: <b>${m.stage_label || '—'}</b> · 名单始终是"次日预案"，盘中按 09:26 竞价验证结果决定是否执行，10:30 复查定型。</div>`;
+
+  // ④ 候选
+  $('npCdBadge').textContent = cands ? cands + '只候选' : '今日无候选';
+  $('npCdBadge').className = 'np-badge ' + (cands ? 'blue' : 'gray');
+  $('npCdBody').innerHTML = cands ? `
+    <div class="np-rows">
+      ${all.slice(0, 5).map(c => npRow(
+        `${c.name}<span class="code">${c.code}</span>`,
+        `${c.lb}板→${(c.lb||0)+1}板`,
+        (c.score||0).toFixed(1) + '分 · ' + (c.tier_txt||''),
+        ((c.action||{}).label) || '',
+        TIER_COLOR[c.tier] || 'var(--primary)'
+      )).join('')}
+    </div>
+    <div class="np-note">完整卡片含换手率/封单额/首封时间/炸板次数/买入参考价/止损价/买卖时机预案 — 点击「查看详情」展开。</div>`
+    : '<div class="np-note">今日无符合条件的候选标的 · 等待下一轮 15:10 盘后扫描。</div>';
+
+  // ⑤ 龙回头
+  const aList = dr.filter(d => d.tier === 'strong');
+  $('npDrBadge').textContent = aList.length ? 'A级 ' + aList.length + '只' : (dr.length ? 'B级 ' + dr.length + '只' : '无信号');
+  $('npDrBadge').className = 'np-badge ' + (aList.length ? 'ok' : dr.length ? 'blue' : 'gray');
+  $('npDrBody').innerHTML = `
+    <div class="np-stats">
+      ${npStat((aT.win_rate ?? 76.9) + '%', 'A级回测胜率', 'var(--green)')}
+      ${npStat(sign(aT.avg_ret ?? 11.97, '%'), 'A级平均收益', 'var(--green)')}
+      ${npStat((bT.win_rate ?? 58.2) + '%', 'B级回测胜率', 'var(--primary)')}
+      ${npStat((vs.combo_optimized || comboAnn) + '%', '组合年化(1/4 Kelly)', 'var(--green)')}
+    </div>
+    ${dr.length ? `<div class="np-rows">
+      ${dr.slice(0, 4).map(d => npRow(
+        `${d.name}<span class="code">${d.code}</span><span style="font-size:11px;font-weight:700;color:${d.tier === 'strong' ? 'var(--green)' : 'var(--primary)'}">${d.tier_label||''}</span>`,
+        d.lb + '连板 · 回踩' + (d.touch||'MA'),
+        '买 ' + (d.buy_price ?? '—'),
+        '止损 ' + (d.stop_loss ?? '—'),
+        d.tier === 'strong' ? 'var(--green)' : 'var(--primary)'
+      )).join('')}
+    </div>` : '<div class="np-note">今日无连板股回踩MA信号 · 该策略在连板股数量较多时效果更佳。</div>'}
+    <div class="np-note">A级: 连板≥3回踩MA + 上影&lt;5% · 止损-2% · T+1高开≥7%卖 · 仓位≤18.5%；B级: 连板=2 · 止损-2.5% · T+1高开≥3%卖 · 仓位≤10%。</div>`;
+
+  // ⑥ 回测
+  $('npBtBadge').textContent = (g.n || 62) + '笔黄金组合';
+  $('npBtBadge').className = 'np-badge blue';
+  $('npBtBody').innerHTML = `
+    <div class="np-stats">
+      ${npStat((g.n || 62) + '笔', '黄金组合样本')}
+      ${npStat((g.win_rate || 76) + '%', '打板胜率', 'var(--green)')}
+      ${npStat(sign(g.avg_ret ?? 4.7, '%'), '打板平均收益')}
+      ${npStat((dbt.n || 68) + '笔', '龙回头样本')}
+      ${npStat((dbt.win_rate ?? 66.2) + '%', '龙回头胜率', 'var(--green)')}
+      ${npStat(sign(dbt.avg_ret ?? 4.66, '%'), '龙回头平均收益')}
+    </div>
+    <div class="np-note">⚠ 诚实提示: 76% 胜率仅属于「情绪过滤+换手&lt;10%+强封单+首封早+0炸板」的黄金组合子集，未过滤的全量 2进3 为负期望。年化基于 1/4 Kelly 仓位回测，历史表现不代表未来收益。</div>`;
+}
+
+/* ── 导航栏点击展开/收起(手风琴) ── */
+function closePanels(){
+  document.querySelectorAll('.tnav-item.on').forEach(o => o.classList.remove('on'));
+  document.querySelectorAll('.np-wrap.open').forEach(p => p.classList.remove('open'));
+}
+function initTopnav(){
+  document.querySelectorAll('.tnav-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const target = $(item.dataset.target);
+      if (!target) return;
+      const willOpen = !item.classList.contains('on');
+      closePanels();
+      if (willOpen){ item.classList.add('on'); target.classList.add('open'); }
+    });
+  });
+  document.querySelectorAll('.np-goto').forEach(btn => {
+    btn.addEventListener('click', () => {
+      closePanels();
+      const sec = $(btn.dataset.goto);
+      // 等面板收起动画(420ms)完成后, 基于最终布局计算滚动位置, 避免锚点偏移
+      if (sec) setTimeout(() => sec.scrollIntoView({ behavior:'smooth' }), 470);
+    });
+  });
+  // 点击导航栏以外区域自动收起
+  document.addEventListener('click', e => {
+    if (!document.getElementById('topbar').contains(e.target)) closePanels();
+  });
+  // ESC 收起
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanels(); });
+}
+
 /* ── 启动 ── */
 if (D){
   renderHero(); renderSignal(); renderTimeline(); renderCands(); renderDragons(); renderWatch();
   renderEmotion(); renderCharts(); renderBacktest(); renderRules(); renderNav(); renderFooter();
+  renderPanels(); initTopnav();
   fadeAll(); particles();
 } else {
   document.body.innerHTML = '<div style="padding:60px;text-align:center;color:#86868B;">数据文件缺失: 请先运行 web_build.py 生成 web/data.js</div>';
