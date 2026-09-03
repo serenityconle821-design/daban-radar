@@ -160,6 +160,47 @@ section { scroll-margin-top: 24px; }
 .plan .p-tag.sell { background:var(--green-soft); color:var(--green); }
 .plan .p-txt b { font-variant-numeric:tabular-nums; }
 
+/* ── 操作总方针横幅 ── */
+.master {
+  position:relative; margin-top:22px; background:var(--card); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:22px 26px 22px 30px;
+}
+.master::before { content:''; position:absolute; left:0; top:16px; bottom:16px; width:5px; border-radius:0 3px 3px 0; }
+.master.buy::before { background:var(--green); }
+.master.ready::before { background:var(--primary); }
+.master.wait::before { background:var(--orange); }
+.master .m-title { display:flex; align-items:center; gap:9px; font-size:21px; font-weight:800; letter-spacing:-.3px; }
+.master.buy .m-title { color:var(--green); }
+.master.ready .m-title { color:var(--primary); }
+.master.wait .m-title { color:var(--orange); }
+.master .m-title svg { width:20px; height:20px; flex:none; }
+.master .m-desc { margin-top:7px; font-size:15px; line-height:1.65; }
+.master .m-note {
+  margin-top:12px; padding-top:12px; border-top:1px solid var(--sep);
+  font-size:12.5px; color:var(--secondary); line-height:1.6;
+}
+
+/* ── 候选卡操作建议行 ── */
+.act-row {
+  display:flex; align-items:center; gap:12px; margin-top:16px; padding:13px 16px;
+  border-radius:12px; background:var(--bg); flex-wrap:wrap;
+}
+.act-chip {
+  display:inline-flex; align-items:center; justify-content:center; gap:6px; flex:none;
+  min-height:36px; padding:0 16px; border-radius:10px; font-size:15px; font-weight:800; color:#fff;
+  letter-spacing:.3px; white-space:nowrap;
+}
+.act-chip svg { width:15px; height:15px; }
+.act-chip.buy { background:var(--green); }
+.act-chip.buy_light { background:var(--primary); }
+.act-chip.watch { background:var(--orange); }
+.act-chip.skip { background:var(--gray-badge); }
+.act-desc { flex:1; min-width:200px; font-size:13.5px; color:var(--secondary); line-height:1.55; }
+.act-price { display:flex; gap:16px; font-size:12.5px; color:var(--secondary); flex:none; }
+.act-price b { font-size:14.5px; color:var(--text); font-variant-numeric:tabular-nums; }
+.act-price .stop { color:var(--red); }
+.act-price .stop b { color:var(--red); }
+
 /* ── 监控表 ── */
 .tbl { width:100%; border-collapse:collapse; font-size:14px; }
 .tbl th { text-align:left; color:var(--secondary); font-weight:600; font-size:12.5px; padding:8px 10px; border-bottom:1px solid var(--sep); white-space:nowrap; }
@@ -188,6 +229,27 @@ section { scroll-margin-top: 24px; }
 .bt-cell .l { font-size:12px; color:var(--secondary); }
 .bt-note { font-size:13px; color:var(--secondary); background:var(--orange-soft); border-radius:12px; padding:10px 14px; margin-bottom:16px; }
 .grp-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+
+/* ── 入场方式对比(当日盘中买 vs 隔夜排单) ── */
+.ec-title { display:flex; align-items:center; gap:9px; font-size:18px; font-weight:800; margin:20px 0 3px; letter-spacing:-.3px; }
+.ec-title svg { width:17px; height:17px; color:var(--primary); flex:none; }
+.ec-sub { font-size:13px; color:var(--secondary); margin-bottom:10px; }
+.ec-box { border-radius:14px; background:var(--bg); padding:2px 16px; }
+.ec-row { display:flex; align-items:center; gap:14px; padding:14px 0; border-bottom:1px solid var(--sep); }
+.ec-row:last-child { border-bottom:none; }
+.ec-badge { flex:none; width:46px; height:46px; border-radius:13px; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800; letter-spacing:.5px; }
+.ec-badge.tzi { background:var(--green-soft); color:var(--green); }
+.ec-badge.solid { background:var(--primary-soft); color:var(--primary); }
+.ec-badge.yizi { background:var(--sep); color:var(--gray-badge); }
+.ec-info { flex:1; min-width:0; }
+.ec-name { font-size:16px; font-weight:700; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.ec-name .pill { font-size:11px; }
+.ec-way { font-size:12.5px; color:var(--secondary); margin-top:2px; line-height:1.55; }
+.ec-stats { flex:none; text-align:right; min-width:96px; }
+.ec-wr { font-size:21px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.4px; }
+.ec-ar { font-size:12.5px; color:var(--secondary); font-variant-numeric:tabular-nums; }
+.ec-foot { margin-top:12px; font-size:13px; color:var(--secondary); line-height:1.7; background:var(--primary-soft); border-radius:12px; padding:12px 16px; }
+.ec-foot b { color:var(--text); }
 
 /* ── 规则 ── */
 .rule-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:14px; }
@@ -238,6 +300,8 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
   .bt-hero { grid-template-columns: repeat(2, 1fr); }
   .factor-grid { grid-template-columns: repeat(3, 1fr); }
   .side-nav { display:none; }
+  .ec-row { flex-wrap:wrap; }
+  .ec-stats { width:100%; display:flex; align-items:baseline; gap:16px; text-align:left; min-width:0; margin-top:4px; }
 }
 </style>
 </head>
@@ -291,6 +355,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 
   <!-- ═══ 候选股 ═══ -->
   <section id="sec-candidates" class="fade">
+    <div class="master" id="masterAction" style="display:none;"></div>
     <div class="sec-title" style="margin:34px 0 4px;">
       <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
       <span>次日候选 · 2进3 黄金组合</span>
@@ -341,6 +406,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
     </div>
     <div class="bt-hero" id="btHero"></div>
     <div class="bt-note" id="btNote"></div>
+    <div id="entryCmp"></div>
     <div style="overflow-x:auto;"><table class="tbl" id="btRecent"></table></div>
     <div class="grp-grid" id="grpGrid" style="margin-top:16px;"></div>
   </section>
@@ -451,7 +517,29 @@ function renderTimeline(){
     </div>`).join('');
 }
 
-/* ── 候选卡 ── */
+/* ── 操作总方针 + 候选卡 ── */
+const ACT_ICO = {
+  buy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  buy_light: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  watch: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+  skip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+};
+function renderMaster(){
+  const M = D.master_action;
+  if (!M) return;
+  const el = $('masterAction');
+  el.style.display = '';
+  el.className = 'master ' + M.level;
+  const ico = M.level === 'buy'
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+    : (M.level === 'ready'
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>');
+  el.innerHTML = `
+    <div class="m-title">${ico}${M.title}</div>
+    <div class="m-desc">${M.desc}</div>
+    <div class="m-note">${M.note}</div>`;
+}
 function candCard(c, planOpen){
   const color = TIER_COLOR[c.tier];
   const factors = [
@@ -463,6 +551,16 @@ function candCard(c, planOpen){
   ];
   const inner = `<div class="num"><b style="color:${color}">${Math.round(c.score)}</b><span>确定性</span></div>`;
   const tag = c.tag ? `<span class="pill cautious">${c.tag}</span>` : '';
+  const A = c.action || {};
+  const actRow = A.key ? `
+    <div class="act-row">
+      <span class="act-chip ${A.key}">${ACT_ICO[A.key] || ''}${A.label}</span>
+      <span class="act-desc">${A.desc}</span>
+      <span class="act-price">
+        <span>买入参考 <b>${A.buy_price}</b></span>
+        <span class="stop">止损 <b>${A.stop_loss}</b></span>
+      </span>
+    </div>` : '';
   return `
   <div class="cand">
     <div class="cand-head">
@@ -474,6 +572,7 @@ function candCard(c, planOpen){
       </div>
       <div class="cand-ring">${ringHTML(88, 8, c.score/100, color, inner)}</div>
     </div>
+    ${actRow}
     <div class="factor-grid">${factors.map(f => `
       <div class="f-cell"><div class="fv ${f.good?'good':''} ${f.bad?'bad':''}">${f.v}</div>
       <div class="fl">${f.l}</div><div class="fs">${f.s}</div></div>`).join('')}
@@ -487,7 +586,7 @@ function candCard(c, planOpen){
           <div class="p-row"><span class="p-tag warn">放弃条件</span><span class="p-txt">${c.buy.abandon}</span></div>
         </div>
       </details>
-      <details>
+      <details ${planOpen?'open':''}>
         <summary><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>卖出预案与止损${ICON_CHEV}</summary>
         <div class="p-body"><div class="p-row"><span class="p-tag sell">T+2 卖出</span><span class="p-txt">${c.sell}</span></div></div>
       </details>
@@ -495,11 +594,12 @@ function candCard(c, planOpen){
   </div>`;
 }
 function renderCands(){
+  renderMaster();
   $('c23List').innerHTML = D.candidates_2to3.length
-    ? D.candidates_2to3.map(c => candCard(c, false)).join('')
+    ? D.candidates_2to3.map(c => candCard(c, true)).join('')
     : '<div class="card" style="color:var(--secondary);">今日无符合条件的 2进3 候选</div>';
   $('c34List').innerHTML = D.candidates_3to4.length
-    ? D.candidates_3to4.map(c => candCard(c, false)).join('')
+    ? D.candidates_3to4.map(c => candCard(c, true)).join('')
     : '<div class="card" style="color:var(--secondary);">今日无符合条件的 3进4 候选</div>';
   $('c23Sub').textContent = `回测胜率 76% 区间 · 换手<10% + 封单强 + 首封早 + 0炸板 · 共 ${D.candidates_2to3.length} 只（个股65分+市场35分，开盘强度待竞价验证）`;
 }
@@ -603,6 +703,7 @@ function renderBacktest(){
     [g.n + '笔', '黄金组合样本', 'var(--primary)'], [(B.meta||{}).n_days + '日', '回测区间跨度', 'var(--secondary)'],
   ].map(c => `<div class="bt-cell"><div class="v" style="color:${c[2]}">${c[0]}</div><div class="l">${c[1]}</div></div>`).join('');
   $('btNote').innerHTML = `⚠ 诚实提示: <b>未过滤的全量 2进3 为 ${m2.n||393}笔 / 胜率 ${m2.win_rate||44.8}% / 平均 ${sign(m2.avg_ret??-1.18,'%')}</b> — 期望为负。76% 胜率仅属于「情绪过滤 + 换手&lt;10% + 强封单 + 首封早 + 0炸板」的黄金组合子集。评分系统即按该子集因子构建, 低分标的本质是回到了负期望区。`;
+  renderEntryCmp();
   const rec = g.recent || [];
   if (rec.length){
     $('btRecent').innerHTML = `<tr><th>信号日</th><th>代码</th><th>名称</th><th>入场日封板</th><th>收益</th><th>出场</th></tr>` +
@@ -622,6 +723,52 @@ function renderBacktest(){
       <table class="tbl"><tr><th>分组</th><th>样本</th><th>胜率</th><th>均收益</th></tr>${rows}</table></div>`;
   };
   $('grpGrid').innerHTML = mkGrp('信号日情绪分组', grp.emotion) + mkGrp('入场日开盘强度分组', grp.t1_open);
+}
+
+/* ── 入场方式对比: 当日盘中买 vs 隔夜排单 ── */
+function renderEntryCmp(){
+  const B = D.backtest || {}, g = B.golden || {}, et = g.entry_types || {};
+  const yb = B.yizi_baseline;
+  const row = (badge, cls, name, tag, tagCls, way, st, wrColor) => {
+    const zero = !st || !st.n;
+    return `
+    <div class="ec-row">
+      <div class="ec-badge ${cls}">${badge}</div>
+      <div class="ec-info">
+        <div class="ec-name">${name} <span class="pill ${tagCls}">${tag}</span></div>
+        <div class="ec-way">${way}</div>
+      </div>
+      <div class="ec-stats">
+        ${zero
+          ? `<div class="ec-wr" style="color:var(--gray-badge)">0笔</div><div class="ec-ar">回测无样本</div>`
+          : `<div class="ec-wr" style="color:${wrColor}">${st.win_rate}%</div>
+             <div class="ec-ar">${st.n}笔 · 均收益 ${sign(st.avg_ret,'%')}</div>`}
+      </div>
+    </div>`;
+  };
+  const foot = yb
+    ? `全量口径参考(假设隔夜单100%成交的估算): 一字板约 ${yb.n}笔 / 胜率约 ${yb.win_rate}% / 平均约 ${sign(yb.avg_ret,'%')} — 明显低于黄金组合的 ${g.win_rate}% / ${sign(g.avg_ret,'%')}，且散户排单实际成交率远低于100%（能排到的多为封单转弱标的）。`
+    : '';
+  $('entryCmp').innerHTML = `
+    <div class="ec-title">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a4 4 0 0 0 4 4h3"/><path d="M15 7h6v6"/><path d="M8 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3"/></svg>
+      当日盘中买 vs 隔夜排单 · ${g.n}笔回测对比
+    </div>
+    <div class="ec-sub">黄金组合 ${g.n}笔入场形态拆解 — 打板是「当日盘中买入」，不依赖隔夜单</div>
+    <div class="ec-box">
+      ${row('T字', 'tzi', 'T字板 · 当日盘中买', '胜率最高', 'strong',
+        '开盘即涨停 → 盘中短暂开板 → 快速回封。开板瞬间挂涨停价买入，回封确认持有；均亏仅' + ((et.tzi||{}).avg_loss ?? -2.7) + '%',
+        et.tzi, 'var(--green)')}
+      ${row('实体', 'solid', '实体板 · 当日盘中打板', '主力形态', 'steady',
+        '高开0-7%回踩后拉升触板，触板瞬间以涨停价委托买入 — 回测样本主体，普通行情下的标准打法',
+        et.solid, 'var(--primary)')}
+      ${row('一字', 'yizi', '一字板 · 只能隔夜/竞价排单', '不在策略内', 'wait',
+        '全天封死不开板，盘中根本买不到；隔夜排单成交率低且存在逆向选择（排得到的常是弱势板），回测0笔不计入',
+        et.yizi, 'var(--gray-badge)')}
+    </div>
+    <div class="ec-foot">
+      <b>结论：${g.n}笔回测全部为当日盘中成交形态，无需隔夜单。</b>T字板开板回封是胜率最高的入场机会（本质也是盘中买）；隔夜排单仅适用于预期一字的极强标的，胜率无法验证、成交不确定。<br>${foot}
+    </div>`;
 }
 
 /* ── 规则 ── */
