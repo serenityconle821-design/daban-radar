@@ -253,6 +253,42 @@ section { scroll-margin-top: 24px; }
 
 /* ── 规则 ── */
 .rule-grid { display:grid; grid-template-columns: repeat(2, 1fr); gap:14px; }
+
+/* ── 龙回头策略 ── */
+.dragon-card {
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 20px 24px; margin-top: 14px; border-left: 4px solid var(--green);
+  transition: transform .22s ease, box-shadow .22s ease;
+}
+.dragon-card:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,.05), 0 14px 32px rgba(0,0,0,.08); }
+.dragon-head { display:flex; align-items:center; gap:12px; }
+.dragon-lb { width:36px; height:36px; border-radius:10px; background:var(--green-soft); color:var(--green); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; flex:none; }
+.dragon-name { flex:1; min-width:0; }
+.dragon-name .n1 { font-size:18px; font-weight:800; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.dragon-name .n1 .code { font-size:13px; font-weight:600; color:var(--secondary); }
+.dragon-name .n2 { font-size:12.5px; color:var(--secondary); margin-top:1px; }
+.dragon-ma { display:flex; gap:12px; margin-top:14px; }
+.dragon-ma-cell { background:var(--bg); border-radius:10px; padding:10px 14px; flex:1; }
+.dragon-ma-cell .v { font-size:16px; font-weight:700; font-variant-numeric:tabular-nums; }
+.dragon-ma-cell .l { font-size:11px; color:var(--secondary); }
+.dragon-ma-cell.touch { background:var(--green-soft); }
+.dragon-ma-cell.touch .v { color:var(--green); }
+
+/* 龙回头回测对比 */
+.dragon-bt { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:14px; }
+.dragon-bt-cell { background:var(--bg); border-radius:12px; padding:14px 10px; text-align:center; }
+.dragon-bt-cell .v { font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; }
+.dragon-bt-cell .l { font-size:11px; color:var(--secondary); margin-top:1px; }
+.dragon-cmp { margin-top:14px; background:var(--green-soft); border-radius:14px; padding:16px 20px; }
+.dragon-cmp h4 { font-size:15px; font-weight:700; color:var(--green); margin-bottom:10px; }
+.dragon-cmp-bar { display:flex; flex-direction:column; gap:8px; }
+.dragon-cmp-row { display:grid; grid-template-columns:100px 1fr 50px; align-items:center; gap:10px; }
+.dragon-cmp-label { font-size:13px; font-weight:600; }
+.dragon-cmp-track { height:24px; border-radius:8px; background:rgba(0,0,0,.06); overflow:hidden; }
+.dragon-cmp-fill { height:100%; border-radius:8px; display:flex; align-items:center; padding-left:8px; font-size:11px; font-weight:700; color:#fff; }
+.dragon-cmp-fill.green { background:var(--green); }
+.dragon-cmp-fill.blue { background:var(--primary); }
+.dragon-cmp-val { text-align:right; font-weight:700; font-variant-numeric:tabular-nums; font-size:13px; }
 .rule-box { background:var(--bg); border-radius:14px; padding:16px 18px; }
 .rule-box h4 { font-size:15px; font-weight:700; display:flex; align-items:center; gap:8px; margin-bottom:10px; }
 .rule-box h4 .r-ico { width:24px; height:24px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; }
@@ -369,6 +405,17 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
     </div>
     <p class="sec-sub">回测胜率 45.6% / 期望 -1.9% · 仅轻仓参与最强标的</p>
     <div id="c34List"></div>
+  </section>
+
+  <!-- ═══ 龙回头策略 ═══ -->
+  <section id="sec-dragons" class="fade">
+    <div class="sec-title" style="margin:34px 0 4px;">
+      <span class="ico" style="background:var(--green-soft); color:var(--green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></span>
+      <span>龙回头 · 连板回踩低吸</span>
+    </div>
+    <p class="sec-sub">回测66.2%胜率 · 均+4.66% · 盈亏比5.98 · 年化106.6%(15%仓) · 昨日2连板+回踩5/10日线</p>
+    <div id="dragonList"></div>
+    <div id="dragonBT" style="display:none;"></div>
   </section>
 
   <!-- ═══ 高位板监控 ═══ -->
@@ -604,6 +651,95 @@ function renderCands(){
   $('c23Sub').textContent = `回测胜率 76% 区间 · 换手<10% + 封单强 + 首封早 + 0炸板 · 共 ${D.candidates_2to3.length} 只（个股65分+市场35分，开盘强度待竞价验证）`;
 }
 
+/* ── 龙回头 ── */
+function dragonCard(d){
+  const A = d.action || {};
+  const tierColor = {strong:'var(--green)',steady:'var(--primary)',cautious:'var(--orange)'};
+  const c = tierColor[d.tier] || 'var(--secondary)';
+  const actRow = A.key ? `
+    <div class="act-row">
+      <span class="act-chip ${A.key}">${ACT_ICO[A.key] || ''}${A.label}</span>
+      <span class="act-desc">${A.desc}</span>
+    </div>` : '';
+  return `
+  <div class="dragon-card">
+    <div class="dragon-head">
+      <div class="dragon-lb">${d.lb}板</div>
+      <div class="dragon-name">
+        <div class="n1">${d.name} <span class="code">${d.code}</span>
+          <span class="pill ${d.tier}">${d.lb}连板回踩</span></div>
+        <div class="n2">现价 ${d.price.toFixed(2)} · 最低 ${d.low.toFixed(2)} · 回踩${d.touch}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:22px;font-weight:800;color:${c};">${d.score.toFixed(1)}</div>
+        <div style="font-size:11px;color:var(--secondary);">龙回头评分</div>
+      </div>
+    </div>
+    <div class="dragon-ma">
+      <div class="dragon-ma-cell ${d.touch==='MA5'?'touch':''}">
+        <div class="v">${d.ma5 ? d.ma5.toFixed(2) : '—'}</div>
+        <div class="l">5日均线 ${d.touch==='MA5'?'← 触及':''}</div>
+      </div>
+      <div class="dragon-ma-cell ${d.touch==='MA10'?'touch':''}">
+        <div class="v">${d.ma10 ? d.ma10.toFixed(2) : '—'}</div>
+        <div class="l">10日均线 ${d.touch==='MA10'?'← 触及':''}</div>
+      </div>
+      <div class="dragon-ma-cell" style="background:var(--green-soft);">
+        <div class="v" style="color:var(--green);">${d.buy_price.toFixed(2)}</div>
+        <div class="l">买入价(均线)</div>
+      </div>
+      <div class="dragon-ma-cell" style="background:var(--red-soft);">
+        <div class="v" style="color:var(--red);">${d.stop_loss.toFixed(2)}</div>
+        <div class="l">止损价(-3%)</div>
+      </div>
+    </div>
+    ${actRow}
+    <div style="margin-top:12px;font-size:12.5px;color:var(--secondary);background:var(--bg);border-radius:10px;padding:10px 14px;line-height:1.6;">
+      <b style="color:var(--text);">卖出规则:</b> T+1高开≥3% → 卖开盘价; 否则T+2卖收盘价 | 止损-3%硬止损 | 仓位≤7.5%(与打板各半)
+    </div>
+  </div>`;
+}
+function renderDragons(){
+  const list = D.dragons || [];
+  $('dragonList').innerHTML = list.length
+    ? list.map(d => dragonCard(d)).join('')
+    : '<div class="card" style="color:var(--secondary);padding:18px;">今日无连板股回踩MA信号 · 龙回头策略在连板股数量较多时效果更佳</div>';
+  // 回测对比
+  const bt = (D.backtest || {}).dragon;
+  if (bt) {
+    const vs = bt.vs_daban || {};
+    $('dragonBT').style.display = '';
+    $('dragonBT').innerHTML = `
+      <div class="dragon-cmp">
+        <h4>策略年化对比 (15%仓位)</h4>
+        <div class="dragon-bt" style="margin-bottom:14px;">
+          <div class="dragon-bt-cell"><div class="v" style="color:var(--green);">${bt.win_rate}%</div><div class="l">龙回头胜率</div></div>
+          <div class="dragon-bt-cell"><div class="v" style="color:var(--green);">+${bt.avg_ret}%</div><div class="l">均收益</div></div>
+          <div class="dragon-bt-cell"><div class="v">${bt.profit_factor}</div><div class="l">盈亏比</div></div>
+          <div class="dragon-bt-cell"><div class="v">${bt.trades_per_year}</div><div class="l">年交易笔数</div></div>
+        </div>
+        <div class="dragon-cmp-bar">
+          <div class="dragon-cmp-row">
+            <div class="dragon-cmp-label">打板+龙回头</div>
+            <div class="dragon-cmp-track"><div class="dragon-cmp-fill green" style="width:100%;">${vs.combo_annual}%</div></div>
+            <div class="dragon-cmp-val" style="color:var(--green);">+${vs.combo_annual}%</div>
+          </div>
+          <div class="dragon-cmp-row">
+            <div class="dragon-cmp-label">纯龙回头</div>
+            <div class="dragon-cmp-track"><div class="dragon-cmp-fill green" style="width:${(vs.dragon_annual/vs.combo_annual*100).toFixed(0)}%;">${vs.dragon_annual}%</div></div>
+            <div class="dragon-cmp-val" style="color:var(--green);">+${vs.dragon_annual}%</div>
+          </div>
+          <div class="dragon-cmp-row">
+            <div class="dragon-cmp-label">纯打板</div>
+            <div class="dragon-cmp-track"><div class="dragon-cmp-fill blue" style="width:${(vs.daban_annual/vs.combo_annual*100).toFixed(0)}%;">${vs.daban_annual}%</div></div>
+            <div class="dragon-cmp-val" style="color:var(--primary);">+${vs.daban_annual}%</div>
+          </div>
+        </div>
+        <p style="margin-top:12px;font-size:12.5px;color:var(--secondary);line-height:1.6;">回测周期: 158交易日(2026.01-08) · 292只活跃股 · 龙回头68笔/炸板低吸757笔 · 炸板低吸亏损严重已排除</p>
+      </div>`;
+  }
+}
+
 /* ── 监控表 ── */
 function renderWatch(){
   const w = D.watch || [];
@@ -789,6 +925,7 @@ const NAV = [
   ['sec-signal','信号','M13 2 3 14h7l-1 8 10-12h-7l1-8z'],
   ['sec-rhythm','节奏','M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'],
   ['sec-candidates','候选','M12 12c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4zm0 2c-4 0-8 2-8 5v3h16v-3c0-3-4-5-8-5z'],
+  ['sec-dragons','龙回头','M1 4v6h6 M3.51 15a9 9 0 1 0 2.13-9.36L1 10'],
   ['sec-watch','监控','M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'],
   ['sec-emotion','情绪','M3 3v18h18M18 9l-5 5-3-3-4 4'],
   ['sec-backtest','回测','M12 20V10M18 20V4M6 20v-4'],
@@ -846,7 +983,7 @@ function fadeAll(){
 
 /* ── 启动 ── */
 if (D){
-  renderHero(); renderSignal(); renderTimeline(); renderCands(); renderWatch();
+  renderHero(); renderSignal(); renderTimeline(); renderCands(); renderDragons(); renderWatch();
   renderEmotion(); renderCharts(); renderBacktest(); renderRules(); renderNav(); renderFooter();
   fadeAll(); particles();
 } else {
