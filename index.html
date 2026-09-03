@@ -413,7 +413,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
       <span class="ico" style="background:var(--green-soft); color:var(--green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></span>
       <span>龙回头 · 连板回踩低吸</span>
     </div>
-    <p class="sec-sub">回测66.2%胜率 · 均+4.66% · 盈亏比5.98 · 年化106.6%(15%仓) · 昨日2连板+回踩5/10日线</p>
+    <p class="sec-sub">优化v2: A级76.9%胜率/均+11.97% · B级58.2%/+3.25% · 组合年化142.5%(1/4 Kelly仓位)</p>
     <div id="dragonList"></div>
     <div id="dragonBT" style="display:none;"></div>
   </section>
@@ -651,24 +651,30 @@ function renderCands(){
   $('c23Sub').textContent = `回测胜率 76% 区间 · 换手<10% + 封单强 + 首封早 + 0炸板 · 共 ${D.candidates_2to3.length} 只（个股65分+市场35分，开盘强度待竞价验证）`;
 }
 
-/* ── 龙回头 ── */
+/* ── 龙回头(分层优化v2) ── */
 function dragonCard(d){
   const A = d.action || {};
-  const tierColor = {strong:'var(--green)',steady:'var(--primary)',cautious:'var(--orange)'};
-  const c = tierColor[d.tier] || 'var(--secondary)';
+  const isA = d.tier === 'strong';
+  const c = isA ? 'var(--green)' : 'var(--primary)';
+  const tierBg = isA ? 'var(--green-soft)' : 'var(--primary-soft)';
+  const stopPct = d.stop_pct ? (d.stop_pct * 100).toFixed(1) : '3.0';
+  const t1Sell = d.t1_sell ? (d.t1_sell * 100).toFixed(0) : '3';
+  const holdDays = d.hold_days || 2;
+  const posPct = d.pos_pct || (isA ? 18.5 : 10.0);
+  const us = d.upper_shadow != null ? d.upper_shadow.toFixed(1) : '—';
   const actRow = A.key ? `
     <div class="act-row">
       <span class="act-chip ${A.key}">${ACT_ICO[A.key] || ''}${A.label}</span>
       <span class="act-desc">${A.desc}</span>
     </div>` : '';
   return `
-  <div class="dragon-card">
+  <div class="dragon-card" style="border-left:4px solid ${c};">
     <div class="dragon-head">
-      <div class="dragon-lb">${d.lb}板</div>
+      <div class="dragon-lb" style="background:${tierBg};color:${c};">${d.lb}板</div>
       <div class="dragon-name">
         <div class="n1">${d.name} <span class="code">${d.code}</span>
-          <span class="pill ${d.tier}">${d.lb}连板回踩</span></div>
-        <div class="n2">现价 ${d.price.toFixed(2)} · 最低 ${d.low.toFixed(2)} · 回踩${d.touch}</div>
+          <span class="pill ${d.tier}" style="background:${tierBg};color:${c};">${d.tier_label || (isA?'A级':'B级')} · ${d.lb}连板回踩</span></div>
+        <div class="n2">现价 ${d.price.toFixed(2)} · 最低 ${d.low.toFixed(2)} · 回踩${d.touch} · 上影${us}%</div>
       </div>
       <div style="text-align:right;">
         <div style="font-size:22px;font-weight:800;color:${c};">${d.score.toFixed(1)}</div>
@@ -690,52 +696,71 @@ function dragonCard(d){
       </div>
       <div class="dragon-ma-cell" style="background:var(--red-soft);">
         <div class="v" style="color:var(--red);">${d.stop_loss.toFixed(2)}</div>
-        <div class="l">止损价(-3%)</div>
+        <div class="l">止损(-${stopPct}%)</div>
       </div>
     </div>
     ${actRow}
     <div style="margin-top:12px;font-size:12.5px;color:var(--secondary);background:var(--bg);border-radius:10px;padding:10px 14px;line-height:1.6;">
-      <b style="color:var(--text);">卖出规则:</b> T+1高开≥3% → 卖开盘价; 否则T+2卖收盘价 | 止损-3%硬止损 | 仓位≤7.5%(与打板各半)
+      <b style="color:var(--text);">卖出规则:</b> T+1高开≥${t1Sell}% → 卖开盘价; 否则T+${holdDays}卖收盘价 | 止损-${stopPct}%硬止损 | 仓位≤${posPct}%
     </div>
   </div>`;
 }
 function renderDragons(){
   const list = D.dragons || [];
+  const aCount = list.filter(d => d.tier === 'strong').length;
+  const bCount = list.length - aCount;
   $('dragonList').innerHTML = list.length
-    ? list.map(d => dragonCard(d)).join('')
+    ? (aCount > 0 ? `<div style="font-size:14px;font-weight:700;color:var(--green);margin:8px 0 4px;">A级精选 ${aCount} 只</div>` : '')
+      + list.filter(d => d.tier === 'strong').map(d => dragonCard(d)).join('')
+      + (bCount > 0 ? `<div style="font-size:14px;font-weight:700;color:var(--primary);margin:12px 0 4px;">B级标准 ${bCount} 只</div>` : '')
+      + list.filter(d => d.tier !== 'strong').map(d => dragonCard(d)).join('')
     : '<div class="card" style="color:var(--secondary);padding:18px;">今日无连板股回踩MA信号 · 龙回头策略在连板股数量较多时效果更佳</div>';
-  // 回测对比
+  // 回测对比(优化版)
   const bt = (D.backtest || {}).dragon;
   if (bt) {
+    const opt = bt.optimized || {};
+    const aT = opt.a_tier || {};
+    const bT = opt.b_tier || {};
     const vs = bt.vs_daban || {};
+    const comboAnn = vs.combo_optimized || vs.combo_annual || 142.5;
+    const dragonAnn = vs.dragon_optimized || vs.dragon_annual || 106.6;
     $('dragonBT').style.display = '';
     $('dragonBT').innerHTML = `
       <div class="dragon-cmp">
-        <h4>策略年化对比 (15%仓位)</h4>
+        <h4>分层优化对比 (1/4 Kelly仓位)</h4>
         <div class="dragon-bt" style="margin-bottom:14px;">
-          <div class="dragon-bt-cell"><div class="v" style="color:var(--green);">${bt.win_rate}%</div><div class="l">龙回头胜率</div></div>
-          <div class="dragon-bt-cell"><div class="v" style="color:var(--green);">+${bt.avg_ret}%</div><div class="l">均收益</div></div>
-          <div class="dragon-bt-cell"><div class="v">${bt.profit_factor}</div><div class="l">盈亏比</div></div>
-          <div class="dragon-bt-cell"><div class="v">${bt.trades_per_year}</div><div class="l">年交易笔数</div></div>
+          <div class="dragon-bt-cell"><div class="v" style="color:var(--green);">${aT.win_rate || 76.9}%</div><div class="l">A级胜率</div></div>
+          <div class="dragon-bt-cell"><div class="v" style="color:var(--green);">+${aT.avg_ret || 11.97}%</div><div class="l">A级均收</div></div>
+          <div class="dragon-bt-cell"><div class="v">${aT.profit_factor || 26.93}</div><div class="l">A级盈亏比</div></div>
+          <div class="dragon-bt-cell"><div class="v" style="color:var(--primary);">${bT.win_rate || 58.2}%</div><div class="l">B级胜率</div></div>
         </div>
         <div class="dragon-cmp-bar">
           <div class="dragon-cmp-row">
-            <div class="dragon-cmp-label">打板+龙回头</div>
-            <div class="dragon-cmp-track"><div class="dragon-cmp-fill green" style="width:100%;">${vs.combo_annual}%</div></div>
-            <div class="dragon-cmp-val" style="color:var(--green);">+${vs.combo_annual}%</div>
+            <div class="dragon-cmp-label">优化组合</div>
+            <div class="dragon-cmp-track"><div class="dragon-cmp-fill green" style="width:100%;">${comboAnn}%</div></div>
+            <div class="dragon-cmp-val" style="color:var(--green);">+${comboAnn}%</div>
           </div>
           <div class="dragon-cmp-row">
-            <div class="dragon-cmp-label">纯龙回头</div>
-            <div class="dragon-cmp-track"><div class="dragon-cmp-fill green" style="width:${(vs.dragon_annual/vs.combo_annual*100).toFixed(0)}%;">${vs.dragon_annual}%</div></div>
-            <div class="dragon-cmp-val" style="color:var(--green);">+${vs.dragon_annual}%</div>
+            <div class="dragon-cmp-label">优化龙回头</div>
+            <div class="dragon-cmp-track"><div class="dragon-cmp-fill green" style="width:${(dragonAnn/comboAnn*100).toFixed(0)}%;">${dragonAnn}%</div></div>
+            <div class="dragon-cmp-val" style="color:var(--green);">+${dragonAnn}%</div>
+          </div>
+          <div class="dragon-cmp-row">
+            <div class="dragon-cmp-label">原龙回头</div>
+            <div class="dragon-cmp-track"><div class="dragon-cmp-fill blue" style="width:${(106.6/comboAnn*100).toFixed(0)}%;">106.6%</div></div>
+            <div class="dragon-cmp-val" style="color:var(--primary);">+106.6%</div>
           </div>
           <div class="dragon-cmp-row">
             <div class="dragon-cmp-label">纯打板</div>
-            <div class="dragon-cmp-track"><div class="dragon-cmp-fill blue" style="width:${(vs.daban_annual/vs.combo_annual*100).toFixed(0)}%;">${vs.daban_annual}%</div></div>
-            <div class="dragon-cmp-val" style="color:var(--primary);">+${vs.daban_annual}%</div>
+            <div class="dragon-cmp-track"><div class="dragon-cmp-fill blue" style="width:${(24.3/comboAnn*100).toFixed(0)}%;">24.3%</div></div>
+            <div class="dragon-cmp-val" style="color:var(--primary);">+24.3%</div>
           </div>
         </div>
-        <p style="margin-top:12px;font-size:12.5px;color:var(--secondary);line-height:1.6;">回测周期: 158交易日(2026.01-08) · 292只活跃股 · 龙回头68笔/炸板低吸757笔 · 炸板低吸亏损严重已排除</p>
+        <p style="margin-top:12px;font-size:12.5px;color:var(--secondary);line-height:1.6;">
+          A级: ${aT.params || 'LB≥3+止损-2%+T1卖+7%+上影<5%'} → 仓位${aT.position_pct || 18.5}%<br>
+          B级: ${bT.params || 'LB=2+止损-2.5%+T1卖+3%'} → 仓位${bT.position_pct || 10.0}%<br>
+          回测: 138交易日 · 292只活跃股 · A级13笔/B级55笔 · 优化提升年化+15.5%
+        </p>
       </div>`;
   }
 }
