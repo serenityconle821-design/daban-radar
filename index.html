@@ -423,6 +423,63 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 .np-wrap.open .np-anim:nth-child(2){ animation-delay:.05s; }
 .np-wrap.open .np-anim:nth-child(3){ animation-delay:.1s; }
 .np-wrap.open .np-anim:nth-child(4){ animation-delay:.15s; }
+
+/* ═══ v1.8.0 入场分级 · 建议日志 · 出场监控 ═══ */
+.m-entry { display:inline-flex; align-items:center; gap:6px; align-self:flex-start; margin-top:9px;
+  padding:5px 12px; border-radius:11px; background:var(--primary-soft); color:var(--primary);
+  font-size:13px; font-weight:600; }
+.m-entry svg { width:13px; height:13px; flex:none; }
+.gates-strip { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.gate { display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:8px;
+  font-size:11.5px; font-weight:600; background:var(--sep); color:var(--secondary); }
+.gate.on { background:rgba(52,199,89,.13); color:var(--green); }
+.gate.veto { background:rgba(255,59,48,.10); color:var(--red); }
+.gate b { font-weight:800; }
+.gate svg { width:10px; height:10px; flex:none; }
+.veto-note { margin-top:7px; font-size:12.5px; color:var(--red); background:rgba(255,59,48,.07);
+  padding:7px 11px; border-radius:9px; line-height:1.55; }
+.adv-hero { display:grid; grid-template-columns: repeat(5, 1fr); gap:10px; margin:14px 0 4px; }
+.adv-cell { background:var(--card2); border-radius:14px; padding:13px 12px; text-align:center; }
+.adv-cell .v { font-size:21px; font-weight:800; letter-spacing:-.4px; }
+.adv-cell .l { font-size:11.5px; color:var(--secondary); margin-top:3px; }
+.adv-legend { font-size:12px; color:var(--tertiary); margin:10px 0 12px; line-height:1.7; }
+.st-open { color:var(--primary); font-weight:700; } .st-hold { color:var(--orange); font-weight:700; }
+.st-done { color:var(--secondary); font-weight:600; } .st-miss { color:var(--tertiary); font-weight:600; }
+.st-neg { color:var(--red); font-weight:700; }
+.exit-alerts { display:flex; flex-direction:column; gap:8px; margin:12px 0; }
+.exit-alert { display:flex; align-items:flex-start; gap:9px; padding:11px 14px; border-radius:13px;
+  background:rgba(255,59,48,.07); font-size:13.5px; line-height:1.6; }
+.exit-alert svg { width:16px; height:16px; color:var(--red); flex:none; margin-top:2px; }
+.exit-alert b { color:var(--red); }
+.exit-alert .ea-act { margin-left:auto; flex:none; font-weight:700; color:var(--red); font-size:12.5px;
+  background:rgba(255,59,48,.10); padding:4px 10px; border-radius:9px; white-space:nowrap; }
+.exit-calm { display:flex; align-items:center; gap:9px; padding:12px 14px; border-radius:13px;
+  background:rgba(52,199,89,.08); color:var(--green); font-size:13.5px; font-weight:600; }
+.exit-calm svg { width:16px; height:16px; flex:none; }
+.exit-grid { display:grid; grid-template-columns: 1.15fr 1fr; gap:14px; margin-top:6px; }
+.exit-box { background:var(--card2); border-radius:14px; padding:14px 16px; }
+.exit-box h4 { font-size:14.5px; font-weight:700; margin-bottom:10px; display:flex; align-items:center; gap:7px; }
+.exit-box h4 svg { width:14px; height:14px; color:var(--primary); }
+.static-row { display:flex; gap:9px; align-items:flex-start; padding:8px 0; border-bottom:1px solid var(--sep); font-size:13px; line-height:1.6; }
+.static-row:last-child { border-bottom:none; }
+.static-row .s-tag { flex:none; font-weight:700; color:var(--primary); background:var(--primary-soft);
+  padding:3px 9px; border-radius:8px; font-size:12px; white-space:nowrap; }
+.static-row.stop .s-tag { color:var(--red); background:var(--red-soft); }
+.static-row .s-txt { color:var(--secondary); }
+.sig-now { color:var(--red); font-weight:800; }
+.sig-off { color:var(--tertiary); font-weight:600; }
+.hold-card { border:1px solid var(--sep); border-radius:13px; padding:11px 14px; margin-top:10px; }
+.hold-head { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:700; }
+.hold-meta { font-size:12px; color:var(--secondary); margin-top:3px; }
+.hold-sig { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.hold-sig .hs { font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:8px; }
+.hs.stop { background:rgba(255,59,48,.10); color:var(--red); }
+.hs.env { background:rgba(255,149,0,.12); color:var(--orange); }
+.hs.ok { background:rgba(52,199,89,.12); color:var(--green); }
+.principles { margin-top:14px; background:var(--card2); border-radius:14px; padding:14px 16px; }
+.principles h4 { font-size:14.5px; font-weight:700; margin-bottom:9px; }
+.principles ol { margin:0; padding-left:19px; }
+.principles li { font-size:13px; color:var(--secondary); line-height:1.85; }
 @media (max-width:720px){
   .topbar-inner { flex-wrap:wrap; padding:8px 16px 4px; gap:6px 12px; }
   .topnav { order:2; width:100%; margin-left:0; padding-bottom:4px; }
@@ -430,6 +487,8 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
   .np-stages { grid-template-columns:1fr; }
   .np-row { grid-template-columns: 1fr auto; row-gap:4px; }
   .np-goto { margin-left:0; }
+  .adv-hero { grid-template-columns: repeat(2, 1fr); }
+  .exit-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 900px) {
@@ -483,6 +542,10 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
       <button class="tnav-item" data-target="np-backtest">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
         回测<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <button class="tnav-item" data-target="np-advice">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        建议<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
     </div>
   </div>
@@ -562,6 +625,19 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
         <button class="np-goto" data-goto="sec-backtest">查看详情<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
       </div>
       <div id="npBtBody"></div>
+    </div></div></div>
+  </div>
+
+  <!-- 面板⑦ 建议(v1.8.0) -->
+  <div class="np-wrap" id="np-advice">
+    <div class="np-clip"><div class="np-body"><div class="np-card">
+      <div class="np-head">
+        <div class="h-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+        <div class="np-title">建议跟踪 · 出场监控</div>
+        <span class="np-badge" id="npAdBadge">—</span>
+        <button class="np-goto" data-goto="sec-advice">查看详情<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+      </div>
+      <div id="npAdBody"></div>
     </div></div></div>
   </div>
 </div>
@@ -652,6 +728,30 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
     <div style="overflow-x:auto;"><table class="tbl" id="watchTbl"></table></div>
   </section>
 
+  <!-- ═══ v1.8.0 建议跟踪 · 出场监控 ═══ -->
+  <section id="sec-advice" class="fade">
+    <div class="sec-title" style="margin:34px 0 4px;">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+      <span>建议跟踪 · 出场监控</span>
+    </div>
+    <p class="sec-sub">入场分级 → 建议逐笔落库 → 次日跟踪成交与出场 → 滚动统计命中率 → 反哺权重滚动校准</p>
+    <div class="card" style="margin-top:12px;">
+      <div id="advGrade"></div>
+      <div id="advHold"></div>
+      <div style="overflow-x:auto;"><table class="tbl" id="advTbl"></table></div>
+      <div class="adv-legend" id="advLegend"></div>
+    </div>
+    <div class="card" style="margin-top:14px;">
+      <div class="sec-title">
+        <span class="ico" style="background:var(--red-soft); color:var(--red);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+        <span>动态出场 · 信号监控</span>
+      </div>
+      <div id="exitAlerts"></div>
+      <div class="exit-grid" id="exitGrid"></div>
+      <div class="principles" id="exitPrinciples"></div>
+    </div>
+  </section>
+
   <!-- ═══ 情绪数据 ═══ -->
   <section id="sec-emotion" class="fade">
     <div class="sec-title" style="margin:34px 0 4px;">
@@ -705,6 +805,12 @@ const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 const ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 const ICON_CHEV = '<svg class="chev" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
 const TIER_COLOR = { strong:'#34C759', steady:'#007AFF', cautious:'#FF9500', wait:'#8E8E93' };
+const GRADE_ORDER = ['strong','std','confirm','observe','forbid'];
+const GRADE_COLOR = { strong:'var(--green)', std:'var(--primary)', confirm:'var(--orange)', observe:'#8E8E93', forbid:'var(--red)' };
+const GRADE_BG = { strong:'var(--green-soft)', std:'var(--primary-soft)', confirm:'var(--orange-soft)',
+  observe:'rgba(142,142,147,.12)', forbid:'var(--red-soft)' };
+const ICON_CHECK_S = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+const ICON_X_S = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 
 function fmtDate(d){ return d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6); }
 function shortD(d){ return (parseInt(d.slice(4,6))) + '/' + parseInt(d.slice(6)); }
@@ -829,7 +935,27 @@ function renderMaster(){
     ${M.env_line ? `<div class="m-env"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>${M.env_line}</div>` : ''}
     <div class="m-title">${ico}${M.title}</div>
     <div class="m-desc">${M.desc}</div>
+    ${M.entry_line ? `<div class="m-entry"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>${M.entry_line}</div>` : ''}
     <div class="m-note">${M.note}</div>`;
+}
+function entryBadgeHTML(e){
+  /* v1.8.0 入场分级徽章: 四层闸门状态 + 反向否决 */
+  if (!e || !e.grade) return '';
+  const gates = [
+    ['资格', e.gates && e.gates.qual],
+    ['总分≥80', e.gates && e.gates.score],
+    ['相位', e.gates && e.gates.phase],
+    ['盘中确认', e.gates && e.gates.confirm],
+  ];
+  return `
+    <div class="m-entry" style="background:${GRADE_BG[e.grade] || 'var(--primary-soft)'};color:${GRADE_COLOR[e.grade] || 'var(--primary)'};">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      ${e.label || e.grade}${e.pos_pct ? ' · 仓位≤' + e.pos_pct + '%' : ''}
+    </div>
+    <div class="gates-strip">
+      ${gates.map(g => `<span class="gate ${g[1] ? 'on' : ''}">${g[1] ? ICON_CHECK_S : ICON_X_S}${g[0]}</span>`).join('')}
+    </div>
+    ${(e.veto || []).length ? `<div class="veto-note">⚠ 反向否决: ${(e.veto.map(v => v.label)).join('；')}</div>` : ''}`;
 }
 function candCard(c, planOpen){
   const color = TIER_COLOR[c.tier];
@@ -864,6 +990,7 @@ function candCard(c, planOpen){
       <div class="cand-ring">${ringHTML(88, 8, c.score/100, color, inner)}</div>
     </div>
     ${actRow}
+    ${entryBadgeHTML(c.entry)}
     <div class="factor-grid">${factors.map(f => `
       <div class="f-cell"><div class="fv ${f.good?'good':''} ${f.bad?'bad':''}">${f.v}</div>
       <div class="fl">${f.l}</div><div class="fs">${f.s}</div></div>`).join('')}
@@ -1226,6 +1353,116 @@ function renderEntryCmp(){
     </div>`;
 }
 
+/* ── v1.8.0 建议跟踪 · 出场监控 ── */
+const ADV_TYPE_TXT = { daban23:'打板2进3', daban34:'打板3进4', dragon:'龙回头' };
+const ADV_ST_TXT = { open:['st-open','待执行'], holding:['st-hold','持仓中'], closed:['st-done','已出场'],
+  missed:['st-miss','一字未成交'], no_touch:['st-miss','未触板'] };
+function renderAdvice(){
+  const EG = D.entry_grading || {}, AL = D.advice_log || {}, EM = D.exit_monitor || {};
+  const gm = EG.meta || {}, gc = EG.counts || {}, stats = AL.stats || {};
+  const td = (D.meta || {}).trade_date;
+
+  // ① 入场分级统计
+  const cells = GRADE_ORDER.filter(k => gm[k]).map(k => `
+    <div class="adv-cell" style="${(gc[k] || 0) > 0 ? '' : 'opacity:.55;'}">
+      <div class="v" style="color:${GRADE_COLOR[k]}">${gc[k] || 0}<span style="font-size:12px;font-weight:600;color:var(--tertiary);"> 只</span></div>
+      <div class="l">${gm[k].label}${gm[k].pos ? ' · 仓位≤' + gm[k].pos + '%' : ''}</div>
+    </div>`).join('');
+  $('advGrade').innerHTML = `
+    <div class="ec-title" style="margin-top:4px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
+      今日入场分级 · 四层闸门
+    </div>
+    <div class="adv-hero">${cells}</div>
+    <div class="adv-legend">${GRADE_ORDER.filter(k => gm[k]).map(k =>
+      `<b style="color:${GRADE_COLOR[k]}">${gm[k].label}</b>: ${gm[k].desc}`).join('<br>')}</div>
+    ${(EG.vetoes || []).length
+      ? `<div class="veto-note">⚠ 反向否决已触发 — ${(EG.vetoes.map(v => v.label)).join('；')} · 全部候选自动降为「禁止入场」, 仅作跟踪</div>`
+      : `<div class="exit-calm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>当前无风险否决 · 分级正常生效</div>`}`;
+
+  // ② 持仓监控(动态出场信号)
+  const holding = AL.holding || [];
+  $('advHold').innerHTML = `
+    <div class="ec-title" style="margin-top:18px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+      持仓中的建议 · 实时出场信号
+    </div>
+    ${holding.length ? holding.map(h => {
+      const R = h.result || {}, P = h.plan || {};
+      const sigs = (h.live_signals || {})[td] || [];
+      return `<div class="hold-card">
+        <div class="hold-head">
+          <span class="pill ${h.grade === 'strong' ? 'strong' : 'steady'}" style="font-size:11px;">${h.grade_label || ''}</span>
+          ${h.name} <span class="code">${h.code}</span>
+          <span style="margin-left:auto;font-size:12.5px;color:var(--secondary);">入场价 <b class="mono">${R.entry_price != null ? R.entry_price.toFixed(2) : '—'}</b> · ${fmtDate(R.entry_date || h.advice_date)}</span>
+        </div>
+        <div class="hold-meta">${ADV_TYPE_TXT[h.type] || h.type} · 建议日 ${fmtDate(h.advice_date)} · 买价 ${P.buy_price ?? '—'} · 止损 ${P.stop_loss ?? '—'}</div>
+        ${sigs.length
+          ? `<div class="hold-sig">${sigs.map(s => `<span class="hs ${s.pri || 'env'}">${s.label} → ${s.action}</span>`).join('')}</div>`
+          : '<div class="hold-sig"><span class="hs ok">今日无出场信号 · 按静态规则持有</span></div>'}
+      </div>`;
+    }).join('')
+    : '<div class="exit-calm">当前无持仓中的建议 · 已出场建议见下方日志表</div>'}`;
+
+  // ③ 建议日志表(最近40条)
+  const recs = AL.records || [];
+  $('advTbl').innerHTML = `<tr><th>建议日</th><th>标的</th><th>类型</th><th>分级</th><th>评分</th><th>状态</th><th>收益</th><th>出场原因</th></tr>` +
+    (recs.length ? recs.map(r => {
+      const st = ADV_ST_TXT[r.status] || ['st-miss', r.status || '—'];
+      const ret = (r.result || {}).ret;
+      return `<tr>
+        <td class="mono">${fmtDate(r.advice_date)}</td>
+        <td>${r.name}<span class="code" style="margin-left:4px;">${r.code}</span></td>
+        <td style="font-size:12.5px;">${ADV_TYPE_TXT[r.type] || r.type}</td>
+        <td><b style="color:${GRADE_COLOR[r.grade] || 'var(--secondary)'};font-size:12.5px;">${r.grade_label || r.grade || '—'}</b></td>
+        <td class="mono">${r.score != null ? r.score.toFixed(1) : '—'}</td>
+        <td class="${st[0]}" style="font-size:12.5px;">${st[1]}</td>
+        <td class="mono ${ret == null ? '' : pctCls(ret)}" style="font-weight:700;">${ret == null ? '—' : sign(ret, '%')}</td>
+        <td style="font-size:12px;color:var(--secondary);">${(r.result || {}).exit_reason || '—'}</td>
+      </tr>`;
+    }).join('')
+    : `<tr><td colspan="8" style="color:var(--secondary);text-align:center;padding:18px;">暂无建议记录 · 盘后(15:10)生成次日名单时自动登记</td></tr>`);
+
+  // 滚动统计行
+  $('advLegend').innerHTML = stats.n ? `
+    滚动统计(自 ${stats.since ? fmtDate(stats.since) : '—'}): 共 <b>${stats.n}</b> 条建议 · 已平仓 <b>${stats.n_closed || 0}</b> 笔
+    ${stats.win_rate != null ? ` · 命中率 <b style="color:${stats.win_rate >= 50 ? 'var(--green)' : 'var(--red)'}">${stats.win_rate.toFixed(2)}%</b>` : ''}
+    ${stats.avg_ret != null ? ` · 平均收益 <b class="mono ${pctCls(stats.avg_ret)}">${sign(stats.avg_ret, '%')}</b>` : ''}
+    · 持仓/待执行 <b>${stats.n_open || 0}</b> · 未成交 <b>${stats.n_missed || 0}</b>
+    ${AL.error ? `<br><span style="color:var(--red);">⚠ 跟踪模块异常: ${AL.error}</span>` : ''}` : '';
+
+  // ④ 动态出场 · 信号监控
+  const mktSigs = EM.market_signals || [];
+  $('exitAlerts').innerHTML = mktSigs.length
+    ? mktSigs.map(s => `<div class="exit-alert">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div><b>${s.label}</b> · 置信度 ${Math.round((s.conf || 0) * 100)}%</div>
+        <span class="ea-act">${s.action}</span>
+      </div>`).join('')
+    : `<div class="exit-calm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>当前时点无市场级出场信号 · 持仓按静态规则执行</div>`;
+
+  $('exitGrid').innerHTML = `
+    <div class="exit-box">
+      <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>静态出场规则(绝对优先)</h4>
+      ${(EM.static_rules || []).map(r => `<div class="static-row ${String(r.label).includes('止损') ? 'stop' : ''}">
+        <span class="s-tag">${r.label}</span><span class="s-txt">${r.desc}</span></div>`).join('')}
+    </div>
+    <div class="exit-box">
+      <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>动态信号矩阵(只提前 · 不延后)</h4>
+      <table class="tbl"><tr><th>信号</th><th>置信</th><th>触发条件</th><th>动作</th></tr>
+        ${(EM.matrix || []).map(m => `<tr>
+          <td class="${m.now ? 'sig-now' : 'sig-off'}" style="font-size:12.5px;">${m.now ? '● ' : ''}${m.label}<span style="font-size:10.5px;color:var(--tertiary);"> ${m.scope}</span></td>
+          <td class="mono" style="font-size:11.5px;color:var(--tertiary);">${Math.round((m.conf || 0) * 100)}%</td>
+          <td style="font-size:12px;color:var(--secondary);">${m.cond}</td>
+          <td style="font-size:12px;font-weight:600;">${m.action}</td></tr>`).join('')}
+      </table>
+    </div>`;
+
+  $('exitPrinciples').innerHTML = `
+    <h4>出场原则</h4>
+    <ol>${(EM.principles || []).map(p => `<li>${p}</li>`).join('')}</ol>`;
+}
+
 /* ── 规则 ── */
 function renderRules(){
   const R = D.rules;
@@ -1246,6 +1483,7 @@ const NAV = [
   ['sec-candidates','候选','M12 12c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4zm0 2c-4 0-8 2-8 5v3h16v-3c0-3-4-5-8-5z'],
   ['sec-dragons','龙回头','M1 4v6h6 M3.51 15a9 9 0 1 0 2.13-9.36L1 10'],
   ['sec-watch','监控','M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'],
+  ['sec-advice','建议','M9 11l3 3L22 4'],
   ['sec-emotion','情绪','M3 3v18h18M18 9l-5 5-3-3-4 4'],
   ['sec-backtest','回测','M12 20V10M18 20V4M6 20v-4'],
   ['sec-rules','规则','M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'],
@@ -1288,9 +1526,11 @@ function particles(){
 
 /* ── Footer ── */
 function renderFooter(){
-  const m = D.meta;
+  const m = D.meta, mk = D.market || {}, w = mk.weights || {p12:.5, breadth:.3, height:.2};
+  const wm = mk.weights_meta;
+  const wTxt = `p12趋势${Math.round(w.p12*100)}% + 涨停广度${Math.round(w.breadth*100)}% + 最高板${Math.round(w.height*100)}%`;
   $('footer').innerHTML = `打板情绪雷达 v${m.version} · 数据源: AkShare 整池接口 + 新浪批量行情 · 扫描耗时 ${m.scan_cost_s}s<br>
-  每日 15:10 / 09:26 / 10:30 自动刷新 · 评分体系 v2.0 加权连续(p12趋势50% + 涨停广度30% + 最高板20%) · 信号资格与市场质量已解耦<br>
+  每日 15:10 / 09:26 / 10:30 自动刷新 · 评分体系 v2.1 加权连续(${wTxt})${wm ? ` · 权重经Logistic回归校准(${wm.n_trades}笔回测·${(wm.calibrated_at||'').slice(0,10)})` : ''} · 信号资格与市场质量已解耦<br>
   本页所有内容仅为历史数据回测与情绪解读, 不构成任何投资建议 · 股市有风险, 入市需谨慎`;
 }
 
@@ -1355,9 +1595,9 @@ function renderPanels(){
       ${rows2.map(r => npRow(r[0], r[1] == null ? '—' : r[1], '要求 ' + r[2], r[3] ? '✓ 通过' : '✗ 未达', r[3] ? 'var(--green)' : 'var(--red)')).join('')}
     </div>
     <div class="np-stats" style="margin-top:10px;">
-      ${npStat((mk.p12_score ?? 0).toFixed(1) + '/20', 'p12趋势(权重50%)')}
-      ${npStat((mk.breadth_score ?? 0).toFixed(1) + '/5', '涨停广度(权重30%)')}
-      ${npStat((mk.height_score ?? 0).toFixed(1) + '/10', '最高板(权重20%)')}
+      ${npStat((mk.p12_score ?? 0).toFixed(1) + '/20', 'p12趋势(权重' + Math.round((((mk.weights||{}).p12) ?? .5)*100) + '%)')}
+      ${npStat((mk.breadth_score ?? 0).toFixed(1) + '/5', '涨停广度(权重' + Math.round((((mk.weights||{}).breadth) ?? .3)*100) + '%)')}
+      ${npStat((mk.height_score ?? 0).toFixed(1) + '/10', '最高板(权重' + Math.round((((mk.weights||{}).height) ?? .2)*100) + '%)')}
     </div>
     ${(mk.proximity || []).length ? `<div class="np-note" style="margin-top:8px;">${mk.proximity.map(p =>
       `⏳ ${p.cond}差<b>${p.gap}${p.unit === 'pct' ? '%' : p.unit}</b>${p.warm ? '（预热·临近达标）' : ''}`).join(' · ')}</div>` : ''}
@@ -1426,6 +1666,29 @@ function renderPanels(){
       ${npStat(sign(dbt.avg_ret ?? 4.66, '%'), '龙回头平均收益')}
     </div>
     <div class="np-note">⚠ 诚实提示: 76% 胜率仅属于「情绪过滤+换手&lt;10%+强封单+首封早+0炸板」的黄金组合子集，未过滤的全量 2进3 为负期望。年化基于 1/4 Kelly 仓位回测，历史表现不代表未来收益。</div>`;
+
+  // ⑦ 建议(v1.8.0)
+  const EG = D.entry_grading || {}, AL = D.advice_log || {}, EM = D.exit_monitor || {};
+  const gm = EG.meta || {}, gc = EG.counts || {}, ast = AL.stats || {};
+  const nEntry = (gc.strong || 0) + (gc.std || 0);
+  const nVeto = (EG.vetoes || []).length;
+  $('npAdBadge').textContent = nVeto ? '风险否决中' : (nEntry ? '可入场' + nEntry + '只' : (cands ? '无入场建议' : '今日无候选'));
+  $('npAdBadge').className = 'np-badge ' + (nVeto ? 'no' : (nEntry ? 'ok' : 'gray'));
+  $('npAdBody').innerHTML = `
+    <div class="np-stats">
+      ${npStat((gc.strong || 0) + '只', '建议入场 S≥85', (gc.strong || 0) ? 'var(--green)' : '')}
+      ${npStat((gc.std || 0) + '只', '条件入场 80-85', (gc.std || 0) ? 'var(--primary)' : '')}
+      ${npStat((gc.confirm || 0) + '只', '等待盘中确认')}
+      ${npStat(((AL.holding || []).length) + '只', '持仓监控中', (AL.holding || []).length ? 'var(--orange)' : '')}
+      ${npStat(ast.win_rate != null ? ast.win_rate.toFixed(2) + '%' : '—', '建议累计命中率', ast.win_rate != null ? (ast.win_rate >= 50 ? 'var(--green)' : 'var(--red)') : '')}
+    </div>
+    ${nVeto ? `<div class="np-note" style="color:var(--red);">⚠ 反向否决: ${(EG.vetoes.map(v => v.label)).join('；')} — 全部候选降为禁止入场</div>` : ''}
+    <div class="np-rows">
+      ${npRow('四层闸门', '资格×总分≥80×相位×盘中确认', '叠加反向否决层', nEntry ? '可入场' + nEntry + '只' : '无入场建议', nEntry ? 'var(--green)' : 'var(--secondary)')}
+      ${npRow('建议日志', '已登记 ' + (ast.n || 0) + ' 条', '平仓 ' + (ast.n_closed || 0) + ' 笔', ast.avg_ret != null ? '均收 ' + sign(ast.avg_ret, '%') : '待积累', ast.avg_ret != null ? (ast.avg_ret > 0 ? 'var(--green)' : 'var(--red)') : 'var(--secondary)')}
+      ${npRow('出场监控', (EM.market_signals || []).length + ' 项市场信号触发', '静态规则绝对优先', (EM.market_signals || []).length ? '警惕兑现' : '无信号·安心持有', (EM.market_signals || []).length ? 'var(--red)' : 'var(--green)')}
+    </div>
+    <div class="np-note">入场分级: S≥85+全过=建议入场(≤5%) · 80≤S&lt;85=条件入场(≤3%) · 缺盘中确认=等待 · 75-79=观察 · 其余禁止。建议逐笔落库跟踪, 数据反哺权重滚动校准。</div>`;
 }
 
 /* ── 导航栏点击展开/收起(手风琴) ── */
@@ -1463,6 +1726,7 @@ function initTopnav(){
 if (D){
   renderHero(); renderSignal(); renderTimeline(); renderCands(); renderDragons(); renderWatch();
   renderEmotion(); renderCharts(); renderBacktest(); renderRules(); renderNav(); renderFooter();
+  renderAdvice();
   renderPanels(); initTopnav();
   fadeAll(); particles();
 } else {
