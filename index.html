@@ -480,17 +480,6 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 .principles h4 { font-size:14.5px; font-weight:700; margin-bottom:9px; }
 .principles ol { margin:0; padding-left:19px; }
 .principles li { font-size:13px; color:var(--secondary); line-height:1.85; }
-@media (max-width:720px){
-  .topbar-inner { flex-wrap:wrap; padding:8px 16px 4px; gap:6px 12px; }
-  .topnav { order:2; width:100%; margin-left:0; padding-bottom:4px; }
-  .np-body { padding:2px 16px 16px; }
-  .np-stages { grid-template-columns:1fr; }
-  .np-row { grid-template-columns: 1fr auto; row-gap:4px; }
-  .np-goto { margin-left:0; }
-  .adv-hero { grid-template-columns: repeat(2, 1fr); }
-  .exit-grid { grid-template-columns: 1fr; }
-}
-
 @media (max-width: 900px) {
   .hero h1 { font-size: 40px; }
   .tl { grid-template-columns: 1fr; }
@@ -503,6 +492,79 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
   .side-nav { display:none; }
   .ec-row { flex-wrap:wrap; }
   .ec-stats { width:100%; display:flex; align-items:baseline; gap:16px; text-align:left; min-width:0; margin-top:4px; }
+}
+
+/* ═══ v1.9 移动端适配 · 390px级窄屏零横向溢出 ═══ */
+@media (max-width:720px){
+  .topbar-inner { flex-wrap:wrap; padding:8px 16px 4px; gap:6px 12px; }
+  .topnav { order:2; width:100%; margin-left:0; padding-bottom:4px; }
+  .np-body { padding:2px 16px 16px; }
+  .np-stages { grid-template-columns:1fr; }
+  .np-row { grid-template-columns: 1fr auto; row-gap:4px; }
+  .np-goto { margin-left:0; }
+  .adv-hero { grid-template-columns: repeat(2, 1fr); }
+  .exit-grid { grid-template-columns: 1fr; }
+  /* 布局收紧: 页边距/卡片内距减半, 释放横向空间 */
+  .page { padding: 0 12px 40px; }
+  .card { padding: 18px 16px; margin-top: 16px; }
+  .cand { padding: 18px 16px; margin-top: 14px; }
+  .dragon-card { padding: 16px; }
+  .master { padding: 16px 18px 16px 22px; }
+  .sec-title { font-size: 19px; flex-wrap: wrap; }
+  .sec-sub { margin-left: 0; font-size: 12.5px; }
+  /* Hero 降号 */
+  .hero { padding: 36px 0 24px; }
+  .hero h1 { font-size: 32px; letter-spacing:-.5px; }
+  /* 信号卡 */
+  .signal-grid { gap: 18px; }
+  .verdict .v-state { font-size: 24px; }
+  .check-row { font-size: 13.5px; padding: 9px 12px; gap: 10px; }
+  /* 市场环境卡: 148px固定分栏改纵向堆叠(原横向最小宽354px必溢出) */
+  .mk-row { flex-direction: column; gap: 12px; }
+  .mk-10wrap { width: 100%; }
+  .mk-bar { grid-template-columns: 96px 1fr 50px; gap: 8px; font-size: 12.5px; }
+  /* 候选卡操作行 */
+  .act-row { padding: 11px 12px; }
+  .act-desc { min-width: 120px; }
+  .act-price { flex-wrap: wrap; gap: 8px 14px; }
+  /* 龙回头回测 4列→2列 */
+  .dragon-bt { grid-template-columns: repeat(2, 1fr); }
+  /* 情绪统计降号 */
+  .emo-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .emo-cell { padding: 12px 8px; }
+  .emo-cell .v { font-size: 21px; }
+  /* 图表降高 */
+  .chart { height: 220px; }
+  .chart.tall { height: 250px; }
+  /* 出场信号允许换行 */
+  .exit-alert { flex-wrap: wrap; }
+  /* 表格紧凑化(配合横向滚动容器) */
+  .tbl th, .tbl td { padding: 8px 8px; font-size: 13px; }
+  footer { font-size: 11.5px; }
+}
+
+/* 超窄屏(iPhone SE / 390px以下) 二次收紧 */
+@media (max-width:480px){
+  .hero h1 { font-size: 27px; }
+  .hero .date-line { font-size: 13px; }
+  .hero .sub { font-size: 14px; }
+  .brand-name { font-size: 14.5px; }
+  .sec-title { font-size: 18px; }
+  .tl-node { padding: 13px; }
+  /* 候选卡圆环 88→72 (viewBox等比缩放) */
+  .cand-ring { width: 72px; height: 72px; }
+  .cand-ring .num b { font-size: 20px; }
+  /* 市场分标签列再收 */
+  .mk-bar { grid-template-columns: 84px 1fr 46px; }
+  .mk-bar .lab em { display: none; }
+  .factor-grid { gap: 6px; }
+  .f-cell { padding: 9px 6px; }
+  .bt-hero { gap: 8px; }
+  .bt-cell { padding: 13px 8px; }
+  .bt-cell .v { font-size: 20px; }
+  .np-stats { grid-template-columns: repeat(2, 1fr); }
+  .emo-cell .v { font-size: 19px; }
+  .act-chip { padding: 0 12px; font-size: 14px; min-height: 34px; }
 }
 </style>
 </head>
@@ -835,7 +897,7 @@ function renderHero(){
 /* ── 信号卡 ── */
 function ringHTML(size, stroke, pct, color, inner){
   const r = (size - stroke)/2, c = 2*Math.PI*r;
-  return `<svg width="${size}" height="${size}">
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
     <circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="rgba(60,60,67,.08)" stroke-width="${stroke}" fill="none"/>
     <circle cx="${size/2}" cy="${size/2}" r="${r}" stroke="${color}" stroke-width="${stroke}" fill="none"
       stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-Math.max(0,Math.min(1,pct)))}"
@@ -853,9 +915,14 @@ function renderSignal(){
     if (failP12 && sg.p12 != null && sg.p12 >= 15) { v.textContent = '临界观察'; v.className='v-state mid'; }
   }
   $('vLabel').textContent = (sg.pass ? '三条件齐备 · 符合入场资格' : '条件不足 · 规则下观望为主');
+  // v1.9 核心口径(主板10cm非ST非新股): 判定用核心值, 展示附全量对照
+  const coreZt = sg.y_zt_core != null ? sg.y_zt_core : sg.y_zt;
+  const coreLb = sg.y_max_lb_core != null ? sg.y_max_lb_core : sg.y_max_lb;
+  const ztReq = sg.zt_range ? (sg.zt_range[0] + '-' + sg.zt_range[1] + '家') : '45-150家';
+  const ztVal = coreZt + (sg.qual_core && sg.y_zt != null ? ' <span style="color:var(--tertiary);font-size:11.5px;">/全量' + sg.y_zt + '</span>' : '');
   const items = [
-    ['昨日涨停家数', sg.y_zt, '≥45', sg.checks[0]],
-    ['昨日最高连板', sg.y_max_lb, '≥4板', sg.checks[1]],
+    [sg.qual_core ? '昨日核心涨停' : '昨日涨停家数', ztVal, ztReq, sg.checks[0]],
+    [sg.qual_core ? '昨日最高连板·核心' : '昨日最高连板', coreLb, '≥4板', sg.checks[1]],
     ['1进2晋级率', sg.p12 == null ? '—' : sg.p12 + '%', '≥20%', sg.checks[2]],
   ];
   $('checks').innerHTML = items.map(it => `
@@ -957,6 +1024,17 @@ function entryBadgeHTML(e){
     </div>
     ${(e.veto || []).length ? `<div class="veto-note">⚠ 反向否决: ${(e.veto.map(v => v.label)).join('；')}</div>` : ''}`;
 }
+// v1.9 开盘强度分层预案条: 每档区间 → 颜色(绿可打/红放弃/橙确认) + 成交概率
+function strataStrip(c){
+  const st = (c.buy && c.buy.open_strata) || [];
+  if (!st.length) return '—';
+  const CLR = { wait_touch:'#34C759', confirm_touch:'#FF9500', ABANDON:'#FF3B30', queue_only:'#007AFF' };
+  const TXT = { wait_touch:'等回踩', confirm_touch:'回踩确认', ABANDON:'放弃', queue_only:'排板' };
+  return st.map(x => `<span style="display:inline-block;margin:2px 4px 2px 0;padding:3px 8px;border-radius:8px;
+    font-size:11.5px;font-weight:600;color:${CLR[x.act]||'#8E8E93'};background:${(CLR[x.act]||'#8E8E93')}1F;">
+    ${x.range} → ${TXT[x.act]||x.act}·成交~${Math.round(x.prob*100)}%</span>`).join('') +
+    '<div style="font-size:11.5px;color:var(--tertiary);margin-top:4px;">高开0-5%为死亡区间(回测胜率33.1%) · 概率越高越易成交</div>';
+}
 function candCard(c, planOpen){
   const color = TIER_COLOR[c.tier];
   const factors = [
@@ -1000,6 +1078,7 @@ function candCard(c, planOpen){
         <summary><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>最佳买入时机${ICON_CHEV}</summary>
         <div class="p-body">
           <div class="p-row"><span class="p-tag">9:25 竞价</span><span class="p-txt">${c.buy.auction}</span></div>
+          <div class="p-row"><span class="p-tag">开盘分层</span><span class="p-txt">${strataStrip(c)}</span></div>
           <div class="p-row"><span class="p-tag">9:30-10:30</span><span class="p-txt">${c.buy.confirm}</span></div>
           <div class="p-row"><span class="p-tag warn">放弃条件</span><span class="p-txt">${c.buy.abandon}</span></div>
         </div>
@@ -1449,13 +1528,13 @@ function renderAdvice(){
     </div>
     <div class="exit-box">
       <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>动态信号矩阵(只提前 · 不延后)</h4>
-      <table class="tbl"><tr><th>信号</th><th>置信</th><th>触发条件</th><th>动作</th></tr>
+      <div style="overflow-x:auto;"><table class="tbl"><tr><th>信号</th><th>置信</th><th>触发条件</th><th>动作</th></tr>
         ${(EM.matrix || []).map(m => `<tr>
           <td class="${m.now ? 'sig-now' : 'sig-off'}" style="font-size:12.5px;">${m.now ? '● ' : ''}${m.label}<span style="font-size:10.5px;color:var(--tertiary);"> ${m.scope}</span></td>
           <td class="mono" style="font-size:11.5px;color:var(--tertiary);">${Math.round((m.conf || 0) * 100)}%</td>
           <td style="font-size:12px;color:var(--secondary);">${m.cond}</td>
           <td style="font-size:12px;font-weight:600;">${m.action}</td></tr>`).join('')}
-      </table>
+      </table></div>
     </div>`;
 
   $('exitPrinciples').innerHTML = `
@@ -1729,6 +1808,15 @@ if (D){
   renderAdvice();
   renderPanels(); initTopnav();
   fadeAll(); particles();
+  /* v1.9 移动端适配: 图表随容器宽度重绘(旋转/窗口缩放后画布不再溢出) */
+  if (typeof echarts !== 'undefined'){
+    const chartResize = () => document.querySelectorAll('.chart').forEach(el => {
+      const inst = echarts.getInstanceByDom(el);
+      if (inst) inst.resize();
+    });
+    addEventListener('resize', chartResize);
+    addEventListener('orientationchange', () => setTimeout(chartResize, 150));
+  }
 } else {
   document.body.innerHTML = '<div style="padding:60px;text-align:center;color:#86868B;">数据文件缺失: 请先运行 web_build.py 生成 web/data.js</div>';
 }
