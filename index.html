@@ -71,18 +71,30 @@ section { scroll-margin-top: 88px; }
 .check-row.pass .val { color:var(--green); } .check-row.fail .val { color:var(--red); }
 
 /* 市场分 */
-.mk-row { display:flex; align-items:center; gap:12px; margin-top:14px; padding-top:14px; border-top:1px solid var(--sep); }
-.mk-ring { position:relative; width:76px; height:76px; flex:none; }
-.mk-ring svg { transform: rotate(-90deg); }
-.mk-ring .num { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.mk-ring .num b { font-size:20px; font-weight:800; line-height:1.1; }
-.mk-ring .num span { font-size:10px; color:var(--secondary); }
+/* ── 市场环境 10分制 (v1.7: 加权连续 · 胶囊条替代环形图) ── */
+.mk-row { display:flex; align-items:center; gap:16px; margin-top:14px; padding-top:14px; border-top:1px solid var(--sep); }
+.mk-10wrap { flex:none; width:148px; }
+.mk-10num { display:flex; align-items:baseline; gap:3px; }
+.mk-10num b { font-size:31px; font-weight:800; letter-spacing:-.6px; line-height:1.1; font-variant-numeric:tabular-nums; }
+.mk-10num span { font-size:12px; color:var(--secondary); font-weight:600; }
+.mk-10caps { display:flex; gap:3px; margin-top:7px; }
+.mk-10caps i { width:11.5px; height:19px; border-radius:3.5px; background:rgba(60,60,67,.09); transition: background .5s cubic-bezier(.2,.8,.2,1); }
+.mk-10caps i.on { background: var(--caps, var(--primary)); }
+.mk-10caps i.hot { animation: capPulse 1.4s ease-in-out infinite; }
+@keyframes capPulse { 0%,100% { opacity:1; } 50% { opacity:.45; } }
+.mk-10stage { display:inline-flex; align-items:center; gap:5px; margin-top:8px; min-height:24px; padding:0 10px;
+  border-radius:12px; font-size:12px; font-weight:700; background:var(--caps-soft, var(--primary-soft)); color:var(--caps, var(--primary)); }
 .mk-bars { flex:1; display:flex; flex-direction:column; gap:7px; }
-.mk-bar { display:grid; grid-template-columns: 92px 1fr 34px; align-items:center; gap:10px; font-size:13px; }
+.mk-bar { display:grid; grid-template-columns: 112px 1fr 58px; align-items:center; gap:10px; font-size:13px; }
 .mk-bar .lab { color:var(--secondary); font-weight:500; }
+.mk-bar .lab em { font-style:normal; font-size:10.5px; color:var(--tertiary); margin-left:3px; }
 .mk-bar .track { height:7px; border-radius:4px; background:var(--bg); overflow:hidden; }
 .mk-bar .fill { height:100%; border-radius:4px; background:var(--primary); transition: width .8s cubic-bezier(.2,.8,.2,1); }
 .mk-bar .v { text-align:right; font-weight:600; font-variant-numeric:tabular-nums; }
+.mk-prox { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
+.mk-prox .p-chip { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:10px;
+  font-size:11.5px; font-weight:600; background:var(--orange-soft); color:var(--orange); }
+.mk-prox .p-chip.warm { background:var(--green-soft); color:var(--green); }
 
 /* ── 三段式时间线 ── */
 .tl { display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; }
@@ -170,6 +182,9 @@ section { scroll-margin-top: 88px; }
 .master.ready::before { background:var(--primary); }
 .master.wait::before { background:var(--orange); }
 .master .m-title { display:flex; align-items:center; gap:9px; font-size:21px; font-weight:800; letter-spacing:-.3px; }
+.master .m-env { display:inline-flex; align-items:center; gap:6px; align-self:flex-start; margin-bottom:9px;
+  padding:4px 12px; border-radius:12px; font-size:12.5px; font-weight:700;
+  background:rgba(0,122,255,.09); color:var(--primary); }
 .master.buy .m-title { color:var(--green); }
 .master.ready .m-title { color:var(--primary); }
 .master.wait .m-title { color:var(--orange); }
@@ -580,9 +595,10 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
       <div>
         <div class="checks" id="checks"></div>
         <div class="mk-row">
-          <div class="mk-ring" id="mkRing"></div>
+          <div class="mk-10wrap" id="mk10"></div>
           <div class="mk-bars" id="mkBars"></div>
         </div>
+        <div class="mk-prox" id="mkProx"></div>
       </div>
     </div>
   </section>
@@ -645,7 +661,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
     <div class="card" style="margin-top:12px;">
       <div class="emo-grid" id="emoGrid"></div>
       <div class="charts">
-        <div class="chart-box"><h3>涨停家数趋势 <span class="hint">近120交易日</span></h3><div id="chTrend" class="chart"></div><div class="nochart" id="ncTrend">图表库离线 · 数据仍可读</div></div>
+        <div class="chart-box"><h3>涨停家数趋势 <span class="hint" id="cycleLegend">近120交易日</span></h3><div id="chTrend" class="chart"></div><div class="nochart" id="ncTrend">图表库离线 · 数据仍可读</div></div>
         <div class="chart-box"><h3>连板梯队结构 <span class="hint">当日</span></h3><div id="chLadder" class="chart"></div><div class="nochart" id="ncLadder">图表库离线 · 数据仍可读</div></div>
         <div class="chart-box"><h3>1进2 / 2进3 晋级率 <span class="hint">阈值 20% / 50%</span></h3><div id="chPromo" class="chart"></div><div class="nochart" id="ncPromo">图表库离线 · 数据仍可读</div></div>
         <div class="chart-box"><h3>涨停 vs 炸板 <span class="hint">晋级率观察窗口</span></h3><div id="chZb" class="chart"></div><div class="nochart" id="ncZb">图表库离线 · 数据仍可读</div></div>
@@ -702,7 +718,9 @@ function renderHero(){
   const bd = [];
   const st = sg.pass ? ['green','信号有效'] : ['gray','信号失效'];
   bd.push(`<span class="badge ${st[0]}"><span class="dot"></span>昨日信号 ${st[1]}</span>`);
-  bd.push(`<span class="badge blue"><span class="dot"></span>市场评分 ${D.market.score}/35</span>`);
+  const lv = D.market.level || 'cautious';
+  const lvBadge = { strong:'green', active:'blue', cautious:'gray', cold:'gray', weak:'gray' }[lv] || 'gray';
+  bd.push(`<span class="badge ${lvBadge}"><span class="dot"></span>市场环境 ${(D.market.score10 ?? 0).toFixed(1)}/10 · ${D.market.level_txt || ''}</span>`);
   if (sg.p12 != null) bd.push(`<span class="badge ${sg.p12>=50?'green':sg.p12>=20?'blue':'gray'}"><span class="dot"></span>1进2 ${sg.p12}%</span>`);
   bd.push(`<span class="badge gray"><span class="dot"></span>候选 ${D.candidates_2to3.length + D.candidates_3to4.length} 只</span>`);
   $('heroBadges').innerHTML = bd.join('');
@@ -740,20 +758,37 @@ function renderSignal(){
       <span>${it[0]} <span style="color:var(--tertiary);font-size:12.5px;">(要求 ${it[2]})</span></span>
       <span class="val">${it[1]}</span>
     </div>`).join('');
-  // 市场分环
-  const inner = `<div class="num"><b style="color:${mk.score>=25?'var(--green)':mk.score>=15?'var(--primary)':'var(--orange)'}">${mk.score}</b><span>/35 市场</span></div>`;
-  $('mkRing').innerHTML = ringHTML(76, 7, mk.score/35, mk.score>=25?'#34C759':mk.score>=15?'#007AFF':'#FF9500', inner);
+  // 市场环境 10分制 (v1.7: 胶囊条 + 大数字 + 阶段徽章)
+  const LV_COLOR = { strong:'#34C759', active:'#007AFF', cautious:'#FF9500', cold:'#5AC8FA', weak:'#8E8E93' };
+  const LV_SOFT  = { strong:'rgba(52,199,89,.12)', active:'rgba(0,122,255,.10)', cautious:'rgba(255,149,0,.12)', cold:'rgba(90,200,250,.14)', weak:'rgba(142,142,147,.14)' };
+  const capColor = LV_COLOR[mk.level] || '#007AFF';
+  const fillN = Math.round(mk.score10 ?? 0);
+  const caps = Array.from({length:10}, (_, i) =>
+    `<i class="${i < fillN ? 'on' : ''} ${mk.score10 >= 9 && i < fillN ? 'hot' : ''}"></i>`).join('');
+  $('mk10').style.setProperty('--caps', capColor);
+  $('mk10').style.setProperty('--caps-soft', LV_SOFT[mk.level] || 'rgba(0,122,255,.10)');
+  $('mk10').innerHTML = `
+    <div class="mk-10num"><b style="color:${capColor}">${(mk.score10 ?? 0).toFixed(1)}</b><span>/10 · 权重35</span></div>
+    <div class="mk-10caps">${caps}</div>
+    <div class="mk-10stage">${mk.level_txt || '—'} <span style="font-weight:500;opacity:.75;">${(mk.score ?? 0).toFixed(1)}/35</span></div>`;
+  // 三维加权条 (p12 50% / 广度 30% / 高度 20%)
+  const w = mk.weights || {p12:.5, breadth:.3, height:.2};
   const bars = [
-    ['p12 趋势', mk.p12_score, 20, (mk.p12==null?'无数据':mk.p12+'% · '+mk.p12_txt)],
-    ['信号三条件', mk.cond_score, 10, '涨停/最高板/晋级率'],
-    ['情绪温度', mk.temp_score, 5, '今日涨停'+(mk.zt||0)+'家 · '+mk.temp_txt],
+    ['p12 趋势', Math.round(w.p12*100) + '%', mk.p12_score, 20, (mk.p12==null?'无数据':mk.p12+'% · '+mk.p12_txt)],
+    ['涨停广度', Math.round(w.breadth*100) + '%', mk.breadth_score, 5, '今日涨停'+(mk.zt??'—')+'家'],
+    ['最高板高度', Math.round(w.height*100) + '%', mk.height_score, 10, '最高连板'+(mk.max_lb??'—')+'板'],
   ];
   $('mkBars').innerHTML = bars.map(b => `
-    <div class="mk-bar"><span class="lab">${b[0]}</span>
-      <div class="track"><div class="fill" style="width:0" data-w="${b[1]/b[2]*100}"></div></div>
-      <span class="v">${b[1]}/${b[2]}</span></div>
-    <div style="font-size:11.5px;color:var(--tertiary);margin:-3px 0 0 102px;">${b[3]}</div>`).join('');
+    <div class="mk-bar"><span class="lab">${b[0]}<em>${b[1]}</em></span>
+      <div class="track"><div class="fill" style="width:0" data-w="${(b[2]??0)/b[3]*100}"></div></div>
+      <span class="v">${(b[2]??0).toFixed(1)}/${b[3]}</span></div>
+    <div style="font-size:11.5px;color:var(--tertiary);margin:-3px 0 0 122px;">${b[4]}</div>`).join('');
   setTimeout(() => document.querySelectorAll('.mk-bar .fill').forEach(el => el.style.width = el.dataset.w + '%'), 80);
+  // 接近度 (未达标条件差多少, 临近=预热)
+  const prox = mk.proximity || [];
+  $('mkProx').innerHTML = prox.length
+    ? prox.map(p => `<span class="p-chip ${p.warm?'warm':''}">${p.warm?'⏳':'↺'} ${p.cond}差${p.gap}${p.unit==='pct'?'%':p.unit}${p.warm?' · 预热':''}</span>`).join('')
+    : '';
 }
 
 /* ── 时间线 ── */
@@ -791,6 +826,7 @@ function renderMaster(){
       ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
       : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>');
   el.innerHTML = `
+    ${M.env_line ? `<div class="m-env"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>${M.env_line}</div>` : ''}
     <div class="m-title">${ico}${M.title}</div>
     <div class="m-desc">${M.desc}</div>
     <div class="m-note">${M.note}</div>`;
@@ -798,11 +834,11 @@ function renderMaster(){
 function candCard(c, planOpen){
   const color = TIER_COLOR[c.tier];
   const factors = [
-    { l:'换手率', v: (c.turn ?? 0).toFixed(2) + '%', s:c.score_parts.turn + '/20', good: c.turn < 10, bad: c.turn >= 20 },
-    { l:'封单', v: (c.seal ?? 0).toFixed(2) + '亿', s:c.score_parts.seal + '/15', good: c.seal >= 1.5, bad: c.seal < 0.4 },
-    { l:'首封时间', v: c.first, s:c.score_parts.first + '/15', good: c.first <= '10:30', bad: c.first >= '13:30' },
-    { l:'炸板次数', v: c.zbc + '次', s:c.score_parts.zbc + '/10', good: c.zbc === 0, bad: c.zbc >= 2 },
-    { l:'流通市值', v: (c.mv ?? 0).toFixed(2) + '亿', s:c.score_parts.lb + '/5', good:false, bad:false },
+    { l:'换手率', v: (c.turn ?? 0).toFixed(2) + '%', s:(c.score_parts.turn ?? 0).toFixed(1) + '/20', good: c.turn < 10, bad: c.turn >= 20 },
+    { l:'封单', v: (c.seal ?? 0).toFixed(2) + '亿', s:(c.score_parts.seal ?? 0).toFixed(1) + '/15', good: c.seal >= 1.5, bad: c.seal < 0.4 },
+    { l:'首封时间', v: c.first, s:(c.score_parts.first ?? 0).toFixed(1) + '/15', good: c.first <= '10:30', bad: c.first >= '13:30' },
+    { l:'炸板次数', v: c.zbc + '次', s:(c.score_parts.zbc ?? 0).toFixed(1) + '/10', good: c.zbc === 0, bad: c.zbc >= 2 },
+    { l:'板级契合', v: (c.mv ?? 0).toFixed(2) + '亿市值', s:(c.score_parts.lb ?? 0).toFixed(1) + '/5', good:false, bad:false },
   ];
   const inner = `<div class="num"><b style="color:${color}">${Math.round(c.score)}</b><span>确定性</span></div>`;
   const tag = c.tag ? `<span class="pill cautious">${c.tag}</span>` : '';
@@ -863,30 +899,34 @@ function renderCands(){
 function dragonCard(d){
   const A = d.action || {};
   const isA = d.tier === 'strong';
-  const c = isA ? 'var(--green)' : 'var(--primary)';
-  const tierBg = isA ? 'var(--green-soft)' : 'var(--primary-soft)';
+  const isW = d.tier === 'cautious';
+  const c = isA ? 'var(--green)' : (isW ? 'var(--orange)' : 'var(--primary)');
+  const tierBg = isA ? 'var(--green-soft)' : (isW ? 'var(--orange-soft)' : 'var(--primary-soft)');
   const stopPct = d.stop_pct ? (d.stop_pct * 100).toFixed(1) : '3.0';
   const t1Sell = d.t1_sell ? (d.t1_sell * 100).toFixed(0) : '3';
   const holdDays = d.hold_days || 2;
   const posPct = d.pos_pct || (isA ? 18.5 : 10.0);
   const us = d.upper_shadow != null ? d.upper_shadow.toFixed(1) : '—';
+  const dp = d.depth != null ? d.depth.toFixed(1) : '—';
+  const vr = d.vr != null ? d.vr.toFixed(2) : '—';
+  const volTxt = d.vr != null ? (d.vr <= 0.9 ? '缩量' : d.vr <= 1.2 ? '平量' : '放量⚠') : '';
   const actRow = A.key ? `
     <div class="act-row">
       <span class="act-chip ${A.key}">${ACT_ICO[A.key] || ''}${A.label}</span>
       <span class="act-desc">${A.desc}</span>
     </div>` : '';
   return `
-  <div class="dragon-card" style="border-left:4px solid ${c};">
+  <div class="dragon-card" style="border-left:4px solid ${c};${isW ? 'opacity:.92;' : ''}">
     <div class="dragon-head">
       <div class="dragon-lb" style="background:${tierBg};color:${c};">${d.lb}板</div>
       <div class="dragon-name">
         <div class="n1">${d.name} <span class="code">${d.code}</span>
           <span class="pill ${d.tier}" style="background:${tierBg};color:${c};">${d.tier_label || (isA?'A级':'B级')} · ${d.lb}连板回踩</span></div>
-        <div class="n2">现价 ${d.price.toFixed(2)} · 最低 ${d.low.toFixed(2)} · 回踩${d.touch} · 上影${us}%</div>
+        <div class="n2">现价 ${d.price.toFixed(2)} · 最低 ${d.low.toFixed(2)} · 回踩${d.touch} · 深度${dp}% · ${volTxt}${vr} · 上影${us}%</div>
       </div>
       <div style="text-align:right;">
         <div style="font-size:22px;font-weight:800;color:${c};">${d.score.toFixed(1)}</div>
-        <div style="font-size:11px;color:var(--secondary);">龙回头评分</div>
+        <div style="font-size:11px;color:var(--secondary);">龙回头评分${(d.mkt_penalty||0)+(d.freeze_penalty||0) > 0 ? ' · 市场扣' + ((d.mkt_penalty||0)+(d.freeze_penalty||0)).toFixed(1) : ''}</div>
       </div>
     </div>
     <div class="dragon-ma">
@@ -915,13 +955,17 @@ function dragonCard(d){
 }
 function renderDragons(){
   const list = D.dragons || [];
-  const aCount = list.filter(d => d.tier === 'strong').length;
-  const bCount = list.length - aCount;
+  const aList = list.filter(d => d.tier === 'strong');
+  const bList = list.filter(d => d.tier === 'steady');
+  const wList = list.filter(d => d.tier === 'cautious');
+  const grpTitle = (txt, color) => `<div style="font-size:14px;font-weight:700;color:${color};margin:8px 0 4px;">${txt}</div>`;
   $('dragonList').innerHTML = list.length
-    ? (aCount > 0 ? `<div style="font-size:14px;font-weight:700;color:var(--green);margin:8px 0 4px;">A级精选 ${aCount} 只</div>` : '')
-      + list.filter(d => d.tier === 'strong').map(d => dragonCard(d)).join('')
-      + (bCount > 0 ? `<div style="font-size:14px;font-weight:700;color:var(--primary);margin:12px 0 4px;">B级标准 ${bCount} 只</div>` : '')
-      + list.filter(d => d.tier !== 'strong').map(d => dragonCard(d)).join('')
+    ? (aList.length ? grpTitle(`A级精选 ${aList.length} 只 · 评分≥58`, 'var(--green)') : '')
+      + aList.map(d => dragonCard(d)).join('')
+      + (bList.length ? grpTitle(`B级标准 ${bList.length} 只 · 评分≥42`, 'var(--primary)') : '')
+      + bList.map(d => dragonCard(d)).join('')
+      + (wList.length ? grpTitle(`弱势降级观察 ${wList.length} 只 · 市场环境不足, 不入场`, 'var(--orange)') : '')
+      + wList.map(d => dragonCard(d)).join('')
     : '<div class="card" style="color:var(--secondary);padding:18px;">今日无连板股回踩MA信号 · 龙回头策略在连板股数量较多时效果更佳</div>';
   // 回测对比(优化版)
   const bt = (D.backtest || {}).dragon;
@@ -1001,6 +1045,26 @@ function renderEmotion(){
 }
 
 /* ── 图表 ── */
+// 情绪周期连续区段聚合: [{xAxis:d0,itemStyle:{color}}, {xAxis:d1}] 数组 (ECharts markArea)
+function cycleAreas(dates, stages, meta){
+  if (!stages || !stages.length || !meta) return [];
+  const rgba = (hex, a) => {
+    const n = parseInt(hex.slice(1), 16);
+    return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+  };
+  const out = [];
+  let s = 0;
+  for (let i = 1; i <= stages.length; i++){
+    if (i === stages.length || stages[i] !== stages[s]){
+      const st = stages[s];
+      if (st && meta[st]){
+        out.push([{ xAxis: dates[s], itemStyle:{ color: rgba(meta[st].color, .075) } }, { xAxis: dates[i-1] }]);
+      }
+      s = i;
+    }
+  }
+  return out;
+}
 function renderCharts(){
   if (typeof echarts === 'undefined'){
     ['ncTrend','ncLadder','ncPromo','ncZb'].forEach(id => { $(id).style.display='flex'; });
@@ -1010,9 +1074,21 @@ function renderCharts(){
   const base = { textStyle:{ fontFamily: FONT }, grid:{ left:44, right:14, top:28, bottom:26 } };
   const axStyle = { axisLine:{show:false}, axisTick:{show:false}, axisLabel:{ color:'#86868B', fontSize:11 }, splitLine:{ lineStyle:{ color:'rgba(60,60,67,.08)' } } };
 
-  // 1) 涨停趋势 (近120日)
+  // 情绪周期色带 (v1.7): 四态区段铺底 + 图例 + 当前阶段徽章
+  const CM = D.history.cycle_meta || {};
+  const curStage = (D.history.stages || []).slice(-1)[0] || '';
+  const curMeta = CM[curStage] || null;
+  if (curMeta){
+    const lg = Object.entries(CM).map(([k, v]) =>
+      `<span style="display:inline-flex;align-items:center;gap:3px;${k===curStage?'font-weight:700;':''}">
+        <i style="width:9px;height:9px;border-radius:2.5px;background:${v.color};display:inline-block;"></i>${v.label}</span>`).join(' · ');
+    $('cycleLegend').innerHTML = `${lg} <span style="color:${curMeta.color};font-weight:700;">当前「${curMeta.label}」</span>`;
+  }
+
+  // 1) 涨停趋势 (近120日 · 情绪周期色带铺底)
   const H = D.history, n = Math.min(120, H.dates.length);
   const hd = H.dates.slice(-n).map(shortD), hz = H.zt.slice(-n), hm = H.max_lb.slice(-n);
+  const mAreas = cycleAreas(hd, (H.stages || []).slice(-n), CM);
   echarts.init($('chTrend')).setOption({
     ...base, tooltip:{ trigger:'axis', textStyle:{fontFamily:FONT} },
     legend:{ data:['涨停家数','最高连板'], textStyle:{ fontFamily:FONT, fontSize:11, color:'#86868B' }, top:0, right:0, itemWidth:14 },
@@ -1021,7 +1097,8 @@ function renderCharts(){
     series:[
       { name:'涨停家数', type:'line', data:hz, smooth:true, symbol:'none', lineWidth:1.5,
         lineStyle:{ width:2, color:'#FF3B30' }, itemStyle:{ color:'#FF3B30' },
-        areaStyle:{ color:{ type:'linear', x:0,y:0,x2:0,y2:1, colorStops:[{offset:0,color:'rgba(255,59,48,.16)'},{offset:1,color:'rgba(255,59,48,0)'}]}}},
+        areaStyle:{ color:{ type:'linear', x:0,y:0,x2:0,y2:1, colorStops:[{offset:0,color:'rgba(255,59,48,.16)'},{offset:1,color:'rgba(255,59,48,0)'}]}},
+        markArea:{ silent:true, data:mAreas } },
       { name:'最高连板', type:'line', yAxisIndex:1, data:hm, smooth:true, symbol:'none',
         lineStyle:{ width:1.5, color:'#007AFF', type:'dashed' }, itemStyle:{ color:'#007AFF' } },
     ]});
@@ -1036,8 +1113,16 @@ function renderCharts(){
       itemStyle:{ borderRadius:[6,6,0,0], color: p => p.dataIndex === 0 ? '#FF3B30' : (p.dataIndex <= 2 ? '#FF9500' : '#007AFF') } }],
   });
 
-  // 3) 晋级率历史
+  // 3) 晋级率历史 (+ 情绪周期色带)
   const P = D.promo_history;
+  const hIdx = {};
+  H.dates.forEach((d, i) => { hIdx[d] = i; });
+  let lastIdx = -1;
+  const pStages = P.dates.map(d => {
+    if (hIdx[d] != null) lastIdx = hIdx[d];
+    return lastIdx >= 0 ? (H.stages[lastIdx] || '') : '';
+  });
+  const pAreas = cycleAreas(P.dates.map(shortD), pStages, CM);
   echarts.init($('chPromo')).setOption({
     ...base, tooltip:{ trigger:'axis', textStyle:{fontFamily:FONT}, valueFormatter: v => v + '%' },
     legend:{ data:['1进2','2进3'], textStyle:{ fontFamily:FONT, fontSize:11, color:'#86868B' }, top:0, right:0, itemWidth:14 },
@@ -1045,6 +1130,7 @@ function renderCharts(){
     yAxis:{ type:'value', max:100, ...axStyle, splitNumber:4, axisLabel:{...axStyle.axisLabel, formatter:'{value}%'} },
     series:[
       { name:'1进2', type:'line', data:P.p12, smooth:true, symbolSize:5, lineStyle:{ width:2.2, color:'#007AFF' }, itemStyle:{ color:'#007AFF' },
+        markArea:{ silent:true, data:pAreas },
         markLine:{ symbol:'none', silent:true, label:{ show:true, position:'insideEndTop', fontFamily:FONT, fontSize:10 },
           data:[ { yAxis:20, lineStyle:{ color:'#FF3B30', type:'dashed', width:1 }, label:{ formatter:'入场线 20%', color:'#FF3B30' } },
                  { yAxis:50, lineStyle:{ color:'#34C759', type:'dashed', width:1 }, label:{ formatter:'强势线 50%', color:'#34C759' } } ] } },
@@ -1204,7 +1290,7 @@ function particles(){
 function renderFooter(){
   const m = D.meta;
   $('footer').innerHTML = `打板情绪雷达 v${m.version} · 数据源: AkShare 整池接口 + 新浪批量行情 · 扫描耗时 ${m.scan_cost_s}s<br>
-  每日 15:10 / 09:26 / 10:30 自动刷新 · 评分体系基于 2024-09 ~ 2026-09 回测校准<br>
+  每日 15:10 / 09:26 / 10:30 自动刷新 · 评分体系 v2.0 加权连续(p12趋势50% + 涨停广度30% + 最高板20%) · 信号资格与市场质量已解耦<br>
   本页所有内容仅为历史数据回测与情绪解读, 不构成任何投资建议 · 股市有风险, 入市需谨慎`;
 }
 
@@ -1245,7 +1331,7 @@ function renderPanels(){
   $('npOvBody').innerHTML = `
     <div class="np-stats">
       ${npStat(sg.pass ? '有效' : '失效', '今日信号', sg.pass ? 'var(--green)' : 'var(--red)')}
-      ${npStat((mk.score ?? 0) + '/35', '市场环境分')}
+      ${npStat((mk.score10 ?? 0).toFixed(1) + '/10', '市场环境 · ' + (mk.level_txt || ''), (mk.level === 'strong' || mk.level === 'active') ? 'var(--green)' : (mk.level === 'cautious' ? 'var(--orange)' : 'var(--secondary)'))}
       ${npStat(sg.p12 == null ? '—' : sg.p12 + '%', '1进2晋级率', sg.p12 >= 50 ? 'var(--green)' : sg.p12 >= 20 ? 'var(--primary)' : 'var(--orange)')}
       ${npStat(cands + '只', '明日候选名单')}
       ${npStat(dr.length + '只', '龙回头信号')}
@@ -1269,11 +1355,13 @@ function renderPanels(){
       ${rows2.map(r => npRow(r[0], r[1] == null ? '—' : r[1], '要求 ' + r[2], r[3] ? '✓ 通过' : '✗ 未达', r[3] ? 'var(--green)' : 'var(--red)')).join('')}
     </div>
     <div class="np-stats" style="margin-top:10px;">
-      ${npStat((mk.p12_score ?? 0) + '/20', 'p12趋势分')}
-      ${npStat((mk.cond_score ?? 0) + '/10', '三条件分')}
-      ${npStat((mk.temp_score ?? 0) + '/5', '情绪温度(' + (mk.zt||0) + '家涨停)')}
+      ${npStat((mk.p12_score ?? 0).toFixed(1) + '/20', 'p12趋势(权重50%)')}
+      ${npStat((mk.breadth_score ?? 0).toFixed(1) + '/5', '涨停广度(权重30%)')}
+      ${npStat((mk.height_score ?? 0).toFixed(1) + '/10', '最高板(权重20%)')}
     </div>
-    <div class="np-note">信号有效 = 三条件同时满足，才有入场资格；p12 需次日 9:25 竞价数据最终验证。失效日以观望为主，不逆势操作。</div>`;
+    ${(mk.proximity || []).length ? `<div class="np-note" style="margin-top:8px;">${mk.proximity.map(p =>
+      `⏳ ${p.cond}差<b>${p.gap}${p.unit === 'pct' ? '%' : p.unit}</b>${p.warm ? '（预热·临近达标）' : ''}`).join(' · ')}</div>` : ''}
+    <div class="np-note">信号有效 = 三条件同时满足，才有入场资格；市场分(三维加权)衡量强弱，二者已解耦。p12 需次日 9:25 竞价数据最终验证。失效日以观望为主，不逆势操作。</div>`;
 
   // ③ 节奏
   const tl = D.timeline || [];
