@@ -480,6 +480,98 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 .principles h4 { font-size:14.5px; font-weight:700; margin-bottom:9px; }
 .principles ol { margin:0; padding-left:19px; }
 .principles li { font-size:13px; color:var(--secondary); line-height:1.85; }
+
+/* ═══ v1.9.1 并行跟踪实验区 (影子双轨 v1.9 生产 × v2.0.0 影子) ═══ */
+.pt-head {
+  display:flex; align-items:center; gap:12px; min-height:var(--touch);
+  cursor:pointer; user-select:none; -webkit-user-select:none;
+  transition: opacity .2s ease;
+}
+.pt-head:active { opacity:.6; }
+.pt-lamp {
+  flex:none; width:34px; height:34px; border-radius:50%;
+  display:inline-flex; align-items:center; justify-content:center;
+}
+.pt-lamp svg { width:17px; height:17px; color:#fff; }
+.pt-lamp.green { background:var(--green); box-shadow:0 0 0 5px var(--green-soft); }
+.pt-lamp.yellow { background:var(--orange); box-shadow:0 0 0 5px var(--orange-soft); }
+.pt-lamp.red { background:var(--red); box-shadow:0 0 0 5px var(--red-soft); }
+.pt-lamp.wait { background:var(--gray-badge); box-shadow:0 0 0 5px rgba(142,142,147,.12); }
+.pt-lamp.pulse { animation: ptLampPulse 2s ease-in-out infinite; }
+@keyframes ptLampPulse { 0%,100% { opacity:1; } 50% { opacity:.55; } }
+.pt-head .pt-title { font-size:17px; font-weight:700; }
+.pt-head .pt-sub { font-size:12px; color:var(--secondary); margin-top:1px; }
+.pt-head .pt-caret {
+  margin-left:auto; flex:none; width:30px; height:30px; border-radius:9px;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:var(--bg); color:var(--secondary);
+  transition: transform .35s cubic-bezier(.2,.8,.2,1);
+}
+.pt-head .pt-caret svg { width:15px; height:15px; }
+.pt-open .pt-caret { transform: rotate(180deg); }
+.pt-body { display:none; }
+.pt-open .pt-body { display:block; animation: ptFade .4s cubic-bezier(.2,.8,.2,1); }
+@keyframes ptFade { from { opacity:0; transform: translateY(-6px); } to { opacity:1; transform:none; } }
+.pt-mini { display:flex; gap:8px; margin-left:auto; }
+.pt-open .pt-mini { display:none; }
+.pt-chip {
+  display:inline-flex; align-items:center; padding:3px 10px; border-radius:10px;
+  font-size:11.5px; font-weight:700; background:var(--bg); color:var(--secondary);
+  font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+.pt-chip b { font-weight:800; }
+.pt-criteria { display:grid; grid-template-columns: repeat(5, 1fr); gap:10px; margin:16px 0 4px; }
+.pt-crit { border-radius:13px; padding:12px 12px 11px; background:var(--card2); position:relative; overflow:hidden; }
+.pt-crit .c-dot { width:10px; height:10px; border-radius:50%; margin-bottom:7px; }
+.pt-crit.green .c-dot { background:var(--green); box-shadow:0 0 0 4px var(--green-soft); }
+.pt-crit.yellow .c-dot { background:var(--orange); box-shadow:0 0 0 4px var(--orange-soft); }
+.pt-crit.red .c-dot { background:var(--red); box-shadow:0 0 0 4px var(--red-soft); }
+.pt-crit.wait .c-dot { background:var(--tertiary); box-shadow:0 0 0 4px var(--sep); }
+.pt-crit .c-key { font-size:11px; font-weight:800; color:var(--tertiary); letter-spacing:.5px; }
+.pt-crit .c-lab { font-size:13.5px; font-weight:700; margin-top:1px; }
+.pt-crit .c-val { font-size:15.5px; font-weight:800; margin-top:4px; font-variant-numeric:tabular-nums; letter-spacing:-.3px; }
+.pt-crit.green .c-val { color:var(--green); }
+.pt-crit.yellow .c-val { color:var(--orange); }
+.pt-crit.red .c-val { color:var(--red); }
+.pt-crit.wait .c-val { color:var(--secondary); }
+.pt-crit .c-tgt { font-size:10.5px; color:var(--tertiary); margin-top:3px; }
+.pt-crit .c-note { font-size:10.5px; color:var(--tertiary); margin-top:5px; line-height:1.5; }
+.pt-crit.red { background:rgba(255,59,48,.05); }
+.pt-vs { display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:14px; }
+.pt-track { border-radius:14px; padding:15px 17px 13px; }
+.pt-track.v2 { background:rgba(0,122,255,.06); }
+.pt-track.v1 { background:var(--card2); }
+.pt-track .t-head { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:800; }
+.pt-track .t-tag {
+  font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:8px; letter-spacing:.3px;
+}
+.pt-track.v2 .t-tag { background:var(--primary); color:#fff; }
+.pt-track.v1 .t-tag { background:var(--sep); color:var(--secondary); }
+.pt-track .t-sub { font-size:11px; color:var(--tertiary); margin-top:2px; margin-left:2px; }
+.pt-kpis { display:grid; grid-template-columns: repeat(3, 1fr); gap:8px 10px; margin-top:11px; }
+.pt-kpi .v { font-size:19px; font-weight:800; letter-spacing:-.4px; font-variant-numeric:tabular-nums; }
+.pt-kpi .l { font-size:10.5px; color:var(--secondary); margin-top:1px; }
+.pt-weekly { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
+.pt-week {
+  display:grid; grid-template-columns: 86px 1fr 1fr; gap:10px; align-items:center;
+  padding:10px 14px; border-radius:12px; background:var(--card2); font-size:12.5px;
+}
+.pt-week .w-lab { font-weight:800; font-size:13px; }
+.pt-week .w-lab small { display:block; font-size:10.5px; color:var(--tertiary); font-weight:600; }
+.pt-week .w-cell b { font-variant-numeric:tabular-nums; }
+.pt-week .w-cell span { color:var(--tertiary); font-size:11px; margin-left:3px; }
+.pt-week .w-cell.v2c b { color:var(--primary); }
+.pt-week .w-cell.v1c b { color:var(--secondary); }
+.pt-diff-pos { color:var(--green); font-weight:800; }
+.pt-diff-neg { color:var(--red); font-weight:800; }
+.pt-pair-note { font-size:12px; color:var(--tertiary); margin:14px 0 8px; line-height:1.7; }
+.pt-rules { margin-top:14px; background:var(--card2); border-radius:14px; padding:14px 16px; }
+.pt-rules h4 { font-size:14px; font-weight:700; margin-bottom:8px; display:flex; align-items:center; gap:7px; }
+.pt-rules h4 svg { width:14px; height:14px; color:var(--primary); }
+.pt-rules ul { margin:0; padding-left:18px; }
+.pt-rules li { font-size:12.5px; color:var(--secondary); line-height:1.8; }
+.pt-rules li b { color:var(--text); }
+.pt-meta-line { font-size:11.5px; color:var(--tertiary); margin-top:12px; line-height:1.6; }
 @media (max-width: 900px) {
   .hero h1 { font-size: 40px; }
   .tl { grid-template-columns: 1fr; }
@@ -540,6 +632,11 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
   .exit-alert { flex-wrap: wrap; }
   /* 表格紧凑化(配合横向滚动容器) */
   .tbl th, .tbl td { padding: 8px 8px; font-size: 13px; }
+  /* v1.9.1 并行跟踪实验区: 单列堆叠 */
+  .pt-criteria { grid-template-columns: repeat(2, 1fr); }
+  .pt-vs { grid-template-columns: 1fr; }
+  .pt-week { grid-template-columns: 76px 1fr 1fr; padding: 10px 12px; }
+  .pt-head .pt-title { font-size: 15.5px; }
   footer { font-size: 11.5px; }
 }
 
@@ -565,6 +662,13 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
   .np-stats { grid-template-columns: repeat(2, 1fr); }
   .emo-cell .v { font-size: 19px; }
   .act-chip { padding: 0 12px; font-size: 14px; min-height: 34px; }
+  /* v1.9.1 并行跟踪实验区: 超窄屏再收紧 */
+  .pt-criteria { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pt-crit { padding: 10px 11px 9px; }
+  .pt-crit .c-val { font-size: 14.5px; }
+  .pt-week { grid-template-columns: 1fr; gap: 4px; }
+  .pt-week .w-cell span { display: none; }
+  .pt-mini { display: none !important; }
 }
 </style>
 </head>
@@ -812,6 +916,20 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
       <div class="exit-grid" id="exitGrid"></div>
       <div class="principles" id="exitPrinciples"></div>
     </div>
+  </section>
+
+  <!-- ═══ v1.9.1 并行跟踪实验区 (影子双轨 · 默认折叠) ═══ -->
+  <section id="sec-parallel" class="card fade">
+    <div class="pt-head" id="ptHead">
+      <span class="pt-lamp wait" id="ptLamp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 7 12 12 15.5 14"/></svg></span>
+      <div>
+        <div class="pt-title">并行跟踪实验区 · v1.9 生产 × v2.0.0 影子</div>
+        <div class="pt-sub" id="ptSub">影子双轨对比中 · 点击展开</div>
+      </div>
+      <div class="pt-mini" id="ptMini"></div>
+      <span class="pt-caret"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+    </div>
+    <div class="pt-body" id="ptBody"></div>
   </section>
 
   <!-- ═══ 情绪数据 ═══ -->
@@ -1542,6 +1660,156 @@ function renderAdvice(){
     <ol>${(EM.principles || []).map(p => `<li>${p}</li>`).join('')}</ol>`;
 }
 
+/* ── v1.9.1 并行跟踪实验区 (影子双轨 v1.9 生产 × v2.0.0 影子) ── */
+const PT_VERDICT_TXT = { wait:'观察中 · 样本积累期', green:'绿灯 · 达标', yellow:'黄灯 · 部分达标', red:'红灯 · 触发否决' };
+const PT_VERDICT_COLOR = { wait:'var(--gray-badge)', green:'var(--green)', yellow:'var(--orange)', red:'var(--red)' };
+const PT_ST_TXT = { open:['st-open','待结算'], holding:['st-hold','持仓中'], closed:['st-done','已平仓'],
+  missed:['st-miss','一字未成交'], no_touch:['st-miss','未成交·放弃'], skipped:['st-neg','资格未达标'] };
+const PT_LB_TXT = { 1:'首板→2板', 2:'2板→3板', 3:'3板→4板' };
+
+function ptNum(v, suf){ return v == null ? '—' : (suf === '%' ? v.toFixed(2) + '%' : (v > 0 ? '+' : '') + v.toFixed(2) + (suf || '')); }
+
+function renderParallel(){
+  const sec = $('sec-parallel');
+  const PT = D.parallel_track;
+  // 折叠交互(无论数据是否就绪都可展开)
+  $('ptHead').addEventListener('click', () => sec.classList.toggle('pt-open'));
+  if (!PT || !PT.enabled){
+    $('ptSub').innerHTML = `影子跟踪模块未启用${PT && PT.error ? ' · 异常: ' + PT.error : ''}`;
+    $('ptBody').innerHTML = '<div class="exit-calm">影子轨尚未启动 · 下一交易日盘后(15:10)自动登记首批影子信号</div>';
+    return;
+  }
+  const k = PT.kpi || {}, k2 = k.v2 || {}, k1 = k.v1_eligible || {}, k1a = k.v1_all || {};
+  const c = PT.counts || {}, S2 = PT.strategy_v2 || {}, br = S2.backtest_ref || {};
+
+  // ① 折叠头: 红黄绿灯 + mini KPI
+  const vd = PT.verdict || 'wait';
+  const lamp = $('ptLamp');
+  lamp.className = 'pt-lamp ' + vd + (vd === 'wait' ? ' pulse' : '');
+  lamp.innerHTML = vd === 'green'
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+    : vd === 'red'
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+    : vd === 'yellow'
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="9" x2="12" y2="13.5"/><line x1="12" y1="17.5" x2="12.01" y2="17.5"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 7 12 12 15.5 14"/></svg>';
+  $('ptSub').innerHTML = `影子运行 <b>${PT.days_elapsed != null ? PT.days_elapsed + ' 天' : '—'}</b> · 信号 <b>${c.signals || 0}</b> 条 · 已结算 <b>${c.closed || 0}</b> 笔 · <b style="color:${PT_VERDICT_COLOR[vd]}">${PT_VERDICT_TXT[vd]}</b>`;
+  $('ptMini').innerHTML = `
+    <span class="pt-chip">信号 <b>${c.signals || 0}</b></span>
+    <span class="pt-chip">已结算 <b>${c.closed || 0}</b></span>
+    ${k2.win_rate != null ? `<span class="pt-chip">胜率 <b>${k2.win_rate.toFixed(2)}%</b></span>` : ''}
+    ${k2.avg_ret != null ? `<span class="pt-chip">期望 <b class="${pctCls(k2.avg_ret)}">${sign(k2.avg_ret.toFixed(2), '%')}</b></span>` : ''}`;
+
+  // ② S1-S5 硬标准红黄绿灯
+  const critHTML = (PT.criteria || []).map(s => `
+    <div class="pt-crit ${s.status}">
+      <div class="c-dot"></div>
+      <div class="c-key">${s.key}</div>
+      <div class="c-lab">${s.label}</div>
+      <div class="c-val">${s.value}</div>
+      <div class="c-tgt">目标 ${s.target}</div>
+      <div class="c-note">${s.note || ''}</div>
+    </div>`).join('');
+
+  // ③ 双轨 KPI 对比卡
+  const trackV2 = `
+    <div class="pt-track v2">
+      <div class="t-head"><span class="t-tag">v2.0.0</span>${S2.label || '影子轨'}<span class="t-sub">1/2/3板×市值≥100亿×T+2开盘卖</span></div>
+      <div class="pt-kpis">
+        <div class="pt-kpi"><div class="v">${k2.n || 0}<span style="font-size:12px;color:var(--tertiary);"> / ${k2.n_signals || 0}</span></div><div class="l">已结算/总信号</div></div>
+        <div class="pt-kpi"><div class="v">${k2.win_rate != null ? k2.win_rate.toFixed(2) + '%' : '—'}</div><div class="l">胜率${br.win_rate != null ? ' (回测68.03%)' : ''}</div></div>
+        <div class="pt-kpi"><div class="v ${k2.avg_ret != null ? pctCls(k2.avg_ret) : ''}">${ptNum(k2.avg_ret)}</div><div class="l">单笔期望%</div></div>
+        <div class="pt-kpi"><div class="v" style="color:var(--green)">${ptNum(k2.avg_win)}</div><div class="l">均盈%</div></div>
+        <div class="pt-kpi"><div class="v" style="color:var(--red)">${ptNum(k2.avg_loss)}</div><div class="l">均亏%</div></div>
+        <div class="pt-kpi"><div class="v ${k2.max_loss != null ? pctCls(k2.max_loss) : ''}">${ptNum(k2.max_loss)}</div><div class="l">最差单笔%</div></div>
+      </div>
+      <div class="pt-meta-line" style="margin-top:9px;">待结算 ${k2.n_open || 0} · 未成交 ${k2.n_unfilled || 0} · 资格未达标 ${k2.n_skipped || 0}</div>
+    </div>`;
+  const trackV1 = `
+    <div class="pt-track v1">
+      <div class="t-head"><span class="t-tag">v1.9</span>生产轨 · 同期对照<span class="t-sub">建议入场级(strong/std)·2/3进4打板</span></div>
+      <div class="pt-kpis">
+        <div class="pt-kpi"><div class="v">${k1.n || 0}<span style="font-size:12px;color:var(--tertiary);"> / ${k1.n_signals || 0}</span></div><div class="l">已结算/总建议</div></div>
+        <div class="pt-kpi"><div class="v">${k1.win_rate != null ? k1.win_rate.toFixed(2) + '%' : '—'}</div><div class="l">胜率</div></div>
+        <div class="pt-kpi"><div class="v ${k1.avg_ret != null ? pctCls(k1.avg_ret) : ''}">${ptNum(k1.avg_ret)}</div><div class="l">单笔期望%</div></div>
+        <div class="pt-kpi"><div class="v" style="color:var(--green)">${ptNum(k1.avg_win)}</div><div class="l">均盈%</div></div>
+        <div class="pt-kpi"><div class="v" style="color:var(--red)">${ptNum(k1.avg_loss)}</div><div class="l">均亏%</div></div>
+        <div class="pt-kpi"><div class="v ${k1.max_loss != null ? pctCls(k1.max_loss) : ''}">${ptNum(k1.max_loss)}</div><div class="l">最差单笔%</div></div>
+      </div>
+      <div class="pt-meta-line" style="margin-top:9px;">全部分级(含观察/禁止): ${k1a.n || 0} 笔已结算 · 胜率 ${k1a.win_rate != null ? k1a.win_rate.toFixed(2) + '%' : '—'}</div>
+    </div>`;
+
+  // ④ 周小结
+  const weeklyHTML = (PT.weekly || []).map(w => {
+    const w2 = w.v2 || {}, w1 = w.v1 || {};
+    return `<div class="pt-week">
+      <div class="w-lab">${w.label}<small>${w.range || ''}</small></div>
+      <div class="w-cell v2c"><b>${w2.n || 0}</b><span>笔 · 胜率 ${w2.win_rate != null ? w2.win_rate.toFixed(2) + '%' : '—'} · 期望 ${ptNum(w2.avg_ret)}</span></div>
+      <div class="w-cell v1c"><b>${w1.n || 0}</b><span>笔 · 胜率 ${w1.win_rate != null ? w1.win_rate.toFixed(2) + '%' : '—'} · 期望 ${ptNum(w1.avg_ret)}</span></div>
+    </div>`;
+  }).join('');
+
+  // ⑤ 配对对比(同信号日同标的, 出场规则直接差异)
+  const paired = PT.paired || [];
+  const pairHTML = paired.length ? `<div style="overflow-x:auto;"><table class="tbl"><tr>
+      <th>信号日</th><th>标的</th><th>档位</th><th>v1.9 生产</th><th>收益</th><th>v2.0.0 影子</th><th>收益</th><th>差异</th></tr>
+      ${paired.map(p => {
+        const d1 = p.v1_ret != null ? pctCls(p.v1_ret) : '', d2 = p.v2_ret != null ? pctCls(p.v2_ret) : '';
+        const df = p.diff;
+        return `<tr>
+          <td class="mono">${fmtDate(p.advice_date)}</td>
+          <td>${p.name}<span class="code" style="margin-left:4px;">${p.code}</span></td>
+          <td style="font-size:12px;">${p.mv != null ? p.mv.toFixed(0) + '亿' : '—'}</td>
+          <td style="font-size:12px;color:var(--secondary);">${p.v1_status_label || p.v1_status || '—'}</td>
+          <td class="mono ${d1}" style="font-weight:700;">${p.v1_ret != null ? sign(p.v1_ret.toFixed(2), '%') : '—'}</td>
+          <td style="font-size:12px;color:var(--primary);font-weight:600;">${p.v2_status_label || p.v2_status || '—'}</td>
+          <td class="mono ${d2}" style="font-weight:700;">${p.v2_ret != null ? sign(p.v2_ret.toFixed(2), '%') : '—'}</td>
+          <td class="mono ${df != null ? (df > 0 ? 'pt-diff-pos' : df < 0 ? 'pt-diff-neg' : '') : ''}">${df != null ? sign(df.toFixed(2), '%') : '—'}</td>
+        </tr>`; }).join('')}
+    </table></div>` : '<div class="exit-calm" style="margin-top:4px;">暂无双轨交集样本 · 影子轨标的池(市值≥100亿)与生产候选重合后自动配对</div>';
+
+  // ⑥ 影子明细表(最近40条)
+  const recs = PT.records || [];
+  const recHTML = recs.length ? `<div style="overflow-x:auto;"><table class="tbl"><tr>
+      <th>建议日</th><th>标的</th><th>档位</th><th>市值</th><th>打板价</th><th>状态</th><th>收益</th><th>出场原因</th></tr>
+      ${recs.map(r => {
+        const st = PT_ST_TXT[r.status] || ['st-miss', r.status || '—'];
+        const ret = (r.result || {}).ret;
+        return `<tr>
+          <td class="mono">${fmtDate(r.advice_date)}</td>
+          <td>${r.name}<span class="code" style="margin-left:4px;">${r.code}</span>${r.p12_unverified ? '<span style="font-size:10px;color:var(--orange);margin-left:4px;">p12未验证</span>' : ''}</td>
+          <td style="font-size:12px;">${PT_LB_TXT[r.lb] || (r.lb + '板')}</td>
+          <td class="mono" style="font-size:12px;">${r.mv != null ? r.mv.toFixed(0) + '亿' : '—'}</td>
+          <td class="mono">${r.entry_price != null ? r.entry_price.toFixed(2) : '—'}</td>
+          <td class="${st[0]}" style="font-size:12.5px;">${st[1]}</td>
+          <td class="mono ${ret != null ? pctCls(ret) : ''}" style="font-weight:700;">${ret != null ? sign(ret.toFixed(2), '%') : '—'}</td>
+          <td style="font-size:11.5px;color:var(--secondary);">${(r.result || {}).exit_reason || '—'}</td>
+        </tr>`; }).join('')}
+    </table></div>` : '<div class="exit-calm" style="margin-top:4px;">暂无影子信号 · 影子开始日首个盘后(15:10)登记</div>';
+
+  // ⑦ 组装
+  $('ptBody').innerHTML = `
+    <div class="sec-sub" style="margin:14px 0 0;">影子期满判定标准(S1-S5) · 4周期满后按红黄绿灯客观决策: 全切换 / 部分采纳 / 延长 / 返工</div>
+    <div class="pt-criteria">${critHTML}</div>
+    <div class="pt-vs">${trackV2}${trackV1}</div>
+    ${weeklyHTML ? `<div class="ec-title" style="margin-top:18px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      周小结 · 双轨并览</div><div class="pt-weekly">${weeklyHTML}</div>` : ''}
+    <div class="pt-pair-note">◆ 配对对比 = 同一信号日 × 同一标的, 两轨仅出场规则不同 → 差值即「T+2开盘竞价卖」vs「高开≥7%卖开盘/否则卖收盘」的直接效应</div>
+    ${pairHTML}
+    <div class="ec-title" style="margin-top:18px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+      影子信号明细 · 最近 ${recs.length} 条</div>
+    ${recHTML}
+    <div class="pt-rules">
+      <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>v2.0.0 影子策略规则(与v1.9仅两处差异)</h4>
+      <ul>${(S2.rules || []).map(r => `<li>${r}</li>`).join('')}</ul>
+      <ul style="margin-top:6px;">${(S2.diff_vs_v19 || []).map(r => `<li><b>差异</b> · ${r}</li>`).join('')}</ul>
+    </div>
+    <div class="pt-meta-line">回测基准(2024-09~2026-08, ${br.n || 294}笔): 胜率 ${(br.win_rate || 68.03).toFixed(2)}% · 名义期望 +${(br.avg_ret || 3.59).toFixed(2)}% · 折后期望 +${(br.adj_avg_ret || 1.51).toFixed(2)}% · MDD ${(br.mdd || -8.10).toFixed(2)}%${br.by_year ? ' · 分年胜率: ' + Object.entries(br.by_year).map(([y, v]) => y + '年 ' + v.win_rate.toFixed(2) + '%').join(' / ') : ''}<br>
+    零干扰约束: 不改生产信号/建议/仓位 · 同快照派生双轨 · 幂等结算(只推进不回退) · 零token·零资金${PT.error ? '<br><span style="color:var(--red);">⚠ 模块异常: ' + PT.error + '</span>' : ''}</div>`;
+}
+
 /* ── 规则 ── */
 function renderRules(){
   const R = D.rules;
@@ -1563,6 +1831,7 @@ const NAV = [
   ['sec-dragons','龙回头','M1 4v6h6 M3.51 15a9 9 0 1 0 2.13-9.36L1 10'],
   ['sec-watch','监控','M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'],
   ['sec-advice','建议','M9 11l3 3L22 4'],
+  ['sec-parallel','影子','M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5'],
   ['sec-emotion','情绪','M3 3v18h18M18 9l-5 5-3-3-4 4'],
   ['sec-backtest','回测','M12 20V10M18 20V4M6 20v-4'],
   ['sec-rules','规则','M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'],
@@ -1805,7 +2074,7 @@ function initTopnav(){
 if (D){
   renderHero(); renderSignal(); renderTimeline(); renderCands(); renderDragons(); renderWatch();
   renderEmotion(); renderCharts(); renderBacktest(); renderRules(); renderNav(); renderFooter();
-  renderAdvice();
+  renderAdvice(); renderParallel();
   renderPanels(); initTopnav();
   fadeAll(); particles();
   /* v1.9 移动端适配: 图表随容器宽度重绘(旋转/窗口缩放后画布不再溢出) */
