@@ -584,7 +584,10 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
   .charts, .grp-grid, .rule-grid { grid-template-columns: 1fr; }
   .emo-grid { grid-template-columns: repeat(3, 1fr); }
   .bt-hero { grid-template-columns: repeat(2, 1fr); }
-  .factor-grid { grid-template-columns: repeat(3, 1fr); }
+  /* 5因子 3+2 布局: 第二行2格均分整行, 消除右侧空洞 */
+  .factor-grid { grid-template-columns: repeat(6, 1fr); }
+  .factor-grid .f-cell { grid-column: span 2; }
+  .factor-grid .f-cell:nth-child(4), .factor-grid .f-cell:nth-child(5) { grid-column: span 3; }
   .side-nav { display:none; }
   .ec-row { flex-wrap:wrap; }
   .ec-stats { width:100%; display:flex; align-items:baseline; gap:16px; text-align:left; min-width:0; margin-top:4px; }
@@ -1219,11 +1222,13 @@ function candCard(c, planOpen){
 }
 function renderCands(){
   renderMaster();
+  /* v1.9.2 移动端节奏: 候选卡买卖计划默认折叠, 仅每组首选(评分最高)展开
+     → 单卡1170px→~600px, 候选区14778px→~8000px, 消除节奏区与龙回头之间的空旷带 */
   $('c23List').innerHTML = D.candidates_2to3.length
-    ? D.candidates_2to3.map(c => candCard(c, true)).join('')
+    ? D.candidates_2to3.map((c, i) => candCard(c, i === 0)).join('')
     : '<div class="card" style="color:var(--secondary);">今日无符合条件的 2进3 候选</div>';
   $('c34List').innerHTML = D.candidates_3to4.length
-    ? D.candidates_3to4.map(c => candCard(c, true)).join('')
+    ? D.candidates_3to4.map((c, i) => candCard(c, i === 0)).join('')
     : '<div class="card" style="color:var(--secondary);">今日无符合条件的 3进4 候选</div>';
   $('c23Sub').textContent = `回测胜率 76% 区间 · 换手<10% + 封单强 + 首封早 + 0炸板 · 共 ${D.candidates_2to3.length} 只（个股65分+市场35分，开盘强度待竞价验证）`;
 }
