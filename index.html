@@ -2,9 +2,10 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>打板情绪雷达</title>
 <style>
+/* v1.9.2 移动端排版打磨: 字号11px底线 / 触摸目标44-40px / mono列不换行 / 安全区viewport */
 :root {
   --bg: #F2F2F7; --card: #FFFFFF; --primary: #007AFF; --primary-soft: rgba(0,122,255,.08);
   --text: #1D1D1F; --secondary: #86868B; --tertiary: #AEAEB2;
@@ -87,7 +88,7 @@ section { scroll-margin-top: 88px; }
 .mk-bars { flex:1; display:flex; flex-direction:column; gap:7px; }
 .mk-bar { display:grid; grid-template-columns: 112px 1fr 58px; align-items:center; gap:10px; font-size:13px; }
 .mk-bar .lab { color:var(--secondary); font-weight:500; }
-.mk-bar .lab em { font-style:normal; font-size:10.5px; color:var(--tertiary); margin-left:3px; }
+.mk-bar .lab em { font-style:normal; font-size:11px; color:var(--tertiary); margin-left:3px; }
 .mk-bar .track { height:7px; border-radius:4px; background:var(--bg); overflow:hidden; }
 .mk-bar .fill { height:100%; border-radius:4px; background:var(--primary); transition: width .8s cubic-bezier(.2,.8,.2,1); }
 .mk-bar .v { text-align:right; font-weight:600; font-variant-numeric:tabular-nums; }
@@ -149,13 +150,13 @@ section { scroll-margin-top: 88px; }
 .cand-ring svg { transform: rotate(-90deg); }
 .cand-ring .num { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
 .cand-ring .num b { font-size:24px; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; }
-.cand-ring .num span { font-size:10px; color:var(--secondary); margin-top:2px; }
+.cand-ring .num span { font-size:11px; color:var(--secondary); margin-top:2px; }
 .factor-grid { display:grid; grid-template-columns: repeat(5, 1fr); gap:8px; margin-top:16px; }
 .f-cell { background:var(--bg); border-radius:12px; padding:10px 8px; text-align:center; }
 .f-cell .fv { font-size:16px; font-weight:700; font-variant-numeric:tabular-nums; }
 .f-cell .fv.good { color:var(--green); } .f-cell .fv.bad { color:var(--red); }
 .f-cell .fl { font-size:11px; color:var(--secondary); margin-top:1px; }
-.f-cell .fs { font-size:10px; color:var(--tertiary); }
+.f-cell .fs { font-size:11px; color:var(--tertiary); }
 .plan { margin-top:14px; border-top:1px solid var(--sep); padding-top:4px; }
 .plan details { border-radius:10px; }
 .plan summary {
@@ -218,10 +219,13 @@ section { scroll-margin-top: 88px; }
 
 /* ── 监控表 ── */
 .tbl { width:100%; border-collapse:collapse; font-size:14px; }
+.tbl-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+.tbl-scroll::-webkit-scrollbar { display:none; }
+.tbl-scroll .tbl { min-width: max-content; }
 .tbl th { text-align:left; color:var(--secondary); font-weight:600; font-size:12.5px; padding:8px 10px; border-bottom:1px solid var(--sep); white-space:nowrap; }
 .tbl td { padding:9px 10px; border-bottom:1px solid var(--sep); font-variant-numeric:tabular-nums; }
 .tbl tr:last-child td { border-bottom:none; }
-.tbl .mono { font-weight:600; }
+.tbl .mono { font-weight:600; white-space:nowrap; }
 .up { color: var(--red); } .down { color: var(--green); }
 .st-ok { color:var(--green); font-weight:700; } .st-bad { color:var(--red); font-weight:700; } .st-mid { color:var(--orange); font-weight:600; }
 
@@ -534,8 +538,8 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 .pt-crit.yellow .c-val { color:var(--orange); }
 .pt-crit.red .c-val { color:var(--red); }
 .pt-crit.wait .c-val { color:var(--secondary); }
-.pt-crit .c-tgt { font-size:10.5px; color:var(--tertiary); margin-top:3px; }
-.pt-crit .c-note { font-size:10.5px; color:var(--tertiary); margin-top:5px; line-height:1.5; }
+.pt-crit .c-tgt { font-size:11.5px; color:var(--tertiary); margin-top:3px; }
+.pt-crit .c-note { font-size:11.5px; color:var(--tertiary); margin-top:5px; line-height:1.5; }
 .pt-crit.red { background:rgba(255,59,48,.05); }
 .pt-vs { display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:14px; }
 .pt-track { border-radius:14px; padding:15px 17px 13px; }
@@ -543,21 +547,21 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 .pt-track.v1 { background:var(--card2); }
 .pt-track .t-head { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:800; }
 .pt-track .t-tag {
-  font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:8px; letter-spacing:.3px;
+  font-size:11px; font-weight:800; padding:2px 8px; border-radius:8px; letter-spacing:.3px;
 }
 .pt-track.v2 .t-tag { background:var(--primary); color:#fff; }
 .pt-track.v1 .t-tag { background:var(--sep); color:var(--secondary); }
 .pt-track .t-sub { font-size:11px; color:var(--tertiary); margin-top:2px; margin-left:2px; }
 .pt-kpis { display:grid; grid-template-columns: repeat(3, 1fr); gap:8px 10px; margin-top:11px; }
 .pt-kpi .v { font-size:19px; font-weight:800; letter-spacing:-.4px; font-variant-numeric:tabular-nums; }
-.pt-kpi .l { font-size:10.5px; color:var(--secondary); margin-top:1px; }
+.pt-kpi .l { font-size:11px; color:var(--secondary); margin-top:1px; }
 .pt-weekly { display:flex; flex-direction:column; gap:8px; margin-top:12px; }
 .pt-week {
   display:grid; grid-template-columns: 86px 1fr 1fr; gap:10px; align-items:center;
   padding:10px 14px; border-radius:12px; background:var(--card2); font-size:12.5px;
 }
 .pt-week .w-lab { font-weight:800; font-size:13px; }
-.pt-week .w-lab small { display:block; font-size:10.5px; color:var(--tertiary); font-weight:600; }
+.pt-week .w-lab small { display:block; font-size:11px; color:var(--tertiary); font-weight:600; }
 .pt-week .w-cell b { font-variant-numeric:tabular-nums; }
 .pt-week .w-cell span { color:var(--tertiary); font-size:11px; margin-left:3px; }
 .pt-week .w-cell.v2c b { color:var(--primary); }
@@ -590,6 +594,10 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 @media (max-width:720px){
   .topbar-inner { flex-wrap:wrap; padding:8px 16px 4px; gap:6px 12px; }
   .topnav { order:2; width:100%; margin-left:0; padding-bottom:4px; }
+  /* 触摸目标: 导航44px / 次级按钮40px (iOS HIG 最小触控标准) */
+  .tnav-item { min-height:44px; padding:0 14px; }
+  .np-goto { min-height:40px; }
+  .act-chip { min-height:40px; }
   .np-body { padding:2px 16px 16px; }
   .np-stages { grid-template-columns:1fr; }
   .np-row { grid-template-columns: 1fr auto; row-gap:4px; }
@@ -655,13 +663,14 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
   .mk-bar { grid-template-columns: 84px 1fr 46px; }
   .mk-bar .lab em { display: none; }
   .factor-grid { gap: 6px; }
-  .f-cell { padding: 9px 6px; }
+  .f-cell { padding: 10px 6px; }
+  .f-cell .fl { font-size: 11.5px; }
   .bt-hero { gap: 8px; }
   .bt-cell { padding: 13px 8px; }
   .bt-cell .v { font-size: 20px; }
   .np-stats { grid-template-columns: repeat(2, 1fr); }
   .emo-cell .v { font-size: 19px; }
-  .act-chip { padding: 0 12px; font-size: 14px; min-height: 34px; }
+  .act-chip { padding: 0 12px; font-size: 14px; min-height: 40px; }
   /* v1.9.1 并行跟踪实验区: 超窄屏再收紧 */
   .pt-criteria { grid-template-columns: 1fr 1fr; gap: 8px; }
   .pt-crit { padding: 10px 11px 9px; }
@@ -1499,7 +1508,7 @@ function renderBacktest(){
        <td class="mono" style="color:${v.win_rate>=55?'var(--green)':v.win_rate>=45?'var(--orange)':'var(--red)'};font-weight:700">${v.win_rate}%</td>
        <td class="mono ${pctCls(v.avg_ret)}">${sign(v.avg_ret,'%')}</td></tr>`).join('');
     return `<div class="chart-box" style="padding:16px 14px 8px;"><h3 style="padding:0 4px 8px;">${title}</h3>
-      <table class="tbl"><tr><th>分组</th><th>样本</th><th>胜率</th><th>均收益</th></tr>${rows}</table></div>`;
+      <div class="tbl-scroll"><table class="tbl"><tr><th>分组</th><th>样本</th><th>胜率</th><th>均收益</th></tr>${rows}</table></div></div>`;
   };
   $('grpGrid').innerHTML = mkGrp('信号日情绪分组', grp.emotion) + mkGrp('入场日开盘强度分组', grp.t1_open);
 }
@@ -1648,7 +1657,7 @@ function renderAdvice(){
       <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>动态信号矩阵(只提前 · 不延后)</h4>
       <div style="overflow-x:auto;"><table class="tbl"><tr><th>信号</th><th>置信</th><th>触发条件</th><th>动作</th></tr>
         ${(EM.matrix || []).map(m => `<tr>
-          <td class="${m.now ? 'sig-now' : 'sig-off'}" style="font-size:12.5px;">${m.now ? '● ' : ''}${m.label}<span style="font-size:10.5px;color:var(--tertiary);"> ${m.scope}</span></td>
+          <td class="${m.now ? 'sig-now' : 'sig-off'}" style="font-size:12.5px;">${m.now ? '● ' : ''}${m.label}<span style="font-size:11px;color:var(--tertiary);"> ${m.scope}</span></td>
           <td class="mono" style="font-size:11.5px;color:var(--tertiary);">${Math.round((m.conf || 0) * 100)}%</td>
           <td style="font-size:12px;color:var(--secondary);">${m.cond}</td>
           <td style="font-size:12px;font-weight:600;">${m.action}</td></tr>`).join('')}
@@ -1777,7 +1786,7 @@ function renderParallel(){
         const ret = (r.result || {}).ret;
         return `<tr>
           <td class="mono">${fmtDate(r.advice_date)}</td>
-          <td>${r.name}<span class="code" style="margin-left:4px;">${r.code}</span>${r.p12_unverified ? '<span style="font-size:10px;color:var(--orange);margin-left:4px;">p12未验证</span>' : ''}</td>
+          <td>${r.name}<span class="code" style="margin-left:4px;">${r.code}</span>${r.p12_unverified ? '<span style="font-size:11px;color:var(--orange);margin-left:4px;">p12未验证</span>' : ''}</td>
           <td style="font-size:12px;">${PT_LB_TXT[r.lb] || (r.lb + '板')}</td>
           <td class="mono" style="font-size:12px;">${r.mv != null ? r.mv.toFixed(0) + '亿' : '—'}</td>
           <td class="mono">${r.entry_price != null ? r.entry_price.toFixed(2) : '—'}</td>
