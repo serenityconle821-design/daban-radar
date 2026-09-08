@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>打板情绪雷达</title>
 <style>
-/* v1.9.2 移动端排版打磨: 字号11px底线 / 触摸目标44-40px / mono列不换行 / 安全区viewport */
+/* v1.9.2 移动端排版打磨: 字号11px底线 / 触摸目标44-40px / mono列不换行 / 安全区viewport
+   第三轮(逐屏视觉审计): 表格全量tbl-scroll(min-width)防8列表断行 / 规则文本keep-all防中文词组拆行
+   / 因子格6格化(板级契合×市值语义修正, 移动3×2) / 价格fp()两位小数(止损2.7→2.70)
+   / mk-sub网格对齐(弃122px硬编码) / 禁止入场时操作chip降灰 / 买卖计划默认折叠 */
 :root {
   --bg: #F2F2F7; --card: #FFFFFF; --primary: #007AFF; --primary-soft: rgba(0,122,255,.08);
   --text: #1D1D1F; --secondary: #86868B; --tertiary: #AEAEB2;
@@ -92,6 +95,7 @@ section { scroll-margin-top: 88px; }
 .mk-bar .track { height:7px; border-radius:4px; background:var(--bg); overflow:hidden; }
 .mk-bar .fill { height:100%; border-radius:4px; background:var(--primary); transition: width .8s cubic-bezier(.2,.8,.2,1); }
 .mk-bar .v { text-align:right; font-weight:600; font-variant-numeric:tabular-nums; }
+.mk-sub { grid-column: 2 / -1; font-size:11.5px; color:var(--tertiary); margin-top:-3px; }
 .mk-prox { display:flex; flex-wrap:wrap; gap:6px; margin-top:9px; }
 .mk-prox .p-chip { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:10px;
   font-size:11.5px; font-weight:600; background:var(--orange-soft); color:var(--orange); }
@@ -151,7 +155,7 @@ section { scroll-margin-top: 88px; }
 .cand-ring .num { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
 .cand-ring .num b { font-size:24px; font-weight:800; line-height:1; font-variant-numeric:tabular-nums; }
 .cand-ring .num span { font-size:11px; color:var(--secondary); margin-top:2px; }
-.factor-grid { display:grid; grid-template-columns: repeat(5, 1fr); gap:8px; margin-top:16px; }
+.factor-grid { display:grid; grid-template-columns: repeat(6, 1fr); gap:8px; margin-top:16px; }
 .f-cell { background:var(--bg); border-radius:12px; padding:10px 8px; text-align:center; }
 .f-cell .fv { font-size:16px; font-weight:700; font-variant-numeric:tabular-nums; }
 .f-cell .fv.good { color:var(--green); } .f-cell .fv.bad { color:var(--red); }
@@ -172,6 +176,7 @@ section { scroll-margin-top: 88px; }
 .plan .p-tag.warn { background:var(--orange-soft); color:var(--orange); }
 .plan .p-tag.sell { background:var(--green-soft); color:var(--green); }
 .plan .p-txt b { font-variant-numeric:tabular-nums; }
+.plan .p-txt { flex:1; word-break:keep-all; overflow-wrap:break-word; line-height:1.6; }
 
 /* ── 操作总方针横幅 ── */
 .master {
@@ -211,7 +216,9 @@ section { scroll-margin-top: 88px; }
 .act-chip.buy_light { background:var(--primary); }
 .act-chip.watch { background:var(--orange); }
 .act-chip.skip { background:var(--gray-badge); }
-.act-desc { flex:1; min-width:200px; font-size:13.5px; color:var(--secondary); line-height:1.55; }
+.act-chip.dim { filter:grayscale(1); opacity:.5; }
+.act-desc { flex:1; min-width:200px; font-size:13.5px; color:var(--secondary); line-height:1.55;
+  word-break:keep-all; overflow-wrap:break-word; }  /* 中文词组不拆行(收盘价/参考价), 超长词兜底断行 */
 .act-price { display:flex; gap:16px; font-size:12.5px; color:var(--secondary); flex:none; }
 .act-price b { font-size:14.5px; color:var(--text); font-variant-numeric:tabular-nums; }
 .act-price .stop { color:var(--red); }
@@ -235,7 +242,9 @@ section { scroll-margin-top: 88px; }
 .emo-cell .v { font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.5px; }
 .emo-cell .l { font-size:12px; color:var(--secondary); margin-top:1px; }
 .charts { display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
-.chart-box { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 16px 10px; }
+/* [移动端修复] grid子项含横向滚动表(tbl-scroll·min-width:max-content)时,
+   子项min-content被表格撑爆1fr轨道(643px>视口)导致整页横向溢出 → min-width:0放行收缩, 表格改在容器内滚动 */
+.chart-box { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 16px 10px; min-width:0; }
 .chart-box h3 { font-size:15px; font-weight:700; padding:0 6px 10px; display:flex; align-items:center; gap:8px; }
 .chart-box h3 .hint { font-size:11.5px; color:var(--tertiary); font-weight:500; margin-left:auto; }
 .chart { width:100%; height: 240px; }
@@ -461,7 +470,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
   background:rgba(52,199,89,.08); color:var(--green); font-size:13.5px; font-weight:600; }
 .exit-calm svg { width:16px; height:16px; flex:none; }
 .exit-grid { display:grid; grid-template-columns: 1.15fr 1fr; gap:14px; margin-top:6px; }
-.exit-box { background:var(--card2); border-radius:14px; padding:14px 16px; }
+.exit-box { background:var(--card2); border-radius:14px; padding:14px 16px; min-width:0; } /* [移动端修复] 同chart-box: 防max-content表撑爆grid轨道 */
 .exit-box h4 { font-size:14.5px; font-weight:700; margin-bottom:10px; display:flex; align-items:center; gap:7px; }
 .exit-box h4 svg { width:14px; height:14px; color:var(--primary); }
 .static-row { display:flex; gap:9px; align-items:flex-start; padding:8px 0; border-bottom:1px solid var(--sep); font-size:13px; line-height:1.6; }
@@ -582,12 +591,12 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
   .tl-connector { display:none; }
   .signal-grid { grid-template-columns: 1fr; }
   .charts, .grp-grid, .rule-grid { grid-template-columns: 1fr; }
+  /* 出场双卡 721-900px 仍双列时, 动态矩阵表(643px)列宽仅~340px 需内部滚动 → 平板直接单列 */
+  .exit-grid { grid-template-columns: 1fr; }
   .emo-grid { grid-template-columns: repeat(3, 1fr); }
   .bt-hero { grid-template-columns: repeat(2, 1fr); }
-  /* 5因子 3+2 布局: 第二行2格均分整行, 消除右侧空洞 */
-  .factor-grid { grid-template-columns: repeat(6, 1fr); }
-  .factor-grid .f-cell { grid-column: span 2; }
-  .factor-grid .f-cell:nth-child(4), .factor-grid .f-cell:nth-child(5) { grid-column: span 3; }
+  /* 6因子格 → 3×2 完美两行(6格化后无需span拉伸) */
+  .factor-grid { grid-template-columns: repeat(3, 1fr); }
   .side-nav { display:none; }
   .ec-row { flex-wrap:wrap; }
   .ec-stats { width:100%; display:flex; align-items:baseline; gap:16px; text-align:left; min-width:0; margin-top:4px; }
@@ -606,7 +615,6 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
   .np-row { grid-template-columns: 1fr auto; row-gap:4px; }
   .np-goto { margin-left:0; }
   .adv-hero { grid-template-columns: repeat(2, 1fr); }
-  .exit-grid { grid-template-columns: 1fr; }
   /* 布局收紧: 页边距/卡片内距减半, 释放横向空间 */
   .page { padding: 0 12px 40px; }
   .card { padding: 18px 16px; margin-top: 16px; }
@@ -681,6 +689,17 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
   .pt-week { grid-template-columns: 1fr; gap: 4px; }
   .pt-week .w-cell span { display: none; }
   .pt-mini { display: none !important; }
+}
+
+/* ═══ 触屏平板(≥721px, iPad等coarse指针): 触控目标对齐iOS HIG 44px, 鼠标桌面维持紧凑 ═══ */
+@media (pointer: coarse) and (min-width: 721px) {
+  .tnav-item { min-height: 44px; }
+  .np-goto { min-height: 40px; }
+  .act-chip { min-height: 40px; }
+}
+@media (pointer: coarse) and (min-width: 901px) {
+  .side-nav a { width: 44px; height: 44px; }
+  .side-nav a .tip { right: 52px; }
 }
 </style>
 </head>
@@ -903,7 +922,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
       <span>昨日高位板 · 今日监控</span>
     </div>
     <p class="sec-sub" id="watchSub"></p>
-    <div style="overflow-x:auto;"><table class="tbl" id="watchTbl"></table></div>
+    <div class="tbl-scroll"><table class="tbl" id="watchTbl"></table></div>
   </section>
 
   <!-- ═══ v1.8.0 建议跟踪 · 出场监控 ═══ -->
@@ -916,7 +935,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
     <div class="card" style="margin-top:12px;">
       <div id="advGrade"></div>
       <div id="advHold"></div>
-      <div style="overflow-x:auto;"><table class="tbl" id="advTbl"></table></div>
+      <div class="tbl-scroll"><table class="tbl" id="advTbl"></table></div>
       <div class="adv-legend" id="advLegend"></div>
     </div>
     <div class="card" style="margin-top:14px;">
@@ -970,7 +989,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
     <div class="bt-hero" id="btHero"></div>
     <div class="bt-note" id="btNote"></div>
     <div id="entryCmp"></div>
-    <div style="overflow-x:auto;"><table class="tbl" id="btRecent"></table></div>
+    <div class="tbl-scroll"><table class="tbl" id="btRecent"></table></div>
     <div class="grp-grid" id="grpGrid" style="margin-top:16px;"></div>
   </section>
 
@@ -1008,6 +1027,8 @@ function fmtDate(d){ return d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6); }
 function shortD(d){ return (parseInt(d.slice(4,6))) + '/' + parseInt(d.slice(6)); }
 function pctCls(v){ return v > 0 ? 'up' : (v < 0 ? 'down' : ''); }
 function sign(v, suf){ return (v>0?'+':'') + v + (suf||''); }
+/* v1.9.2 价格统一两位小数(修复Python round后2.70→2.7尾零丢失) */
+function fp(v){ return (v == null || v === '') ? '—' : Number(v).toFixed(2); }
 
 /* ── Hero ── */
 function renderHero(){
@@ -1084,8 +1105,8 @@ function renderSignal(){
   $('mkBars').innerHTML = bars.map(b => `
     <div class="mk-bar"><span class="lab">${b[0]}<em>${b[1]}</em></span>
       <div class="track"><div class="fill" style="width:0" data-w="${(b[2]??0)/b[3]*100}"></div></div>
-      <span class="v">${(b[2]??0).toFixed(1)}/${b[3]}</span></div>
-    <div style="font-size:11.5px;color:var(--tertiary);margin:-3px 0 0 122px;">${b[4]}</div>`).join('');
+      <span class="v">${(b[2]??0).toFixed(1)}/${b[3]}</span>
+    <div class="mk-sub">${b[4]}</div></div>`).join('');
   setTimeout(() => document.querySelectorAll('.mk-bar .fill').forEach(el => el.style.width = el.dataset.w + '%'), 80);
   // 接近度 (未达标条件差多少, 临近=预热)
   const prox = mk.proximity || [];
@@ -1172,18 +1193,23 @@ function candCard(c, planOpen){
     { l:'封单', v: (c.seal ?? 0).toFixed(2) + '亿', s:(c.score_parts.seal ?? 0).toFixed(1) + '/15', good: c.seal >= 1.5, bad: c.seal < 0.4 },
     { l:'首封时间', v: c.first, s:(c.score_parts.first ?? 0).toFixed(1) + '/15', good: c.first <= '10:30', bad: c.first >= '13:30' },
     { l:'炸板次数', v: c.zbc + '次', s:(c.score_parts.zbc ?? 0).toFixed(1) + '/10', good: c.zbc === 0, bad: c.zbc >= 2 },
-    { l:'板级契合', v: (c.mv ?? 0).toFixed(2) + '亿市值', s:(c.score_parts.lb ?? 0).toFixed(1) + '/5', good:false, bad:false },
+    /* v1.9.2 修正: 板级契合与市值拆为两格(原"板级契合"格的值显示市值, 语义错位)
+       6格 = 移动端完美3×2 / 桌面一行6列, 消除3+2失衡 */
+    { l:'板级契合', v: (c.score_parts.lb ?? 0).toFixed(1) + '/5', s:'档位契合加成' },
+    { l:'市值', v: (c.mv ?? 0).toFixed(1) + '亿', s: (c.mv ?? 0) >= 100 ? '大票' : '' },
   ];
   const inner = `<div class="num"><b style="color:${color}">${Math.round(c.score)}</b><span>确定性</span></div>`;
   const tag = c.tag ? `<span class="pill cautious">${c.tag}</span>` : '';
   const A = c.action || {};
+  /* v1.9.2 语义降级: 入场分级为禁止/观察时, 绿色操作chip降灰(否则"首选打板"与"禁止入场"红绿对峙) */
+  const dimAct = c.entry && (c.entry.grade === 'forbid' || c.entry.grade === 'observe');
   const actRow = A.key ? `
     <div class="act-row">
-      <span class="act-chip ${A.key}">${ACT_ICO[A.key] || ''}${A.label}</span>
+      <span class="act-chip ${A.key}${dimAct ? ' dim' : ''}">${ACT_ICO[A.key] || ''}${A.label}</span>
       <span class="act-desc">${A.desc}</span>
       <span class="act-price">
-        <span>买入参考 <b>${A.buy_price}</b></span>
-        <span class="stop">止损 <b>${A.stop_loss}</b></span>
+        <span>买入参考 <b>${fp(A.buy_price)}</b></span>
+        <span class="stop">止损 <b>${fp(A.stop_loss)}</b></span>
       </span>
     </div>` : '';
   return `
@@ -1201,7 +1227,7 @@ function candCard(c, planOpen){
     ${entryBadgeHTML(c.entry)}
     <div class="factor-grid">${factors.map(f => `
       <div class="f-cell"><div class="fv ${f.good?'good':''} ${f.bad?'bad':''}">${f.v}</div>
-      <div class="fl">${f.l}</div><div class="fs">${f.s}</div></div>`).join('')}
+      <div class="fl">${f.l}</div>${f.s ? `<div class="fs">${f.s}</div>` : ''}</div>`).join('')}
     </div>
     <div class="plan">
       <details ${planOpen?'open':''}>
@@ -1607,7 +1633,7 @@ function renderAdvice(){
           ${h.name} <span class="code">${h.code}</span>
           <span style="margin-left:auto;font-size:12.5px;color:var(--secondary);">入场价 <b class="mono">${R.entry_price != null ? R.entry_price.toFixed(2) : '—'}</b> · ${fmtDate(R.entry_date || h.advice_date)}</span>
         </div>
-        <div class="hold-meta">${ADV_TYPE_TXT[h.type] || h.type} · 建议日 ${fmtDate(h.advice_date)} · 买价 ${P.buy_price ?? '—'} · 止损 ${P.stop_loss ?? '—'}</div>
+        <div class="hold-meta">${ADV_TYPE_TXT[h.type] || h.type} · 建议日 ${fmtDate(h.advice_date)} · 买价 ${fp(P.buy_price)} · 止损 ${fp(P.stop_loss)}</div>
         ${sigs.length
           ? `<div class="hold-sig">${sigs.map(s => `<span class="hs ${s.pri || 'env'}">${s.label} → ${s.action}</span>`).join('')}</div>`
           : '<div class="hold-sig"><span class="hs ok">今日无出场信号 · 按静态规则持有</span></div>'}
@@ -1624,10 +1650,10 @@ function renderAdvice(){
       return `<tr>
         <td class="mono">${fmtDate(r.advice_date)}</td>
         <td>${r.name}<span class="code" style="margin-left:4px;">${r.code}</span></td>
-        <td style="font-size:12.5px;">${ADV_TYPE_TXT[r.type] || r.type}</td>
-        <td><b style="color:${GRADE_COLOR[r.grade] || 'var(--secondary)'};font-size:12.5px;">${r.grade_label || r.grade || '—'}</b></td>
+        <td style="font-size:12.5px;white-space:nowrap;">${ADV_TYPE_TXT[r.type] || r.type}</td>
+        <td style="white-space:nowrap;"><b style="color:${GRADE_COLOR[r.grade] || 'var(--secondary)'};font-size:12.5px;">${r.grade_label || r.grade || '—'}</b></td>
         <td class="mono">${r.score != null ? r.score.toFixed(1) : '—'}</td>
-        <td class="${st[0]}" style="font-size:12.5px;">${st[1]}</td>
+        <td class="${st[0]}" style="font-size:12.5px;white-space:nowrap;">${st[1]}</td>
         <td class="mono ${ret == null ? '' : pctCls(ret)}" style="font-weight:700;">${ret == null ? '—' : sign(ret, '%')}</td>
         <td style="font-size:12px;color:var(--secondary);">${(r.result || {}).exit_reason || '—'}</td>
       </tr>`;
@@ -1660,7 +1686,7 @@ function renderAdvice(){
     </div>
     <div class="exit-box">
       <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>动态信号矩阵(只提前 · 不延后)</h4>
-      <div style="overflow-x:auto;"><table class="tbl"><tr><th>信号</th><th>置信</th><th>触发条件</th><th>动作</th></tr>
+      <div class="tbl-scroll"><table class="tbl"><tr><th>信号</th><th>置信</th><th>触发条件</th><th>动作</th></tr>
         ${(EM.matrix || []).map(m => `<tr>
           <td class="${m.now ? 'sig-now' : 'sig-off'}" style="font-size:12.5px;">${m.now ? '● ' : ''}${m.label}<span style="font-size:11px;color:var(--tertiary);"> ${m.scope}</span></td>
           <td class="mono" style="font-size:11.5px;color:var(--tertiary);">${Math.round((m.conf || 0) * 100)}%</td>
@@ -1765,7 +1791,7 @@ function renderParallel(){
 
   // ⑤ 配对对比(同信号日同标的, 出场规则直接差异)
   const paired = PT.paired || [];
-  const pairHTML = paired.length ? `<div style="overflow-x:auto;"><table class="tbl"><tr>
+      const pairHTML = paired.length ? `<div class="tbl-scroll"><table class="tbl"><tr>
       <th>信号日</th><th>标的</th><th>档位</th><th>v1.9 生产</th><th>收益</th><th>v2.0.0 影子</th><th>收益</th><th>差异</th></tr>
       ${paired.map(p => {
         const d1 = p.v1_ret != null ? pctCls(p.v1_ret) : '', d2 = p.v2_ret != null ? pctCls(p.v2_ret) : '';
@@ -1784,7 +1810,7 @@ function renderParallel(){
 
   // ⑥ 影子明细表(最近40条)
   const recs = PT.records || [];
-  const recHTML = recs.length ? `<div style="overflow-x:auto;"><table class="tbl"><tr>
+  const recHTML = recs.length ? `<div class="tbl-scroll"><table class="tbl"><tr>
       <th>建议日</th><th>标的</th><th>档位</th><th>市值</th><th>打板价</th><th>状态</th><th>收益</th><th>出场原因</th></tr>
       ${recs.map(r => {
         const st = PT_ST_TXT[r.status] || ['st-miss', r.status || '—'];
@@ -2008,8 +2034,8 @@ function renderPanels(){
       ${dr.slice(0, 4).map(d => npRow(
         `${d.name}<span class="code">${d.code}</span><span style="font-size:11px;font-weight:700;color:${d.tier === 'strong' ? 'var(--green)' : 'var(--primary)'}">${d.tier_label||''}</span>`,
         d.lb + '连板 · 回踩' + (d.touch||'MA'),
-        '买 ' + (d.buy_price ?? '—'),
-        '止损 ' + (d.stop_loss ?? '—'),
+        '买 ' + fp(d.buy_price),
+        '止损 ' + fp(d.stop_loss),
         d.tier === 'strong' ? 'var(--green)' : 'var(--primary)'
       )).join('')}
     </div>` : '<div class="np-note">今日无连板股回踩MA信号 · 该策略在连板股数量较多时效果更佳。</div>'}
