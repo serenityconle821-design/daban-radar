@@ -264,9 +264,23 @@ section { scroll-margin-top: 88px; }
 .strat-card { background:var(--bg); border-radius:14px; padding:16px 18px; margin-top:12px; min-width:0; }
 .strat-head { display:flex; align-items:center; gap:11px; flex-wrap:wrap; }
 .strat-ico { width:38px; height:38px; border-radius:11px; display:flex; align-items:center; justify-content:center; flex:none; }
-.strat-name { font-size:16.5px; font-weight:800; letter-spacing:-.2px; }
+.strat-tt { flex:1; min-width:0; }
+.strat-name { font-size:16.5px; font-weight:800; letter-spacing:-.2px; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
 .strat-en { font-size:11.5px; color:var(--tertiary); font-weight:500; }
-.strat-kpi { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-top:13px; }
+.strat-tags { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
+.strat-core { display:flex; align-items:center; gap:16px; flex:none; }
+.strat-core .sc-cell { text-align:right; min-width:58px; }
+.strat-core .sc-cell .v { font-size:17.5px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.3px; }
+.strat-core .sc-cell .l { font-size:10.5px; color:var(--secondary); margin-top:1px; }
+.strat-toggle { flex:none; display:inline-flex; align-items:center; gap:4px; min-height:34px; padding:0 13px; border:none; border-radius:999px; background:var(--sep); color:var(--secondary); font-size:12px; font-weight:600; cursor:pointer; font-family:inherit; -webkit-tap-highlight-color:transparent; transition:background .2s ease; }
+.strat-toggle:active { background:rgba(60,60,67,.16); }
+.strat-toggle .chev { transition:transform .28s ease; }
+.strat-card.open .strat-toggle .chev { transform:rotate(180deg); }
+.strat-more { display:none; margin-top:13px; padding-top:13px; border-top:1px solid var(--sep); }
+.strat-card.open .strat-more { display:block; animation:stratIn .3s ease; }
+@keyframes stratIn { from{opacity:0; transform:translateY(-5px);} to{opacity:1; transform:none;} }
+.strat-desc { font-size:11.5px; color:var(--secondary); line-height:1.6; margin-top:10px; }
+.strat-kpi { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
 .strat-kpi-cell { background:var(--card); border-radius:12px; padding:11px 6px; text-align:center; min-width:0; }
 .strat-kpi-cell .v { font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.3px; }
 .strat-kpi-cell .l { font-size:11px; color:var(--secondary); margin-top:1px; }
@@ -671,9 +685,11 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
   .emo-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .emo-cell { padding: 12px 8px; }
   .emo-cell .v { font-size: 21px; }
-  /* 战法雷达: KPI 3列→2列(390px窄屏), 信号行右侧价签换行 */
+  /* 战法雷达: KPI 3列→2列(390px窄屏), 核心指标行整行铺开, 信号行右侧价签换行 */
   .strat-kpi { grid-template-columns: repeat(2, 1fr); }
   .strat-card { padding: 14px 13px; }
+  .strat-core { width:100%; justify-content:space-between; gap:8px; }
+  .strat-core .sc-cell { text-align:left; min-width:0; }
   .strat-sig .s-l { min-width: 100%; }
   .strat-sig .s-r { text-align: left; width: 100%; }
   /* 图表降高 */
@@ -1017,7 +1033,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
         <span class="ico" style="background:var(--red-soft); color:var(--red);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6.01A9.99 9.99 0 0 0 4 18"/><path d="M15.52 15.52A6 6 0 0 0 12 6a6 6 0 0 0-3.52 9.52"/><circle cx="12" cy="12" r="1.6"/></svg></span>
         <span>五大战法雷达 · 回测融合</span>
       </div>
-      <p class="sec-sub">近两年 4991股 × 484交易日 全样本回测 · T3龙回头 / T4涨停回马枪 / T5箱体回踩 采纳运行 · T1阶梯上行 / T2双涨停背离 回测否决 · T日收盘信号 → T+1开盘入场</p>
+      <p class="sec-sub">近两年 4991股 × 484交易日 回测 + 二轮参数优化 · T3龙回头 / T4涨停回马枪 / T5箱体回踩 采纳运行 · T1阶梯上行 / T2双涨停背离 回测否决 · T日收盘信号 → T+1开盘入场</p>
       <div id="stratMeta"></div>
       <div id="stratGrid"></div>
       <div id="stratVeto"></div>
@@ -1459,21 +1475,23 @@ const STRAT_ICON = {
   t5: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M12 8v12"/><path d="M3 14h18"/></svg>',
 };
 function stratCard(key, s, phTxt){
-  const B = s.bt || {}, by = B.by_year || {};
+  const B = s.bt || {}, by = B.by_year || {}, byN = B.by_year_n || {};
   const gated = s.phase_gated, sigs = s.signals || [];
-  const wr = (B.win_rate ?? 0), ar = (B.avg_ret ?? 0), mdd = (B.mdd ?? 0);
+  const wr = (B.win_rate ?? 0), ar = (B.avg_ret ?? 0);
   const wrColor = wr >= 50 ? 'var(--green)' : wr >= 40 ? 'var(--primary)' : 'var(--orange)';
   const years = Object.keys(by).sort().map(y => {
-    const v = by[y] ?? 0;
-    return `<span style="margin-right:12px;">${y} <b style="color:${v >= 0 ? 'var(--green)' : 'var(--red)'};">${v >= 0 ? '+' : ''}${v.toFixed(2)}%</b></span>`;
+    const v = by[y] ?? 0, n = byN[y] ?? 0;
+    return `<span style="margin-right:12px;">${y} <b style="color:${v >= 0 ? 'var(--green)' : 'var(--red)'};">${v >= 0 ? '+' : ''}${v.toFixed(2)}%</b> <i style="font-style:normal;color:var(--tertiary);font-size:10.5px;">${n}笔</i></span>`;
   }).join('');
-  const climaxBt = B.climax_bt ? ` · climax相位 <b style="color:var(--green);">${(B.climax_bt.win_rate ?? 0).toFixed(2)}%/+${(B.climax_bt.avg_ret ?? 0).toFixed(2)}%</b>` : '';
   const status = gated
     ? `<span class="pill" style="background:var(--sep);color:var(--secondary);">当前${phTxt || ''}相位 · 仅${s.gate_phase}运行</span>`
     : sigs.length
       ? `<span class="pill strong" style="background:var(--green-soft);color:var(--green);">${sigs.length}条信号</span>`
       : `<span class="pill" style="background:var(--sep);color:var(--secondary);">今日无信号</span>`;
-  const mvGate = s.gate_mv ? `<span class="pill" style="background:var(--orange-soft);color:var(--orange);">市值≥${s.gate_mv}亿</span>` : '';
+  const tags = [
+    s.gate_mv ? `<span class="pill" style="background:var(--orange-soft);color:var(--orange);">市值≥${s.gate_mv}亿</span>` : '',
+    s.gap_max ? `<span class="pill" style="background:var(--orange-soft);color:var(--orange);">高开≤${s.gap_max}%入场</span>` : '',
+  ].filter(Boolean).join('');
   const sigRows = (!gated && sigs.length) ? sigs.map(x => `
     <div class="strat-sig">
       <div class="s-l">
@@ -1492,21 +1510,29 @@ function stratCard(key, s, phTxt){
   <div class="strat-card" style="border-left:4px solid ${gated ? 'var(--sep)' : wrColor};${gated ? 'opacity:.88;' : ''}">
     <div class="strat-head">
       <span class="strat-ico" style="background:${gated ? 'var(--sep)' : 'var(--primary-soft)'};color:${gated ? 'var(--secondary)' : 'var(--primary)'};">${STRAT_ICON[key] || ''}</span>
-      <div style="flex:1;min-width:0;">
-        <div class="strat-name">${s.name} <span class="strat-en">${s.en}</span> ${status} ${mvGate}</div>
-        <div style="font-size:11.5px;color:var(--secondary);margin-top:2px;">${s.desc || ''}</div>
+      <div class="strat-tt">
+        <div class="strat-name">${s.name} <span class="strat-en">${s.en}</span> ${status}</div>
+        ${tags ? `<div class="strat-tags">${tags}</div>` : ''}
+      </div>
+      <div class="strat-core">
+        <div class="sc-cell"><div class="v" style="color:${wrColor};">${wr.toFixed(2)}%</div><div class="l">回测胜率</div></div>
+        <div class="sc-cell"><div class="v" style="color:var(--green);">+${ar.toFixed(2)}%</div><div class="l">单笔均收</div></div>
+        <button class="strat-toggle" type="button">${ICON_CHEV}<span class="tg-lb">详情</span></button>
       </div>
     </div>
-    <div class="strat-kpi">
-      <div class="strat-kpi-cell"><div class="v" style="color:${wrColor};">${wr.toFixed(2)}%</div><div class="l">回测胜率</div></div>
-      <div class="strat-kpi-cell"><div class="v" style="color:var(--green);">+${ar.toFixed(2)}%</div><div class="l">单笔均收</div></div>
-      <div class="strat-kpi-cell"><div class="v">${B.n ?? 0}<span style="font-size:12px;font-weight:600;">笔</span></div><div class="l">样本数</div></div>
-      <div class="strat-kpi-cell"><div class="v" style="color:var(--red);">${mdd.toFixed(2)}%</div><div class="l">最大回撤</div></div>
-      <div class="strat-kpi-cell"><div class="v" style="color:var(--primary);">≤${s.pos_pct ?? 0}%</div><div class="l">建议仓位</div></div>
-    </div>
-    <div class="strat-years">分年全赢: ${years}${climaxBt}</div>
-    <div class="strat-rule"><b>交易规则:</b> ${s.exit_rule || ''} · 建议${s.stop_pct ?? 0}%</div>
     ${sigRows || (gated ? '' : `<div style="margin-top:9px;font-size:12px;color:var(--tertiary);">今日无符合形态的信号${blockedTxt}</div>`)}
+    <div class="strat-more">
+      <div class="strat-kpi">
+        <div class="strat-kpi-cell"><div class="v">${B.n ?? 0}<span style="font-size:12px;font-weight:600;">笔</span></div><div class="l">样本数</div></div>
+        <div class="strat-kpi-cell"><div class="v" style="color:var(--primary);">${(B.pf ?? 0).toFixed(2)}</div><div class="l">盈亏比</div></div>
+        <div class="strat-kpi-cell"><div class="v" style="color:var(--red);">${(B.mdd ?? 0).toFixed(2)}%</div><div class="l">最大回撤</div></div>
+        <div class="strat-kpi-cell"><div class="v">${s.stop_pct ?? 0}%</div><div class="l">止损线</div></div>
+        <div class="strat-kpi-cell"><div class="v" style="color:var(--primary);">≤${s.pos_pct ?? 0}%</div><div class="l">建议仓位</div></div>
+      </div>
+      ${s.desc ? `<div class="strat-desc">${s.desc}</div>` : ''}
+      <div class="strat-years">分年表现: ${years}</div>
+      <div class="strat-rule"><b>交易规则:</b> ${s.exit_rule || ''}</div>
+    </div>
   </div>`;
 }
 function renderStrategy(){
@@ -1525,6 +1551,20 @@ function renderStrategy(){
       <span>涨停${M.zt ?? '—'}家 · 最高板${M.max_lb ?? '—'} · 扫描池${M.fresh_n ?? 0}只 · 回测 ${M.bt_range || ''}</span>
     </div>`;
   $('stratGrid').innerHTML = ['t3','t4','t5'].filter(k => SR.strategies[k]).map(k => stratCard(k, SR.strategies[k], M.phase_txt)).join('');
+  // 折叠详情交互 (事件委托, 只绑定一次)
+  const grid = $('stratGrid');
+  if (!grid.dataset.tgBound){
+    grid.dataset.tgBound = '1';
+    grid.addEventListener('click', e => {
+      const btn = e.target.closest('.strat-toggle');
+      if (!btn) return;
+      const card = btn.closest('.strat-card');
+      if (!card) return;
+      card.classList.toggle('open');
+      const lb = btn.querySelector('.tg-lb');
+      if (lb) lb.textContent = card.classList.contains('open') ? '收起' : '详情';
+    });
+  }
   $('stratVeto').innerHTML = ['t1','t2'].filter(k => SR.strategies[k]).map(k => {
     const v = SR.strategies[k];
     return `<div class="strat-card" style="background:var(--bg);opacity:.75;">
