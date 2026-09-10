@@ -81,6 +81,7 @@ body {
   padding: 26px 28px; margin-top: 22px;
 }
 section { scroll-margin-top: 88px; }
+#sec-strategy { scroll-margin-top: 88px; }   /* v1.9.8: 战法雷达卡(div非section)锚点偏移与section同口径 */
 .sec-title { display:flex; align-items:center; gap:10px; font-size:22px; font-weight:700; margin-bottom:16px; letter-spacing:-.3px; }
 .sec-title .ico { width:28px; height:28px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; background:var(--primary-soft); color:var(--primary); }
 .sec-title .ico svg { width:16px; height:16px; }
@@ -835,6 +836,10 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6 M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
         龙回头<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
+      <button class="tnav-item" data-target="np-strategy">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6.01A9.99 9.99 0 0 0 4 18"/><path d="M15.52 15.52A6 6 0 0 0 12 6a6 6 0 0 0-3.52 9.52"/><circle cx="12" cy="12" r="1.6"/></svg>
+        战法<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
       <button class="tnav-item" data-target="np-backtest">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
         回测<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -908,6 +913,19 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
         <button class="np-goto" data-goto="sec-dragons">查看详情<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
       </div>
       <div id="npDrBody"></div>
+    </div></div></div>
+  </div>
+
+  <!-- 面板⑤b 五大战法雷达(v1.9.8) -->
+  <div class="np-wrap" id="np-strategy">
+    <div class="np-clip"><div class="np-body"><div class="np-card">
+      <div class="np-head">
+        <div class="h-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6.01A9.99 9.99 0 0 0 4 18"/><path d="M15.52 15.52A6 6 0 0 0 12 6a6 6 0 0 0-3.52 9.52"/><circle cx="12" cy="12" r="1.6"/></svg></div>
+        <div class="np-title">五大战法雷达</div>
+        <span class="np-badge" id="npStBadge">—</span>
+        <button class="np-goto" data-goto="sec-strategy">查看详情<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+      </div>
+      <div id="npStBody"></div>
     </div></div></div>
   </div>
 
@@ -1089,12 +1107,12 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
     </div>
 
     <!-- ═══ 五大战法雷达 (近两年回测融合 · T3/T4/T5 采纳) ═══ -->
-    <div class="card" style="margin-top:14px;">
+    <div class="card" style="margin-top:14px;" id="sec-strategy">
       <div class="sec-title">
         <span class="ico" style="background:var(--red-soft); color:var(--red);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6.01A9.99 9.99 0 0 0 4 18"/><path d="M15.52 15.52A6 6 0 0 0 12 6a6 6 0 0 0-3.52 9.52"/><circle cx="12" cy="12" r="1.6"/></svg></span>
         <span>五大战法雷达 · 回测融合</span>
       </div>
-      <p class="sec-sub">近两年 4991股 × 484交易日 回测 + 二轮参数优化 · T3龙回头 / T4涨停回马枪 / T5箱体回踩 采纳运行 · T1阶梯上行 / T2双涨停背离 回测否决 · T日收盘信号 → T+1开盘入场</p>
+      <p class="sec-sub">近两年 4991股 × 484交易日 回测 + 二轮参数优化 · T3龙回头 / T4涨停回马枪 / T5箱体回踩 采纳运行 · T1阶梯上行 / T2双涨停背离 回测否决 · <b>买入时点: 今日收盘确认形态 → 明日开盘买入</b>(当晚可挂隔夜委托, 约20:00后券商受理 · 当日新出的形态当日不追买)</p>
       <div id="stratMeta"></div>
       <div id="stratGrid"></div>
       <div id="stratVeto"></div>
@@ -1206,7 +1224,7 @@ function renderEntryBrief(){
       rows.push(ebRow('✓', x.name, x.code,
         pill('正式信号 · ' + STRAT[k] + (x.score != null ? ' · ' + Math.round(x.score) + '分' : ''), 'var(--green)', 'var(--green-soft)')
         + pill((x.mv || 0) >= 200 ? '大盘' : '中盘', 'var(--primary)', 'var(--primary-soft)'),
-        `<span class="en">入场 <b>${x.entry || 'T+1开盘买入'}</b></span>`
+        `<span class="en">入场 <b>${x.entry || '明日开盘买入(今晚可挂隔夜单)'}</b></span>`
         + (x.stop_price ? `<span class="st">止损 <b>${fp(x.stop_price)}</b></span>` : '')
         + `<span>收盘 <b>${fp(x.price)}</b></span>`));
     });
@@ -1232,15 +1250,16 @@ function renderEntryBrief(){
   const lightsHtml = lights.map(([x, k]) => ebRow('轻', x.name, x.code,
     pill('可入场·轻仓 · ' + STRAT[k] + ' · ' + Math.round(x.score ?? 0) + '分', 'var(--orange)', 'var(--orange-soft)')
     + pill(`${Math.round(x.mv || 0)}亿`, 'var(--secondary)', 'var(--sep)'),
-    `<span class="en">入场 <b>${x.entry || 'T+1开盘买入'}</b></span>`
+    `<span class="en">入场 <b>${x.entry || '明日开盘买入(今晚可挂隔夜单)'}</b></span>`
     + (x.stop_price ? `<span class="st">止损 <b>${fp(x.stop_price)}</b></span>` : '')
     + `<span class="st">仓位 <b>${Math.round(x.pos_suggest ?? 1)}%</b></span>`
     + `<span>收盘 <b>${fp(x.price)}</b></span>`)).join('');
+  const EB_TIMING = `<div class="eb-tip">执行时点: 战法信号=今日收盘确认 → <b>明日开盘买入</b>(当晚约20:00后可挂隔夜委托 · 新出形态当日不追买) · 打板候选=昨日名单经今日9:26竞价验证+10:30定型, 分级达标者<b>当日盘中执行</b></div>`;
   /* 渲染 */
   const cnt = $('ebCount');
   if (rows.length){
     $('entryBrief').innerHTML = rows.join('') + (lights.length ? `
-      <div class="eb-tip">另: ${lights.length}只战法候选形态已触发但相位闸门未开, 列为轻仓试探级(见"情绪"区战法雷达)</div>` : '');
+      <div class="eb-tip">另: ${lights.length}只战法候选形态已触发但相位闸门未开, 列为轻仓试探级(见"战法"区)</div>` : '') + EB_TIMING;
     cnt.textContent = rows.length + '只建议';
     cnt.className = 'eb-count';
   } else {
@@ -1250,7 +1269,7 @@ function renderEntryBrief(){
     $('entryBrief').innerHTML = `
       <div class="eb-none">⚠ <b>今日无建议入场</b> — ${veto} · 全部候选禁止入场, 观望为主。</div>
       ${lights.length ? `<div class="eb-none" style="padding-top:2px;">战法雷达<b>可入场池·轻仓级</b>(形态今日已触发, 相位不在回测覆盖内, 严格止损):</div>${lightsHtml}
-      <div class="eb-tip">轻仓级无胜率保障: 仓位≤1% + 严格止损; 相位切换回暖/高潮即转正式信号</div>` : ''}`;
+      <div class="eb-tip">轻仓级无胜率保障: 仓位≤1% + 严格止损; 相位切换回暖/高潮即转正式信号</div>` : ''}${EB_TIMING}`;
     cnt.textContent = '0只 · 观望';
     cnt.className = 'eb-count warn';
   }
@@ -1486,7 +1505,7 @@ function candCard(c, planOpen){
       </details>
       <details ${planOpen?'open':''}>
         <summary><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>卖出预案与止损${ICON_CHEV}</summary>
-        <div class="p-body"><div class="p-row"><span class="p-tag sell">T+2 卖出</span><span class="p-txt">${c.sell}</span></div></div>
+        <div class="p-body"><div class="p-row"><span class="p-tag sell">后天卖出(买入次日)</span><span class="p-txt">${c.sell}</span></div></div>
       </details>
     </div>
   </div>`;
@@ -1558,7 +1577,7 @@ function dragonCard(d){
     </div>
     ${actRow}
     <div style="margin-top:12px;font-size:12.5px;color:var(--secondary);background:var(--bg);border-radius:10px;padding:10px 14px;line-height:1.6;">
-      <b style="color:var(--text);">卖出规则:</b> T+1高开≥${t1Sell}% → 卖开盘价; 否则T+${holdDays}卖收盘价 | 止损-${stopPct}%硬止损 | 仓位≤${posPct}%
+      <b style="color:var(--text);">卖出规则:</b> 买入次日高开≥${t1Sell}% → 卖开盘价; 否则买入后第${holdDays}日卖收盘价 | 止损-${stopPct}%硬止损 | 仓位≤${posPct}%
     </div>
   </div>`;
 }
@@ -1705,7 +1724,7 @@ function stratCard(key, s, phTxt){
           <span class="pill" style="background:var(--primary-soft);color:var(--primary);font-size:11px;">${x.mv_tag || ''} ${Math.round(x.mv || 0)}亿</span>
           <span class="pill" style="background:var(--green-soft);color:var(--green);font-size:11px;">可入场·轻仓1%</span></div>
         <div class="s-trig">${x.trigger || ''}</div>
-        <div class="s-trig" style="margin-top:2px;"><b style="color:var(--green);">${x.entry || 'T+1开盘买入'}</b> · 止损<b style="color:var(--red);">${(x.stop_price ?? x.price ?? 0).toFixed(2)}</b></div>
+        <div class="s-trig" style="margin-top:2px;"><b style="color:var(--green);">${x.entry || '明日开盘买入(今晚可挂隔夜单)'}</b> · 止损<b style="color:var(--red);">${(x.stop_price ?? x.price ?? 0).toFixed(2)}</b></div>
       </div>
       <div class="s-r">
         <div class="s-p" style="color:var(--orange);">${Math.round(x.score ?? 0)}<span style="font-size:11px;font-weight:600;">分</span></div>
@@ -1773,6 +1792,7 @@ function renderStrategy(){
     <div class="strat-meta">
       <span class="chip">信号日 ${M.date || ''}</span>
       <span class="chip" style="background:var(--primary-soft);color:${phColor};">相位 ${ph}</span>
+      <span class="chip" style="background:var(--green-soft);color:var(--green);">买入时点: 明日开盘(今晚可挂隔夜单)</span>
       <span>涨停${M.zt ?? '—'}家 · 最高板${M.max_lb ?? '—'} · 扫描池${M.fresh_n ?? 0}只 · 回测 ${M.bt_range || ''}</span>
     </div>`;
   // v1.9.5 无信号横幅: 诊断原因 + 今日可入场候选TOP2(轻仓级, 带完整交易计划)
@@ -1783,7 +1803,7 @@ function renderStrategy(){
       const isForm = t.grade === 'wait' || t.ready === true || t.ready === false;   // 酝酿池条目
       const plan = isForm
         ? `<span class="pp" style="color:var(--secondary);">等待企稳K确认 · 今日不可入场</span>`
-        : `<span class="pp" style="color:var(--green);">入场 ${t.entry || 'T+1开盘买入'}</span>
+        : `<span class="pp" style="color:var(--green);">入场 ${t.entry || '明日开盘买入(今晚可挂隔夜单)'}</span>
            <span class="pp" style="color:var(--red);">止损 ${(t.stop_price ?? t.price ?? 0).toFixed(2)}</span>
            <span class="pp" style="color:var(--orange);">仓位 ${Math.round(t.pos_suggest ?? 1)}% 轻仓</span>`;
       return `<div class="ns-top-card ${isForm ? 'forming' : ''}">
@@ -1954,7 +1974,7 @@ function renderBacktest(){
       rec.map(t => `<tr><td class="mono">${fmtDate(t.date)}</td><td class="mono">${t.code}</td><td>${t.name}</td>
         <td>${t.sealed ? '<span class="st-ok">✓ 封住</span>' : '<span class="st-bad">✗ 炸板</span>'}</td>
         <td class="mono ${pctCls(t.ret)}" style="font-weight:700">${sign(t.ret, '%')}</td>
-        <td style="font-size:12.5px;color:var(--secondary)">${t.exit.includes('high') ? 'T+2高开卖开盘' : 'T+2卖收盘'}</td></tr>`).join('');
+        <td style="font-size:12.5px;color:var(--secondary)">${t.exit.includes('high') ? '买入次日高开卖开盘' : '买入次日卖收盘'}</td></tr>`).join('');
   }
   // 分组胜率
   const grp = (B.groups||{});
@@ -2298,6 +2318,7 @@ const NAV = [
   ['sec-advice','建议','M9 11l3 3L22 4'],
   ['sec-parallel','影子','M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5'],
   ['sec-emotion','情绪','M3 3v18h18M18 9l-5 5-3-3-4 4'],
+  ['sec-strategy','战法','M19.07 4.93A10 10 0 0 0 6.99 3.34M4 6.01A9.99 9.99 0 0 0 4 18M15.52 15.52A6 6 0 0 0 12 6a6 6 0 0 0-3.52 9.52'],
   ['sec-backtest','回测','M12 20V10M18 20V4M6 20v-4'],
   ['sec-rules','规则','M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'],
 ];
@@ -2476,7 +2497,37 @@ function renderPanels(){
         d.tier === 'strong' ? 'var(--green)' : 'var(--primary)'
       )).join('')}
     </div>` : '<div class="np-note">今日无连板股回踩MA信号 · 该策略在连板股数量较多时效果更佳。</div>'}
-    <div class="np-note">A级: 连板≥3回踩MA + 上影&lt;5% · 止损-2% · T+1高开≥7%卖 · 仓位≤18.5%；B级: 连板=2 · 止损-2.5% · T+1高开≥3%卖 · 仓位≤10%。</div>`;
+    <div class="np-note">A级: 连板≥3回踩MA + 上影&lt;5% · 止损-2% · 买入次日高开≥7%卖 · 仓位≤18.5%；B级: 连板=2 · 止损-2.5% · 买入次日高开≥3%卖 · 仓位≤10%。</div>`;
+
+  // ⑤b 五大战法雷达 (v1.9.8 导航直达 + 相位闸门状态)
+  const SRp = D.strategy_radar || {};
+  const SM = SRp.meta || {};
+  const stg = SRp.strategies || {};
+  const stPh = SM.phase_txt || '—';
+  const stOpen = Object.values(stg).filter(s => s && s.enabled && !s.phase_gated).length;
+  const nSig = Object.values(stg).reduce((a, s) => a + ((s && s.signals) ? s.signals.length : 0), 0);
+  const nLight = Object.values(stg).reduce((a, s) => a + ((s && s.watch) ? s.watch.length : 0), 0);
+  const nForm = Object.values(stg).reduce((a, s) => a + ((s && s.forming) ? s.forming.length : 0), 0);
+  $('npStBadge').textContent = nSig ? `${stPh} · ${nSig}条信号` : (stOpen ? stPh + ' · 无形态' : stPh + ' · 闸门关');
+  $('npStBadge').className = 'np-badge ' + (nSig ? 'ok' : (stOpen ? 'blue' : 'gray'));
+  const GATE_TXT = {'t3': 'T3龙回头', 't4': 'T4回马枪', 't5': 'T5箱体'};
+  $('npStBody').innerHTML = `
+    <div class="np-stats">
+      ${npStat(stPh, '当前相位', {'高潮':'var(--red)','回暖':'var(--green)','退潮':'var(--orange)','冰点':'var(--secondary)'}[stPh] || 'var(--primary)')}
+      ${npStat(nSig + '条', '正式信号', nSig ? 'var(--green)' : '')}
+      ${npStat(nLight + '只', '可入场·轻仓', nLight ? 'var(--orange)' : '')}
+      ${npStat(nForm + '只', '酝酿池')}
+    </div>
+    <div class="np-rows">
+      ${['t3','t4','t5'].filter(k => stg[k]).map(k => {
+        const s = stg[k], open = !s.phase_gated;
+        return npRow(GATE_TXT[k], '需' + (s.gate_phase || ''), open ? '闸门开' : '闸门关',
+          open ? ((s.signals || []).length + '条信号') : ((s.watch || []).length + '只轻仓/' + (s.forming || []).length + '酝酿'),
+          open ? 'var(--green)' : 'var(--secondary)');
+      }).join('')}
+    </div>
+    ${(SM.no_signal && SM.no_signal_reason) ? `<div class="np-note" style="color:var(--orange);">⚠ ${SM.no_signal_reason}</div>` : ''}
+    <div class="np-note">买入时点: 战法信号=今日收盘确认形态 → <b>明日开盘买入</b>(当晚约20:00后可挂隔夜委托 · 当日新出形态当日不追买)；打板路径=昨日名单经今日9:26竞价验证+10:30定型复查, 分级达标者<b>当日盘中执行</b>。完整战法卡/可入场池/酝酿池 — 点击「查看详情」展开。</div>`;
 
   // ⑥ 回测
   $('npBtBadge').textContent = (g.n || 62) + '笔黄金组合';
