@@ -295,6 +295,24 @@ section { scroll-margin-top: 88px; }
 .strat-sig .s-r { text-align:right; flex:none; }
 .strat-sig .s-p { font-size:16px; font-weight:800; font-variant-numeric:tabular-nums; }
 .strat-veto { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+/* v1.9.4 无信号横幅 + 观察池/酝酿池 (退潮/冰点相位仍有内容) */
+.strat-nosig { border-radius:14px; background:var(--card); border:1px dashed var(--sep); padding:14px 16px 15px; margin-bottom:13px; }
+.ns-reason { font-size:13px; color:var(--secondary); line-height:1.62; }
+.ns-reason b { color:var(--text); }
+.ns-top-title { font-size:12.5px; font-weight:800; color:var(--text); margin-top:11px; display:flex; align-items:center; gap:6px; letter-spacing:-.1px; }
+.ns-top-title .tt-ico { width:20px; height:20px; border-radius:6px; background:var(--green-soft); color:var(--green); display:inline-flex; align-items:center; justify-content:center; flex:none; }
+.ns-top-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px; }
+.ns-top-card { background:var(--bg); border-radius:12px; padding:12px 14px; border-left:4px solid var(--green); min-width:0; }
+.ns-top-card.forming { border-left-color:var(--primary); }
+.ns-top-card .t1 { display:flex; align-items:center; gap:7px; flex-wrap:wrap; font-size:15px; font-weight:800; }
+.ns-top-card .t1 .s-code { font-size:12.5px; font-weight:600; color:var(--secondary); font-variant-numeric:tabular-nums; }
+.ns-top-card .t2 { font-size:11.5px; color:var(--secondary); margin-top:5px; line-height:1.58; }
+.ns-score { background:var(--green-soft); color:var(--green); border-radius:999px; padding:2.5px 9px; font-size:11px; font-weight:800; flex:none; font-variant-numeric:tabular-nums; }
+.ns-top-card.forming .ns-score { background:var(--primary-soft); color:var(--primary); }
+.strat-pool-label { display:flex; align-items:center; gap:6px; margin-top:10px; font-size:11.5px; font-weight:700; color:var(--orange); }
+.strat-pool-label.forming { color:var(--primary); }
+.strat-pool-label .pl-line { flex:1; height:1px; background:var(--sep); }
+@media (max-width:640px){ .ns-top-grid { grid-template-columns:1fr; } }
 
 /* ── 入场方式对比(当日盘中买 vs 隔夜排单) ── */
 .ec-title { display:flex; align-items:center; gap:9px; font-size:18px; font-weight:800; margin:20px 0 3px; letter-spacing:-.3px; }
@@ -1477,6 +1495,7 @@ const STRAT_ICON = {
 function stratCard(key, s, phTxt){
   const B = s.bt || {}, by = B.by_year || {}, byN = B.by_year_n || {};
   const gated = s.phase_gated, sigs = s.signals || [];
+  const wl = s.watch || [], fl = s.forming || [];   // v1.9.4 观察池/酝酿池
   const wr = (B.win_rate ?? 0), ar = (B.avg_ret ?? 0);
   const wrColor = wr >= 50 ? 'var(--green)' : wr >= 40 ? 'var(--primary)' : 'var(--orange)';
   const years = Object.keys(by).sort().map(y => {
@@ -1484,10 +1503,16 @@ function stratCard(key, s, phTxt){
     return `<span style="margin-right:12px;">${y} <b style="color:${v >= 0 ? 'var(--green)' : 'var(--red)'};">${v >= 0 ? '+' : ''}${v.toFixed(2)}%</b> <i style="font-style:normal;color:var(--tertiary);font-size:10.5px;">${n}笔</i></span>`;
   }).join('');
   const status = gated
-    ? `<span class="pill" style="background:var(--sep);color:var(--secondary);">当前${phTxt || ''}相位 · 仅${s.gate_phase}运行</span>`
+    ? (wl.length
+        ? `<span class="pill" style="background:var(--orange-soft);color:var(--orange);">当前${phTxt || ''}相位 · 观察${wl.length}只</span>`
+        : (fl.length
+            ? `<span class="pill" style="background:var(--primary-soft);color:var(--primary);">当前${phTxt || ''}相位 · 酝酿${fl.length}只</span>`
+            : `<span class="pill" style="background:var(--sep);color:var(--secondary);">当前${phTxt || ''}相位 · 仅${s.gate_phase}运行</span>`))
     : sigs.length
       ? `<span class="pill strong" style="background:var(--green-soft);color:var(--green);">${sigs.length}条信号</span>`
-      : `<span class="pill" style="background:var(--sep);color:var(--secondary);">今日无信号</span>`;
+      : (fl.length
+          ? `<span class="pill" style="background:var(--primary-soft);color:var(--primary);">今日无信号 · 酝酿${fl.length}只</span>`
+          : `<span class="pill" style="background:var(--sep);color:var(--secondary);">今日无信号</span>`);
   const tags = [
     s.gate_mv ? `<span class="pill" style="background:var(--orange-soft);color:var(--orange);">市值≥${s.gate_mv}亿</span>` : '',
     s.gap_max ? `<span class="pill" style="background:var(--orange-soft);color:var(--orange);">高开≤${s.gap_max}%入场</span>` : '',
@@ -1505,6 +1530,38 @@ function stratCard(key, s, phTxt){
         <div style="font-size:11px;color:var(--secondary);">信号日收盘</div>
       </div>
     </div>`).join('') : '';
+  // v1.9.4 观察池行: 形态已达标, 仅相位闸门未开 (确定性评分 0-99)
+  const watchRows = (!sigs.length && wl.length) ? wl.map(x => `
+    <div class="strat-sig">
+      <div class="s-l">
+        <div class="s-nm">${x.name} <span class="s-code">${x.code}</span>
+          <span class="pill" style="background:var(--primary-soft);color:var(--primary);font-size:11px;">${x.mv_tag || ''} ${Math.round(x.mv || 0)}亿</span>
+          <span class="pill" style="background:var(--orange-soft);color:var(--orange);font-size:11px;">观察级</span></div>
+        <div class="s-trig">${x.trigger || ''}</div>
+      </div>
+      <div class="s-r">
+        <div class="s-p" style="color:var(--orange);">${Math.round(x.score ?? 0)}<span style="font-size:11px;font-weight:600;">分</span></div>
+        <div style="font-size:11px;color:var(--secondary);">确定性 · 收盘${(x.price ?? 0).toFixed(2)}</div>
+      </div>
+    </div>`).join('') : '';
+  // v1.9.4 酝酿池行: 形态构建中, 1-3日内可能触发
+  const formRows = (!sigs.length && !wl.length && fl.length) ? fl.map(x => `
+    <div class="strat-sig" style="opacity:.92;">
+      <div class="s-l">
+        <div class="s-nm">${x.name} <span class="s-code">${x.code}</span>
+          <span class="pill" style="background:var(--primary-soft);color:var(--primary);font-size:11px;">${Math.round(x.mv || 0)}亿</span>
+          ${x.ready ? `<span class="pill" style="background:var(--green-soft);color:var(--green);font-size:11px;">企稳已现</span>`
+                    : `<span class="pill" style="background:var(--sep);color:var(--secondary);font-size:11px;">待企稳</span>`}</div>
+        <div class="s-trig">${x.trigger || ''}</div>
+      </div>
+      <div class="s-r">
+        <div class="s-p" style="color:var(--primary);">${Math.round(x.score ?? 0)}<span style="font-size:11px;font-weight:600;">分</span></div>
+        <div style="font-size:11px;color:var(--secondary);">酝酿分 · 收盘${(x.price ?? 0).toFixed(2)}</div>
+      </div>
+    </div>`).join('') : '';
+  const watchLabel = (!sigs.length && wl.length) ? `<div class="strat-pool-label">观察池 · 形态已达标, 相位切换即转正式信号<span class="pl-line"></span></div>` : '';
+  const formLabel = (!sigs.length && !wl.length && fl.length) ? `<div class="strat-pool-label forming">酝酿池 · 形态构建中, 1-3日内可能触发<span class="pl-line"></span></div>` : '';
+  const poolBlock = (watchRows && watchLabel + watchRows) || (formRows && formLabel + formRows) || '';
   const blockedTxt = (!gated && s.n_blocked_mv) ? `（${s.n_blocked_mv}只被市值门槛拦截）` : '';
   return `
   <div class="strat-card" style="border-left:4px solid ${gated ? 'var(--sep)' : wrColor};${gated ? 'opacity:.88;' : ''}">
@@ -1520,7 +1577,7 @@ function stratCard(key, s, phTxt){
         <button class="strat-toggle" type="button">${ICON_CHEV}<span class="tg-lb">详情</span></button>
       </div>
     </div>
-    ${sigRows || (gated ? '' : `<div style="margin-top:9px;font-size:12px;color:var(--tertiary);">今日无符合形态的信号${blockedTxt}</div>`)}
+    ${sigRows || poolBlock || (gated ? '' : `<div style="margin-top:9px;font-size:12px;color:var(--tertiary);">今日无符合形态的信号${blockedTxt}</div>`)}
     <div class="strat-more">
       <div class="strat-kpi">
         <div class="strat-kpi-cell"><div class="v">${B.n ?? 0}<span style="font-size:12px;font-weight:600;">笔</span></div><div class="l">样本数</div></div>
@@ -1550,6 +1607,28 @@ function renderStrategy(){
       <span class="chip" style="background:var(--primary-soft);color:${phColor};">相位 ${ph}</span>
       <span>涨停${M.zt ?? '—'}家 · 最高板${M.max_lb ?? '—'} · 扫描池${M.fresh_n ?? 0}只 · 回测 ${M.bt_range || ''}</span>
     </div>`;
+  // v1.9.4 无信号横幅: 诊断原因 + 确定性最强TOP2 (观察池优先, 其次酝酿池)
+  if (M.no_signal){
+    const STRAT_NAME = {'t3': '龙回头', 't4': '涨停回马枪', 't5': '箱体回踩'};
+    const tops = M.watch_top || [];
+    const topCards = tops.map(t => {
+      const isForm = t.ready === true || t.ready === false;   // 酝酿池条目含ready字段
+      return `<div class="ns-top-card ${isForm ? 'forming' : ''}">
+        <div class="t1">${t.name} <span class="s-code">${t.code}</span>
+          <span class="ns-score">${Math.round(t.score ?? 0)}分</span>
+          <span class="pill" style="background:var(--primary-soft);color:var(--primary);font-size:11px;">${STRAT_NAME[t.strat] || ''} · ${isForm ? '酝酿' : '观察'}</span>
+          <span class="pill" style="background:var(--sep);color:var(--secondary);font-size:11px;">${Math.round(t.mv || 0)}亿</span></div>
+        <div class="t2">${t.trigger || ''} · 收盘${(t.price ?? 0).toFixed(2)}</div>
+      </div>`;
+    }).join('');
+    $('stratMeta').innerHTML += `
+    <div class="strat-nosig">
+      <div class="ns-reason">当前<b>${ph}相位</b>暂无正式出手信号 — ${M.no_signal_reason || '相位闸门关闭'}。</div>
+      ${tops.length ? `
+      <div class="ns-top-title"><span class="tt-ico"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/></svg></span>确定性最强 TOP${tops.length}（形态质量+市值权重评分, 相位切换即转正式信号, 仅作观察不作入场依据）</div>
+      <div class="ns-top-grid">${topCards}</div>` : ''}
+    </div>`;
+  }
   $('stratGrid').innerHTML = ['t3','t4','t5'].filter(k => SR.strategies[k]).map(k => stratCard(k, SR.strategies[k], M.phase_txt)).join('');
   // 折叠详情交互 (事件委托, 只绑定一次)
   const grid = $('stratGrid');
