@@ -5,6 +5,36 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>打板情绪雷达</title>
 <style>
+/* v1.9.7 建议入场直达 + 详情折叠: 第一屏新增"今日建议入场"精华卡(正式信号/建议入场/条件入场
+   优先, 无建议时显示否决原因+可入场池轻仓参考); 龙回头/高位板/建议跟踪/情绪图表/回测/规则
+   六大详情区默认折叠, 点击标题展开; 顶部与侧边导航跳转自动展开目标区 */
+/* v1.9.6 三段式阶段实时推导: 修复①后端detect_stage午休(11:30-13:00)区间空洞→兜底"盘前待命"
+   ②前端打开页面时按本地时钟实时覆盖stage/时间线状态(数据为今/昨日时), 盘中部署失败或跨时段
+   打开不再停留在旧阶段; ③昨日名单+盘后时段附加"今日15:10名单待生成"提示 */
+/* v1.9.7 建议入场直达精华卡 + 详情折叠 */
+#sec-entry { border:1px solid color-mix(in srgb, var(--green) 30%, transparent); }
+.eb-count { margin-left:auto; font-size:12.5px; font-weight:800; color:var(--green); background:var(--green-soft); border-radius:999px; padding:3px 12px; flex:none; }
+.eb-count.warn { color:var(--orange); background:var(--orange-soft); }
+.eb-row { display:flex; align-items:center; gap:12px; padding:12px 2px; border-bottom:1px solid var(--sep); }
+.eb-row:last-child { border-bottom:none; }
+.eb-row .eb-l { min-width:0; flex:1; }
+.eb-row .eb-name { font-size:16px; font-weight:800; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.eb-row .eb-name .code { font-size:12px; font-weight:600; color:var(--secondary); font-variant-numeric:tabular-nums; }
+.eb-row .eb-nums { display:flex; flex-wrap:wrap; gap:5px 12px; margin-top:5px; font-size:11.5px; color:var(--secondary); }
+.eb-row .eb-nums b { color:var(--text); font-variant-numeric:tabular-nums; }
+.eb-row .eb-nums .st b { color:var(--red); }
+.eb-row .eb-nums .en b { color:var(--green); }
+.eb-rank { width:30px; height:30px; border-radius:9px; background:var(--green-soft); color:var(--green); font-weight:800; font-size:14px; display:flex; align-items:center; justify-content:center; flex:none; }
+.eb-none { padding:14px 0 4px; font-size:13px; color:var(--secondary); line-height:1.65; }
+.eb-none b { color:var(--orange); }
+.eb-tip { font-size:11.5px; color:var(--tertiary); margin-top:6px; }
+/* 详情折叠: 龙回头/高位板/建议跟踪/情绪图表/回测/规则 默认收起, 点击标题展开 */
+.foldable .sec-title { cursor:pointer; border-radius:10px; }
+.foldable .fold-caret { margin-left:auto; flex:none; width:26px; height:26px; border-radius:8px; background:var(--sep); display:inline-flex; align-items:center; justify-content:center; color:var(--secondary); transition:transform .3s cubic-bezier(.2,.8,.2,1); transform:rotate(180deg); }
+.foldable.folded .fold-caret { transform:rotate(0deg); }
+.foldable.folded > *:not(.sec-title):not(.sec-sub):not(.fold-inject) { display:none; }
+.foldable.folded { padding-bottom:4px; }
+@media (max-width:640px){ .eb-row { flex-wrap:wrap; } }
 /* v1.9.2 移动端排版打磨: 字号11px底线 / 触摸目标44-40px / mono列不换行 / 安全区viewport
    第三轮(逐屏视觉审计): 表格全量tbl-scroll(min-width)防8列表断行 / 规则文本keep-all防中文词组拆行
    / 因子格6格化(板级契合×市值语义修正, 移动3×2) / 价格fp()两位小数(止损2.7→2.70)
@@ -923,6 +953,16 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
     </div>
   </header>
 
+  <!-- ═══ v1.9.7 建议入场 · 直达精华卡(第一屏) ═══ -->
+  <section id="sec-entry" class="card fade">
+    <div class="sec-title">
+      <span class="ico" style="background:var(--green-soft); color:var(--green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
+      <span>今日建议入场</span>
+      <span class="eb-count" id="ebCount"></span>
+    </div>
+    <div id="entryBrief"></div>
+  </section>
+
   <!-- ═══ 今日信号 ═══ -->
   <section id="sec-signal" class="card fade">
     <div class="sec-title">
@@ -1038,7 +1078,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
       <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 9l-5 5-3-3-4 4"/></svg></span>
       <span>市场情绪全景</span>
     </div>
-    <div class="card" style="margin-top:12px;">
+    <div class="card" id="emoCard" style="margin-top:12px;">
       <div class="emo-grid" id="emoGrid"></div>
       <div class="charts">
         <div class="chart-box"><h3>涨停家数趋势 <span class="hint" id="cycleLegend">近120交易日</span></h3><div id="chTrend" class="chart"></div><div class="nochart" id="ncTrend">图表库离线 · 数据仍可读</div></div>
@@ -1092,6 +1132,27 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 'use strict';
 const D = (typeof SITE_DATA !== 'undefined') ? SITE_DATA : null;
 const $ = id => document.getElementById(id);
+/* v1.9.6 实时阶段推导: stage 固化在 data.js 构建时刻, 若盘中部署失败或跨时段打开页面会显示滞后
+   (如过了10:30仍显示盘前待命)。数据日期为今天/昨天时用本地时钟实时覆盖 — 仅展示层,
+   不改构建时固化的入场分级/候选判定。 */
+function liveStage(){
+  const n = new Date(), wd = n.getDay();
+  if (wd === 0 || wd === 6) return ['review', '周末复盘'];
+  const cur = n.getHours() * 60 + n.getMinutes();
+  if (cur < 9*60+15)  return ['review', '盘前待命'];
+  if (cur < 10*60+30) return ['auction', '竞价验证'];
+  if (cur < 15*60+10) return ['final', '定型复查'];
+  return ['after', '盘后名单'];
+}
+(function applyLiveStage(){
+  if (!D || !D.meta || !D.meta.date) return;
+  const f = d => d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+  const now = new Date(), yst = new Date(now.getTime() - 864e5);
+  if (D.meta.date === f(now) || D.meta.date === f(yst)){
+    const [st, lb] = liveStage();
+    D.meta.stage = st; D.meta.stage_label = lb;
+  }
+})();
 const FONT = '"PingFang SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif';
 const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 const ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
@@ -1124,6 +1185,109 @@ function renderHero(){
   if (sg.p12 != null) bd.push(`<span class="badge ${sg.p12>=50?'green':sg.p12>=20?'blue':'gray'}"><span class="dot"></span>1进2 ${sg.p12}%</span>`);
   bd.push(`<span class="badge gray"><span class="dot"></span>候选 ${D.candidates_2to3.length + D.candidates_3to4.length} 只</span>`);
   $('heroBadges').innerHTML = bd.join('');
+}
+
+/* ── v1.9.7 建议入场·直达精华卡(第一屏) ──
+   数据优先级: 战法正式信号 > 候选strong/std(建议入场) > confirm(条件入场) > 可入场池(轻仓试探)
+   无任何建议时: 显示否决原因 + 战法雷达可入场池作轻仓参考 */
+function renderEntryBrief(){
+  const rows = [];
+  const SR = D.strategy_radar || {};
+  const STRAT = { t3:'龙回头', t4:'涨停回马枪', t5:'箱体回踩' };
+  const ebRow = (rank, name, code, pills, nums) => `
+    <div class="eb-row"><div class="eb-rank">${rank}</div>
+      <div class="eb-l"><div class="eb-name">${name} <span class="code">${code}</span>${pills}</div>
+      <div class="eb-nums">${nums}</div></div></div>`;
+  const pill = (txt, fg, bg) => `<span class="pill" style="background:${bg};color:${fg};font-size:11px;">${txt}</span>`;
+  /* ① 战法雷达正式信号(相位+形态双达标, 最高优先级) */
+  (['t3','t4','t5']).forEach(k => {
+    const s = ((SR.strategies || {})[k]) || {};
+    (s.signals || []).slice(0, 3).forEach(x => {
+      rows.push(ebRow('✓', x.name, x.code,
+        pill('正式信号 · ' + STRAT[k] + (x.score != null ? ' · ' + Math.round(x.score) + '分' : ''), 'var(--green)', 'var(--green-soft)')
+        + pill((x.mv || 0) >= 200 ? '大盘' : '中盘', 'var(--primary)', 'var(--primary-soft)'),
+        `<span class="en">入场 <b>${x.entry || 'T+1开盘买入'}</b></span>`
+        + (x.stop_price ? `<span class="st">止损 <b>${fp(x.stop_price)}</b></span>` : '')
+        + `<span>收盘 <b>${fp(x.price)}</b></span>`));
+    });
+  });
+  /* ② 打板候选: strong/std=建议入场, confirm=条件入场 */
+  [...(D.candidates_2to3 || []), ...(D.candidates_3to4 || [])].forEach(c => {
+    const g = c.entry && { strong:'建议入场', std:'建议入场', confirm:'条件入场' }[c.entry.grade];
+    if (!g) return;
+    const A = c.action || {};
+    rows.push(ebRow(c.rank, c.name, c.code,
+      pill(g + ' · ' + Math.round(c.score) + '分', g === '条件入场' ? 'var(--orange)' : 'var(--green)', g === '条件入场' ? 'var(--orange-soft)' : 'var(--green-soft)')
+      + pill(`${c.lb}板→${c.lb + 1}板 · ${c.industry || ''}`, 'var(--secondary)', 'var(--sep)'),
+      `<span>${A.buy_price != null ? '买入参考' : '打板价'} <b>${fp(A.buy_price != null ? A.buy_price : c.next_zt)}</b></span>`
+      + (A.stop_loss != null ? `<span class="st">止损 <b>${fp(A.stop_loss)}</b></span>` : '')
+      + (A.label ? `<span class="en">${A.label}</span>` : '')));
+  });
+  /* ③ 可入场池·轻仓级(形态今日已触发, 相位闸门未开) */
+  const lights = [];
+  (['t3','t4','t5']).forEach(k => {
+    const s = ((SR.strategies || {})[k]) || {};
+    (s.watch || []).forEach(x => lights.push([x, k]));
+  });
+  const lightsHtml = lights.map(([x, k]) => ebRow('轻', x.name, x.code,
+    pill('可入场·轻仓 · ' + STRAT[k] + ' · ' + Math.round(x.score ?? 0) + '分', 'var(--orange)', 'var(--orange-soft)')
+    + pill(`${Math.round(x.mv || 0)}亿`, 'var(--secondary)', 'var(--sep)'),
+    `<span class="en">入场 <b>${x.entry || 'T+1开盘买入'}</b></span>`
+    + (x.stop_price ? `<span class="st">止损 <b>${fp(x.stop_price)}</b></span>` : '')
+    + `<span class="st">仓位 <b>${Math.round(x.pos_suggest ?? 1)}%</b></span>`
+    + `<span>收盘 <b>${fp(x.price)}</b></span>`)).join('');
+  /* 渲染 */
+  const cnt = $('ebCount');
+  if (rows.length){
+    $('entryBrief').innerHTML = rows.join('') + (lights.length ? `
+      <div class="eb-tip">另: ${lights.length}只战法候选形态已触发但相位闸门未开, 列为轻仓试探级(见"情绪"区战法雷达)</div>` : '');
+    cnt.textContent = rows.length + '只建议';
+    cnt.className = 'eb-count';
+  } else {
+    const M = SR.meta || {};
+    const veto = (M.vetoes && M.vetoes.length) ? M.vetoes.map(v => v.label).join('；')
+      : '情绪周期「' + (M.phase_txt || '冰点') + '」反向否决';
+    $('entryBrief').innerHTML = `
+      <div class="eb-none">⚠ <b>今日无建议入场</b> — ${veto} · 全部候选禁止入场, 观望为主。</div>
+      ${lights.length ? `<div class="eb-none" style="padding-top:2px;">战法雷达<b>可入场池·轻仓级</b>(形态今日已触发, 相位不在回测覆盖内, 严格止损):</div>${lightsHtml}
+      <div class="eb-tip">轻仓级无胜率保障: 仓位≤1% + 严格止损; 相位切换回暖/高潮即转正式信号</div>` : ''}`;
+    cnt.textContent = '0只 · 观望';
+    cnt.className = 'eb-count warn';
+  }
+}
+
+/* ── v1.9.7 详情折叠: 详细数据默认收起, 点击标题展开 ── */
+function unfoldTarget(sec){
+  if (!sec) return;
+  if (sec.classList.contains('folded')) sec.classList.remove('folded');
+  sec.querySelectorAll('.foldable.folded').forEach(f => f.classList.remove('folded'));
+  setTimeout(() => dispatchEvent(new Event('resize')), 120);   // echarts在display:none下尺寸为0
+}
+function initFolds(){
+  const CHEV = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+  const FOLDS = ['sec-dragons', 'sec-watch', 'sec-advice', 'emoCard', 'sec-backtest', 'sec-rules'];
+  FOLDS.forEach(id => {
+    const el = $(id); if (!el) return;
+    let head = el.querySelector('.sec-title');
+    if (!head){   // emoCard无自带标题 → 注入折叠头
+      head = document.createElement('div');
+      head.className = 'sec-title';
+      head.innerHTML = `<span class="ico" style="background:var(--primary-soft); color:var(--primary);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 9l-5 5-3-3-4 4"/></svg></span><span>情绪图表 · 涨停趋势/晋级率/梯队</span>`;
+      el.insertBefore(head, el.firstChild);
+    }
+    const caret = document.createElement('span');
+    caret.className = 'fold-caret'; caret.innerHTML = CHEV;
+    head.appendChild(caret);
+    el.classList.add('foldable', 'folded');
+    head.addEventListener('click', () => {
+      const folded = el.classList.toggle('folded');
+      if (!folded) setTimeout(() => dispatchEvent(new Event('resize')), 80);
+    });
+  });
+  /* 侧边锚点导航点击 → 目标区若被折叠则先展开再跳 */
+  document.querySelectorAll('.side-nav a').forEach(a => {
+    a.addEventListener('click', () => unfoldTarget($(a.dataset.t)));
+  });
 }
 
 /* ── 信号卡 ── */
@@ -2252,8 +2416,20 @@ function renderPanels(){
       `⏳ ${p.cond}差<b>${p.gap}${p.unit === 'pct' ? '%' : p.unit}</b>${p.warm ? '（预热·临近达标）' : ''}`).join(' · ')}</div>` : ''}
     <div class="np-note">信号有效 = 三条件同时满足，才有入场资格；市场分(三维加权)衡量强弱，二者已解耦。p12 需次日 9:25 竞价数据最终验证。失效日以观望为主，不逆势操作。</div>`;
 
-  // ③ 节奏
-  const tl = D.timeline || [];
+  // ③ 节奏 (v1.9.6 时间线状态实时重算, 与 liveStage 同口径)
+  const tl = (D.timeline || []).map(t => ({ ...t }));
+  const stNow = m.stage;
+  const dToday = (() => { const n = new Date();
+    return n.getFullYear() + String(n.getMonth()+1).padStart(2,'0') + String(n.getDate()).padStart(2,'0'); })();
+  tl.forEach(t => {
+    if (t.key === 'after') t.status = 'done';                    // 名单存在即已生成
+    else if (t.key === 'auction')
+      t.status = stNow === 'auction' ? 'active' : (stNow === 'final' || stNow === 'after' ? 'done' : '');
+    else if (t.key === 'final')
+      t.status = (stNow === 'final') ? 'done'
+        : (stNow === 'after' ? (m.date === dToday ? '' : 'done') : '');
+  });
+  const staleAfter = (stNow === 'after' && m.date !== dToday);   // 昨日名单已走完, 今日盘后名单待生成
   $('npRhBadge').textContent = m.stage_label || '—';
   $('npRhBadge').className = 'np-badge blue';
   $('npRhBody').innerHTML = `
@@ -2262,7 +2438,7 @@ function renderPanels(){
         <div class="t">${t.time}</div><div class="n">${t.title}</div><div class="d">${t.desc}</div>
       </div>`).join('')}
     </div>
-    <div class="np-note">当前阶段: <b>${m.stage_label || '—'}</b> · 名单始终是"次日预案"，盘中按 09:26 竞价验证结果决定是否执行，10:30 复查定型。</div>`;
+    <div class="np-note">当前阶段: <b>${m.stage_label || '—'}</b>${staleAfter ? ' · <span style="color:var(--orange);">今日 15:10 盘后名单待生成</span>' : ''} · 名单始终是"次日预案"，盘中按 09:26 竞价验证结果决定是否执行，10:30 复查定型。</div>`;
 
   // ④ 候选
   $('npCdBadge').textContent = cands ? cands + '只候选' : '今日无候选';
@@ -2359,8 +2535,11 @@ function initTopnav(){
     btn.addEventListener('click', () => {
       closePanels();
       const sec = $(btn.dataset.goto);
-      // 等面板收起动画(420ms)完成后, 基于最终布局计算滚动位置, 避免锚点偏移
-      if (sec) setTimeout(() => sec.scrollIntoView({ behavior:'smooth' }), 470);
+      if (sec){
+        unfoldTarget(sec);   // v1.9.7: 目标区被折叠则先展开
+        // 等面板收起动画(420ms)完成后, 基于最终布局计算滚动位置, 避免锚点偏移
+        setTimeout(() => sec.scrollIntoView({ behavior:'smooth' }), 470);
+      }
     });
   });
   // 点击导航栏以外区域自动收起
@@ -2373,11 +2552,11 @@ function initTopnav(){
 
 /* ── 启动 ── */
 if (D){
-  renderHero(); renderSignal(); renderTimeline(); renderCands(); renderDragons(); renderWatch();
+  renderHero(); renderEntryBrief(); renderSignal(); renderTimeline(); renderCands(); renderDragons(); renderWatch();
   renderEmotion(); renderCharts(); renderBacktest(); renderRules(); renderNav(); renderFooter();
   renderStrategy();
   renderAdvice(); renderParallel();
-  renderPanels(); initTopnav();
+  renderPanels(); initTopnav(); initFolds();
   fadeAll(); particles();
   /* v1.9 移动端适配: 图表随容器宽度重绘(旋转/窗口缩放后画布不再溢出) */
   if (typeof echarts !== 'undefined'){
