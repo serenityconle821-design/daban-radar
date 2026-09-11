@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>个股诊断 · 大盘板块资金</title>
+<!-- v1.0.0 诊断中心: 个股量价诊断(信号/位阶/评分) + 资金流(主力/超大单/大宗暗盘) + 大盘板块环境
+     数据: 腾讯JSONP(K线/行情/搜索) + push2delay(资金流) + datacenter-web(大宗) + fund_data.js(每日快照)
+     风格: 与主看板一致的 iOS Liquid Glass; 免责: 全站信号观察, 不构成投资建议 -->
+<style>
+:root {
+  --bg: rgba(116,116,128,.12); --card: rgba(255,255,255,.36); --card2: rgba(255,255,255,.32);
+  --primary: #007AFF; --primary-soft: rgba(0,122,255,.08);
+  --text: #1D1D1F; --secondary: #6E6E73; --tertiary: #929298;
+  --green: #34C759; --green-soft: rgba(52,199,89,.10);
+  --red: #FF3B30; --red-soft: rgba(255,59,48,.08);
+  --orange: #FF9500; --orange-soft: rgba(255,149,0,.10);
+  --gray-badge: #8E8E93; --sep: rgba(60,60,67,.10);
+  --radius: 16px; --touch: 44px;
+  --glass-card: rgba(255,255,255,.22);
+  --glass-card-hover: rgba(255,255,255,.40);
+  --glass-nav: rgba(255,255,255,.55);
+  --specular-top: rgba(255,255,255,.92);
+  --specular-bottom: rgba(174,196,255,.20);
+  --hairline: rgba(15,23,42,.10);
+  --hairline-soft: rgba(15,23,42,.05);
+  --tint-ink: 15,23,42; --tint-sky: 56,96,190;
+  --blur-nav: saturate(180%) blur(24px);
+  --blur-card: saturate(200%) blur(20px);
+  --ease-glass: cubic-bezier(.32,.72,0,1);
+  --d-base: 240ms;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html { scroll-behavior:smooth; }
+body {
+  background:#F2F2F7; color:var(--text);
+  font:17px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+body::before {
+  content:''; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(64% 54% at 18% 8%,  rgba(158,180,255,.75) 0%, transparent 64%),
+    radial-gradient(54% 50% at 92% 12%, rgba(186,210,255,.68) 0%, transparent 62%),
+    radial-gradient(60% 56% at 78% 88%, rgba(218,196,250,.60) 0%, transparent 64%),
+    radial-gradient(50% 44% at 8% 92%, rgba(190,224,252,.58) 0%, transparent 62%),
+    radial-gradient(48% 42% at 52% 42%, rgba(198,214,252,.56) 0%, transparent 64%),
+    radial-gradient(44% 40% at 30% 68%, rgba(220,198,250,.50) 0%, transparent 62%),
+    linear-gradient(180deg, #F5F6FA 0%, #EDF0F5 100%);
+}
+.page { max-width:1100px; margin:0 auto; padding:0 20px 60px; }
+
+/* ── 顶栏 ── */
+.topbar {
+  position:sticky; top:0; z-index:100;
+  background:var(--glass-nav);
+  -webkit-backdrop-filter:var(--blur-nav); backdrop-filter:var(--blur-nav);
+  box-shadow:
+    inset 0 1px 0 var(--specular-top), inset 0 -1px 0 var(--specular-bottom),
+    0 0 0 .5px var(--hairline), 0 2px 6px rgba(var(--tint-ink),.04),
+    0 8px 20px -4px rgba(var(--tint-ink),.06), 0 24px 48px -12px rgba(var(--tint-sky),.10);
+}
+.topbar-inner { max-width:1100px; margin:0 auto; padding:10px 20px 10px; display:flex; align-items:center; gap:14px; }
+.brand { display:flex; align-items:center; gap:10px; flex:none; text-decoration:none; color:var(--text); }
+.brand-dot { width:10px; height:10px; border-radius:50%; background:var(--primary); flex:none; animation:brandPulse 2.6s ease-in-out infinite; }
+@keyframes brandPulse { 0%,100%{ box-shadow:0 0 0 3px rgba(0,122,255,.14);} 50%{ box-shadow:0 0 0 7px rgba(0,122,255,.04);} }
+.brand-name { font-size:15.5px; font-weight:800; letter-spacing:-.3px; line-height:1.2; }
+.brand-meta { font-size:11px; color:var(--secondary); line-height:1.3; }
+
+/* iOS 分段控制器 tab */
+.segment {
+  margin-left:auto; display:flex; background:rgba(120,120,128,.14); border-radius:12px; padding:2px;
+  box-shadow:inset 0 0 0 .5px var(--hairline-soft); flex:none;
+}
+.segment button {
+  border:none; background:transparent; cursor:pointer; min-height:38px; padding:0 18px;
+  font:600 14px/1 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; color:var(--text);
+  border-radius:10px; transition:all .22s var(--ease-glass);
+}
+.segment button.on {
+  background:rgba(255,255,255,.92); color:var(--text);
+  box-shadow:0 1px 3px rgba(0,0,0,.10), 0 3px 8px rgba(0,0,0,.06);
+}
+@media (max-width:640px){ .topbar-inner{ flex-wrap:wrap; } .segment{ margin:0 auto; } }
+
+/* ── 卡片 (Liquid Glass, 与主看板同构) ── */
+.card {
+  position:relative; isolation:isolate;
+  background:var(--glass-card); border-radius:var(--radius);
+  padding:26px 28px; margin-top:22px;
+  box-shadow:
+    inset 0 1px 0 var(--specular-top), inset 0 -1px 0 var(--specular-bottom),
+    0 0 0 .5px var(--hairline), inset 0 0 0 .5px var(--hairline-soft),
+    0 1px 1px rgba(var(--tint-ink),.04), 0 2px 4px rgba(var(--tint-ink),.04),
+    0 8px 20px -6px rgba(var(--tint-ink),.08), 0 24px 48px -16px rgba(var(--tint-sky),.10);
+  transition:transform var(--d-base) var(--ease-glass), box-shadow var(--d-base) var(--ease-glass);
+}
+section.card { -webkit-backdrop-filter:var(--blur-card); backdrop-filter:var(--blur-card); }
+div.card {
+  background:
+    radial-gradient(130% 90% at 12% 0%, rgba(158,180,255,.18) 0%, transparent 52%),
+    radial-gradient(90% 80% at 92% 100%, rgba(218,196,250,.15) 0%, transparent 58%),
+    var(--glass-card);
+}
+.card::before {
+  content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:0;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.85) 0%, rgba(255,255,255,.85) .8%, rgba(255,255,255,.26) 2%, rgba(255,255,255,0) 3.6%),
+    radial-gradient(60% 50% at 85% 100%, rgba(255,255,255,.14) 0%, transparent 70%);
+  opacity:.9;
+}
+.card > * { position:relative; z-index:1; }
+.sec-title { display:flex; align-items:center; gap:11px; font-size:19px; font-weight:800; letter-spacing:-.3px; }
+.sec-title .ico {
+  width:34px; height:34px; border-radius:10px; background:var(--primary-soft); color:var(--primary);
+  display:inline-flex; align-items:center; justify-content:center; flex:none;
+}
+.sec-title .ico svg { width:17px; height:17px; }
+.sec-sub { color:var(--secondary); font-size:13.5px; margin-top:9px; line-height:1.6; }
+
+/* ── Hero ── */
+.hero { padding:44px 0 8px; }
+.hero h1 { font-size:44px; font-weight:800; letter-spacing:-1px; margin:2px 0 10px; }
+.hero .sub { color:var(--secondary); font-size:15.5px; }
+
+/* ── 搜索 ── */
+.searchbar { position:relative; margin-top:22px; }
+.search-input-wrap {
+  display:flex; align-items:center; gap:12px; min-height:56px;
+  background:var(--glass-nav); border-radius:16px; padding:0 18px;
+  -webkit-backdrop-filter:var(--blur-card); backdrop-filter:var(--blur-card);
+  box-shadow:
+    inset 0 1px 0 var(--specular-top), 0 0 0 .5px var(--hairline),
+    0 2px 6px rgba(var(--tint-ink),.05), 0 10px 28px -8px rgba(var(--tint-sky),.12);
+}
+.search-input-wrap svg { width:19px; height:19px; color:var(--tertiary); flex:none; }
+#searchInput {
+  flex:1; border:none; background:transparent; outline:none;
+  font:600 17px -apple-system, "PingFang SC", sans-serif; color:var(--text); min-width:0;
+}
+#searchInput::placeholder { color:var(--tertiary); font-weight:400; }
+#searchGo {
+  border:none; cursor:pointer; flex:none; min-height:40px; padding:0 22px;
+  background:var(--primary); color:#fff; font:700 15px -apple-system, "PingFang SC", sans-serif;
+  border-radius:12px; transition:transform .18s var(--ease-glass), box-shadow .18s;
+  box-shadow:0 2px 8px rgba(0,122,255,.30);
+}
+#searchGo:active { transform:scale(.96); }
+.suggest {
+  position:absolute; left:0; right:0; top:calc(100% + 8px); z-index:60;
+  background:rgba(255,255,255,.94); -webkit-backdrop-filter:var(--blur-nav); backdrop-filter:var(--blur-nav);
+  border-radius:14px; padding:6px; display:none;
+  box-shadow:0 0 0 .5px var(--hairline), 0 12px 40px -8px rgba(var(--tint-ink),.20), 0 4px 12px rgba(var(--tint-ink),.08);
+}
+.suggest.show { display:block; }
+.sg-item {
+  display:flex; align-items:center; gap:10px; min-height:44px; padding:0 12px;
+  border-radius:10px; cursor:pointer; font-size:15px;
+}
+.sg-item:hover, .sg-item.on { background:var(--primary-soft); }
+.sg-item .sg-code { font-size:12px; color:var(--secondary); font-variant-numeric:tabular-nums; }
+.sg-item .sg-mkt { margin-left:auto; font-size:11px; color:var(--tertiary); }
+.quick-chips { display:flex; gap:9px; margin-top:14px; flex-wrap:wrap; }
+.chip {
+  border:none; cursor:pointer; min-height:36px; padding:0 15px; border-radius:18px;
+  background:rgba(255,255,255,.55); color:var(--text); font:600 13.5px -apple-system, "PingFang SC", sans-serif;
+  box-shadow:inset 0 1px 0 var(--specular-top), 0 0 0 .5px var(--hairline), 0 2px 6px rgba(var(--tint-ink),.05);
+  transition:transform .18s var(--ease-glass);
+}
+.chip:active { transform:scale(.95); }
+.chip b { color:var(--primary); font-weight:700; }
+
+/* ── 标的 Header ── */
+.sym-head { display:flex; align-items:flex-start; gap:18px; flex-wrap:wrap; }
+.sym-info { min-width:0; flex:1; }
+.sym-name { font-size:28px; font-weight:800; letter-spacing:-.5px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.sym-code { font-size:14px; font-weight:600; color:var(--secondary); font-variant-numeric:tabular-nums; }
+.sym-price-row { display:flex; align-items:baseline; gap:12px; margin-top:6px; flex-wrap:wrap; }
+.sym-price { font-size:40px; font-weight:800; letter-spacing:-1px; font-variant-numeric:tabular-nums; }
+.sym-pct { font-size:19px; font-weight:800; font-variant-numeric:tabular-nums; }
+.up { color:var(--red); } .down { color:var(--green); }
+.sym-metas { display:flex; flex-wrap:wrap; gap:5px 16px; margin-top:8px; font-size:12.5px; color:var(--secondary); }
+.sym-metas b { color:var(--text); font-variant-numeric:tabular-nums; }
+.score-ring { flex:none; width:126px; text-align:center; }
+.score-ring .num { font-size:34px; font-weight:800; letter-spacing:-1px; margin-top:4px; }
+.score-ring .lab { font-size:11.5px; color:var(--secondary); }
+
+/* ── 通用小组件 ── */
+.kpi-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-top:16px; }
+.kpi {
+  background:var(--bg); border-radius:12px; padding:13px 15px;
+  box-shadow:inset 0 0 0 .5px var(--hairline-soft);
+}
+.kpi .k { font-size:11.5px; color:var(--secondary); font-weight:600; }
+.kpi .v { font-size:20px; font-weight:800; margin-top:3px; font-variant-numeric:tabular-nums; letter-spacing:-.3px; }
+.kpi .s { font-size:11px; color:var(--tertiary); margin-top:2px; }
+
+.badge2 {
+  display:inline-flex; align-items:center; gap:6px; min-height:26px; padding:0 11px;
+  border-radius:13px; font-size:12px; font-weight:700; background:var(--bg);
+}
+.b-blue { color:var(--primary); } .b-green { color:var(--green); background:var(--green-soft); }
+.b-red { color:var(--red); background:var(--red-soft); } .b-orange { color:var(--orange); background:var(--orange-soft); }
+.b-gray { color:var(--secondary); }
+
+/* 信号列表 */
+.sig-list { margin-top:14px; display:flex; flex-direction:column; gap:10px; }
+.sig-row {
+  display:flex; align-items:flex-start; gap:13px; padding:14px 16px; border-radius:13px;
+  background:var(--bg); box-shadow:inset 0 0 0 .5px var(--hairline-soft);
+}
+.sig-ico { width:36px; height:36px; border-radius:11px; display:flex; align-items:center; justify-content:center; flex:none; font-size:16px; font-weight:800; }
+.sig-ico.buy { background:var(--red-soft); color:var(--red); }
+.sig-ico.sell { background:var(--green-soft); color:var(--green); }
+.sig-ico.warn { background:var(--orange-soft); color:var(--orange); }
+.sig-ico.info { background:var(--primary-soft); color:var(--primary); }
+.sig-body { min-width:0; flex:1; }
+.sig-name { font-size:15.5px; font-weight:800; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.sig-desc { font-size:12.5px; color:var(--secondary); margin-top:4px; line-height:1.6; }
+.sig-why { font-size:11.5px; color:var(--tertiary); margin-top:5px; line-height:1.55; }
+
+/* 位阶表 */
+.tbl-scroll { overflow-x:auto; margin-top:14px; -webkit-overflow-scrolling:touch; }
+table.lvl { width:100%; border-collapse:collapse; min-width:520px; }
+table.lvl th { font-size:11.5px; color:var(--secondary); text-align:left; font-weight:600; padding:8px 10px; white-space:nowrap; }
+table.lvl td { font-size:14.5px; padding:10px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+table.lvl tr td:first-child { font-weight:700; }
+.lvl-bar { height:5px; border-radius:3px; background:rgba(120,120,128,.15); overflow:hidden; min-width:70px; }
+.lvl-bar i { display:block; height:100%; border-radius:3px; }
+
+/* 资金流四分条 */
+.fund-hero { display:flex; align-items:center; gap:18px; margin-top:16px; flex-wrap:wrap; }
+.fund-main { flex:none; min-width:180px; }
+.fund-main .v { font-size:36px; font-weight:800; letter-spacing:-1px; font-variant-numeric:tabular-nums; }
+.fund-main .k { font-size:12px; color:var(--secondary); font-weight:600; }
+.fund-bars { flex:1; min-width:250px; display:flex; flex-direction:column; gap:9px; }
+.fb-row { display:flex; align-items:center; gap:10px; }
+.fb-lab { width:58px; font-size:12px; color:var(--secondary); font-weight:600; flex:none; }
+.fb-track { flex:1; height:16px; border-radius:8px; background:rgba(120,120,128,.12); overflow:hidden; position:relative; }
+.fb-fill { height:100%; position:absolute; top:0; border-radius:8px; transition:width .6s var(--ease-glass); }
+.fb-val { width:86px; text-align:right; font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums; flex:none; }
+.fund-note { font-size:11.5px; color:var(--tertiary); margin-top:12px; line-height:1.6; }
+
+/* 大宗(暗盘) */
+.bt-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px; margin-top:16px; }
+.bt-item { background:var(--bg); border-radius:12px; padding:13px 15px; box-shadow:inset 0 0 0 .5px var(--hairline-soft); }
+.bt-item .k { font-size:11.5px; color:var(--secondary); font-weight:600; }
+.bt-item .v { font-size:19px; font-weight:800; margin-top:3px; font-variant-numeric:tabular-nums; }
+.bt-list { margin-top:14px; display:flex; flex-direction:column; }
+.bt-row { display:flex; align-items:center; gap:12px; padding:11px 2px; border-bottom:1px solid var(--sep); font-size:13.5px; }
+.bt-row:last-child { border-bottom:none; }
+.bt-row .n { min-width:0; flex:1; display:flex; align-items:baseline; gap:8px; }
+.bt-row .n b { font-weight:700; }
+.bt-row .n .c { font-size:11.5px; color:var(--tertiary); font-variant-numeric:tabular-nums; }
+.bt-row .amt { font-weight:700; font-variant-numeric:tabular-nums; flex:none; }
+.bt-row .pm { width:70px; text-align:right; flex:none; font-variant-numeric:tabular-nums; font-weight:600; font-size:12.5px; }
+
+/* 图表容器 */
+.chart-box {
+  position:relative; margin-top:16px; background:rgba(255,255,255,.30); border-radius:14px;
+  padding:10px 8px 8px; box-shadow:inset 0 0 0 .5px var(--hairline-soft);
+}
+.chart-box::before {
+  content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:0;
+  background:linear-gradient(180deg, rgba(255,255,255,.60) 0%, rgba(255,255,255,.60) .9%, rgba(255,255,255,.18) 2.4%, rgba(255,255,255,0) 4%);
+}
+.chart { width:100%; height:420px; position:relative; z-index:1; }
+.chart.h300 { height:300px; }
+.chart.h240 { height:240px; }
+.chart.h200 { height:200px; }
+@media (max-width:640px){ .chart { height:340px; } .chart.h300{height:250px;} }
+
+/* 板块条 */
+.sector-rows { margin-top:14px; display:flex; flex-direction:column; gap:8px; }
+.sec-row { display:flex; align-items:center; gap:12px; min-height:38px; }
+.sec-name { width:88px; font-size:13.5px; font-weight:700; flex:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sec-track { flex:1; height:22px; border-radius:11px; background:rgba(120,120,128,.10); position:relative; overflow:hidden; }
+.sec-fill { position:absolute; top:0; height:100%; border-radius:11px; transition:width .7s var(--ease-glass); }
+.sec-val { width:92px; text-align:right; font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums; flex:none; }
+
+/* 环境仪表 */
+.env-pill {
+  display:inline-flex; align-items:center; gap:8px; min-height:38px; padding:0 18px; border-radius:19px;
+  font-size:16px; font-weight:800;
+}
+.env-weak { color:var(--orange); background:var(--orange-soft); }
+.env-mid { color:var(--primary); background:var(--primary-soft); }
+.env-strong { color:var(--red); background:var(--red-soft); }
+
+/* 加载骨架 */
+.skeleton {
+  margin-top:22px; border-radius:var(--radius); padding:30px; text-align:center;
+  color:var(--secondary); font-size:14px;
+  background:var(--glass-card); box-shadow:inset 0 0 0 .5px var(--hairline);
+}
+.sk-ring {
+  width:38px; height:38px; margin:0 auto 14px; border-radius:50%;
+  border:3px solid rgba(0,122,255,.16); border-top-color:var(--primary);
+  animation:spin .9s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* 渐入 */
+.fade { opacity:0; transform:translateY(16px); transition:opacity .55s ease, transform .55s ease; }
+.fade.vis { opacity:1; transform:none; }
+.hidden { display:none !important; }
+
+footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12.5px; line-height:1.9; }
+.disclaimer {
+  margin-top:26px; padding:16px 20px; border-radius:14px; background:var(--orange-soft);
+  color:var(--orange); font-size:12.5px; line-height:1.75; font-weight:500;
+}
+@media (prefers-reduced-motion:reduce){ *{ animation-duration:.01ms !important; transition-duration:.01ms !important; } }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="./index.html">
+      <span class="brand-dot"></span>
+      <span>
+        <span class="brand-name">诊断中心</span><br>
+        <span class="brand-meta" id="brandMeta">个股量价 · 资金流 · 大盘板块</span>
+      </span>
+    </a>
+    <div class="segment" id="segTabs">
+      <button id="tabStock" class="on">个股诊断</button>
+      <button id="tabMarket">大盘 · 板块</button>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+
+<!-- ══════════════ TAB 1: 个股诊断 ══════════════ -->
+<div id="viewStock">
+  <header class="hero fade vis">
+    <h1>个股诊断</h1>
+    <p class="sub">输入代码或名称 — 60日量价结构 · 六类信号 · 五档位阶 · 主力资金与暗盘动向</p>
+  </header>
+
+  <div class="searchbar fade vis">
+    <div class="search-input-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input id="searchInput" type="text" inputmode="search" placeholder="股票代码 / 名称，如 002161 或 远望谷" autocomplete="off" maxlength="12">
+      <button id="searchGo">诊断</button>
+    </div>
+    <div class="suggest" id="suggest"></div>
+    <div class="quick-chips" id="quickChips"></div>
+  </div>
+
+  <div id="stockEmpty" class="skeleton" style="background:var(--glass-card);">
+    <div class="sk-ring"></div>
+    输入任意 A 股标的开始诊断<br>
+    <span style="font-size:12px; color:var(--tertiary);">数据实时获取：腾讯行情 + 东财资金流 · 浏览器直连，无需后端</span>
+  </div>
+
+  <div id="stockResult" class="hidden">
+    <!-- 标的 Header + 评分 -->
+    <section class="card fade vis">
+      <div class="sym-head">
+        <div class="sym-info">
+          <div class="sym-name"><span id="symName">—</span><span class="sym-code" id="symCode"></span></div>
+          <div class="sym-price-row">
+            <span class="sym-price" id="symPrice">—</span>
+            <span class="sym-pct" id="symPct">—</span>
+          </div>
+          <div class="sym-metas" id="symMetas"></div>
+        </div>
+        <div class="score-ring">
+          <svg width="126" height="126" viewBox="0 0 126 126" id="ringSvg">
+            <circle cx="63" cy="63" r="54" fill="none" stroke="rgba(120,120,128,.14)" stroke-width="10"/>
+            <circle cx="63" cy="63" r="54" fill="none" id="ringArc" stroke="#007AFF" stroke-width="10"
+              stroke-linecap="round" stroke-dasharray="0 339.3" transform="rotate(-90 63 63)"/>
+            <text x="63" y="60" text-anchor="middle" id="ringNum" font-size="30" font-weight="800" fill="#1D1D1F">—</text>
+            <text x="63" y="80" text-anchor="middle" font-size="11" fill="#6E6E73">综合评分</text>
+          </svg>
+          <div class="lab" id="ringLab">模型输出 · 非预测</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- K线 -->
+    <section class="card fade vis">
+      <div class="sec-title">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="8" width="3" height="8" rx="1"/><rect x="14" y="5" width="3" height="11" rx="1"/></svg></span>
+        <span>量价结构 · 前复权120日</span>
+        <span class="badge2 b-blue" style="margin-left:auto;" id="maEnvBadge">—</span>
+      </div>
+      <div class="chart-box"><div id="kchart" class="chart"></div></div>
+      <div class="fund-note" id="klineNote"></div>
+    </section>
+
+    <!-- 信号 -->
+    <section class="card fade vis">
+      <div class="sec-title">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg></span>
+        <span>信号观察 · 双向提示</span>
+        <span class="badge2 b-gray" style="margin-left:auto;" id="sigCount">0 条</span>
+      </div>
+      <div class="sig-list" id="sigList"></div>
+      <div class="fund-note">信号均为收盘级判定（确认K线），置信度由触发条件数量决定；同页并列看多/看空信号，避免单向偏差。</div>
+    </section>
+
+    <!-- 支撑压力位阶 -->
+    <section class="card fade vis">
+      <div class="sec-title">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"/><path d="M5 20V9"/><path d="M12 20V4"/><path d="M19 20v-7"/></svg></span>
+        <span>支撑压力位阶</span>
+      </div>
+      <div class="tbl-scroll"><table class="lvl" id="lvlTable">
+        <thead><tr><th>档位</th><th>价格</th><th>距现价</th><th>来源</th><th>强度</th></tr></thead>
+        <tbody id="lvlBody"></tbody>
+      </table></div>
+      <div class="fund-note">位阶由前高/前低、均线、布林带、斐波那契回撤、20日成交密集区聚类合成（±1.5% 合并）；强度按历史触碰次数与成交量加权。</div>
+    </section>
+
+    <!-- 资金流 -->
+    <section class="card fade vis">
+      <div class="sec-title">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+        <span>主力资金</span>
+        <span class="badge2 b-gray" style="margin-left:auto;" id="fundDate">—</span>
+      </div>
+      <div class="fund-hero">
+        <div class="fund-main">
+          <div class="k">当日主力净流入</div>
+          <div class="v" id="fundMain">—</div>
+        </div>
+        <div class="fund-bars" id="fundBars"></div>
+      </div>
+      <div class="chart-box" style="margin-top:16px;"><div id="fundHist" class="chart h240"></div></div>
+      <div class="fund-note" id="fundHistNote">主力 = 超大单 + 大单；净流入率为净额占成交额比例。历史趋势需逐日累积。</div>
+    </section>
+
+    <!-- 大宗交易(暗盘) -->
+    <section class="card fade vis">
+      <div class="sec-title">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><circle cx="12" cy="13" r="2.5"/></svg></span>
+        <span>大宗交易 · 暗盘动向</span>
+        <span class="badge2 b-gray" style="margin-left:auto;" id="btCount">近60日</span>
+      </div>
+      <div id="btSummary"></div>
+      <div class="bt-list" id="btList"></div>
+      <div class="fund-note">大宗交易为盘后协议转让（A股语境的"暗盘"）；折价成交常代表股东减持变现意愿，溢价接盘与机构专用席位连续买入值得跟踪。本表展示该股近 60 日全部记录。</div>
+    </section>
+
+    <div class="disclaimer">⚠ 本页为量化信号展示，所有内容（评分 / 信号 / 位阶 / 资金流向）均为历史规则的条件概率诊断，不构成投资建议，不预测未来价格；据此操作风险自担。样本与口径：前复权日线 · 指标固定窗口 · 资金流为东财单级别口径。</div>
+  </div>
+</div>
+
+<!-- ══════════════ TAB 2: 大盘 · 板块 ══════════════ -->
+<div id="viewMarket" class="hidden">
+  <header class="hero fade vis">
+    <h1>大盘 · 板块</h1>
+    <p class="sub">指数环境 · 主力资金 · 板块轮动 · 暗盘汇总 — 每日 15:10 快照 + 实时刷新</p>
+  </header>
+
+  <!-- 大盘环境 -->
+  <section class="card fade vis">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/><path d="M2 12h20"/></svg></span>
+      <span>指数环境</span>
+      <span class="env-pill" style="margin-left:auto;" id="mEnvPill">—</span>
+    </div>
+    <div class="chart-box"><div id="idxChart" class="chart h240"></div></div>
+    <div class="kpi-grid" id="idxKpis"></div>
+  </section>
+
+  <!-- 大盘主力资金 -->
+  <section class="card fade vis">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+      <span>大盘主力资金</span>
+      <span class="badge2 b-gray" style="margin-left:auto;" id="mFundDate">—</span>
+    </div>
+    <div class="kpi-grid" id="mIdxFund"></div>
+    <div class="chart-box" style="margin-top:16px;"><div id="mFundChart" class="chart h300"></div></div>
+    <div class="fund-note" id="mFundNote">主力 = 超大单 + 大单；负值代表主力净流出。趋势图自快照启用日起逐日累积（当日为最新一根）。</div>
+  </section>
+
+  <!-- 板块资金流 -->
+  <section class="card fade vis">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
+      <span>板块主力资金 · 今日</span>
+      <span class="badge2 b-gray" style="margin-left:auto;">行业板块</span>
+    </div>
+    <div class="chart-box"><div id="sectorChart" class="chart h300"></div></div>
+    <div class="sector-rows" id="sectorTail"></div>
+    <div class="fund-note">条形为主力净流入（亿元）；绿=流入 红=流出（A股色彩惯例已反转，涨红跌绿符合国内习惯）。</div>
+  </section>
+
+  <!-- 暗盘汇总 -->
+  <section class="card fade vis">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><circle cx="12" cy="13" r="2.5"/></svg></span>
+      <span>大宗交易 · 暗盘汇总</span>
+      <span class="badge2 b-gray" style="margin-left:auto;" id="mBtDate">—</span>
+    </div>
+    <div class="bt-grid" id="mBtGrid"></div>
+    <div class="tbl-scroll"><table class="lvl" style="min-width:420px;">
+      <thead><tr><th>大额暗盘 · Top10</th><th>成交额</th><th>折溢价</th><th>买方</th></tr></thead>
+      <tbody id="mBtBody"></tbody>
+    </table></div>
+    <div class="bt-list" id="mBtBuyers"></div>
+    <div class="fund-note">"机构专用"为公募/保险/社保等匿名席位；瑞银、国泰海通总部等 QFII 与券商总部席位动向亦具参考意义。</div>
+  </section>
+
+  <div class="disclaimer">⚠ 本页为市场环境量化观察，所有板块与资金结论均为统计描述，不构成任何买卖建议；打板策略的入场决策仍以主看板情绪闸门为准。</div>
+</div>
+
+<footer>
+  打板策略看板 · 诊断中心 v1.0.0 · 数据源: 腾讯行情 / 东财资金流(push2delay) / 东财数据中心<br>
+  每日 15:10 自动快照 · 页面数据实时直连 · Liquid Glass UI
+</footer>
+
+</div>
+
+<script src="./echarts.min.js"></script>
+<script src="./fund_data.js"></script>
+<script src="./diag.js"></script>
+</body>
+</html>

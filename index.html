@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>打板情绪雷达</title>
 <style>
+/* v1.11.0 诊断中心入口: topbar 新增"诊断"链接 → stock.html(个股量价诊断/主力资金/大宗暗盘/大盘板块);
+   本页打板策略逻辑零改动, 不影响 v2.0 影子观察(MA20对照) */
 /* v1.9.10 Liquid Glass 透明增强: 玻璃卡片不透明度 .62→.45(更通透), 背景折射光斑加浓
    (.48→.60)并新增中部紫斑(6光斑层次), 镜面顶部高光 .85→.95, hover .72→.58;
    降级/高对比/减透明适配同步更新, 保持浅色模式与真blur仅2处的性能架构不变 */
@@ -1067,6 +1069,11 @@ tr.pt-excluded-row td { opacity:.52; }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
         建议<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
+      <!-- v1.11.0 诊断中心入口: 个股量价诊断 + 主力资金/暗盘 + 大盘板块 -->
+      <a class="tnav-item tnav-link" href="./stock.html" style="text-decoration:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v3l2 2"/></svg>
+        诊断<span style="font-size:10px;color:var(--primary);font-weight:800;">NEW</span>
+      </a>
     </div>
   </div>
 
