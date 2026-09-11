@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>打板情绪雷达</title>
 <style>
+/* v1.9.9 iOS Liquid Glass 界面材质改版: 顶部导航+右侧胶囊为真backdrop-filter玻璃(全页仅2处,
+   桌面Chrome/手机Safari不掉帧), 20+数据卡片用静态玻璃(半透明+镜面高光+发丝边+环境蓝弥散阴影,
+   零合成层开销), 卡内凹槽统一蓝灰蚀刻(--bg), 嵌套子层白雾(--card2, 顺带修复card2未定义的悬浮
+   bug), ECharts显式透明背景; 新增降级(@supports)与无障碍(高对比/减透明/减动效)适配;
+   body加低饱和冷色斑折射背景(fixed层, 兼容iOS Safari) */
 /* v1.9.7 建议入场直达 + 详情折叠: 第一屏新增"今日建议入场"精华卡(正式信号/建议入场/条件入场
    优先, 无建议时显示否决原因+可入场池轻仓参考); 龙回头/高位板/建议跟踪/情绪图表/回测/规则
    六大详情区默认折叠, 点击标题展开; 顶部与侧边导航跳转自动展开目标区 */
@@ -40,7 +45,8 @@
    / 因子格6格化(板级契合×市值语义修正, 移动3×2) / 价格fp()两位小数(止损2.7→2.70)
    / mk-sub网格对齐(弃122px硬编码) / 禁止入场时操作chip降灰 / 买卖计划默认折叠 */
 :root {
-  --bg: #F2F2F7; --card: #FFFFFF; --primary: #007AFF; --primary-soft: rgba(0,122,255,.08);
+  --bg: rgba(116,116,128,.12); --card: rgba(255,255,255,.62); --card2: rgba(255,255,255,.55);
+  --primary: #007AFF; --primary-soft: rgba(0,122,255,.08);
   --text: #1D1D1F; --secondary: #86868B; --tertiary: #AEAEB2;
   --green: #34C759; --green-soft: rgba(52,199,89,.10);
   --red: #FF3B30; --red-soft: rgba(255,59,48,.08);
@@ -48,13 +54,38 @@
   --gray-badge: #8E8E93; --sep: rgba(60,60,67,.10);
   --radius: 16px; --touch: 44px;
   --shadow: 0 1px 3px rgba(0,0,0,.04), 0 6px 18px rgba(0,0,0,.05);
+  /* ── v1.9.9 Liquid Glass 令牌 ── */
+  --glass-card: rgba(255,255,255,.62);
+  --glass-card-hover: rgba(255,255,255,.72);
+  --glass-nav: rgba(255,255,255,.68);
+  --glass-pop: rgba(255,255,255,.92);
+  --specular-top: rgba(255,255,255,.85);
+  --specular-bottom: rgba(174,196,255,.20);
+  --hairline: rgba(15,23,42,.10);
+  --hairline-soft: rgba(15,23,42,.05);
+  --tint-ink: 15,23,42;
+  --tint-sky: 56,96,190;
+  --blur-nav: saturate(180%) blur(24px);
+  --ease-glass: cubic-bezier(.32,.72,0,1);
+  --d-base: 240ms;
 }
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 html { scroll-behavior:smooth; }
 body {
-  background: var(--bg); color: var(--text);
+  background: #F2F2F7; color: var(--text);
   font: 17px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+/* Liquid Glass 折射背景层: 冷色光斑, fixed定位(滚动不动, 玻璃有物可透; 兼容iOS Safari) */
+body::before {
+  content:''; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(60% 50% at 18% 8%,  rgba(174,190,255,.48) 0%, transparent 62%),
+    radial-gradient(50% 45% at 92% 12%, rgba(196,216,255,.44) 0%, transparent 60%),
+    radial-gradient(55% 50% at 78% 88%, rgba(226,210,248,.36) 0%, transparent 62%),
+    radial-gradient(45% 40% at 8% 92%, rgba(200,228,252,.34) 0%, transparent 60%),
+    radial-gradient(40% 36% at 50% 45%, rgba(214,222,248,.22) 0%, transparent 65%),
+    linear-gradient(180deg, #F4F5F8 0%, #EEF0F4 100%);
 }
 .page { max-width: 1100px; margin: 0 auto; padding: 0 20px 60px; }
 
@@ -68,17 +99,52 @@ body {
 .badges { display:flex; gap:10px; margin-top:18px; flex-wrap:wrap; }
 .badge {
   display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:0 14px;
-  border-radius: 18px; font-size:14px; font-weight:600; background:var(--card); box-shadow:var(--shadow);
+  border-radius: 18px; font-size:14px; font-weight:600;
+  background:var(--glass-card);
+  box-shadow: inset 0 1px 0 var(--specular-top), 0 0 0 .5px var(--hairline),
+    0 2px 6px rgba(var(--tint-ink),.05), 0 12px 28px -8px rgba(var(--tint-sky),.10);
 }
 .badge .dot { width:8px; height:8px; border-radius:50%; }
 .badge.blue { color:var(--primary); } .badge.blue .dot { background:var(--primary); }
 .badge.green { color:var(--green); } .badge.green .dot { background:var(--green); }
 .badge.gray { color:var(--secondary); } .badge.gray .dot { background:var(--tertiary); }
 
-/* ── Cards ── */
+/* ── Cards (v1.9.9 Liquid Glass: 静态玻璃, 不开backdrop-filter保性能) ── */
 .card {
-  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+  position:relative; isolation:isolate;
+  background: var(--glass-card); border-radius: var(--radius);
   padding: 26px 28px; margin-top: 22px;
+  box-shadow:
+    inset 0 1px 0 var(--specular-top),
+    inset 0 -1px 0 var(--specular-bottom),
+    0 0 0 .5px var(--hairline),
+    inset 0 0 0 .5px var(--hairline-soft),
+    0 1px 1px rgba(var(--tint-ink),.04),
+    0 2px 4px rgba(var(--tint-ink),.04),
+    0 8px 20px -6px rgba(var(--tint-ink),.08),
+    0 24px 48px -16px rgba(var(--tint-sky),.10);
+  transition: transform var(--d-base) var(--ease-glass), box-shadow var(--d-base) var(--ease-glass);
+}
+/* 顶部镜面高光带 + 右下曲面副反光 (伪造玻璃折射) */
+.card::before, .cand::before, .chart-box::before {
+  content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(120% 60% at 50% 0%, rgba(255,255,255,.55) 0%, rgba(255,255,255,.12) 35%, transparent 60%),
+    radial-gradient(60% 50% at 85% 100%, rgba(255,255,255,.22) 0%, transparent 70%);
+  mix-blend-mode: screen; opacity:.9;
+}
+.card > *, .cand > *, .chart-box > * { position:relative; z-index:1; }
+.card:hover, .cand:hover {
+  transform: translateY(-2px);
+  background: var(--glass-card-hover);
+  box-shadow:
+    inset 0 1px 0 var(--specular-top),
+    inset 0 -1px 0 var(--specular-bottom),
+    0 0 0 .5px rgba(15,23,42,.10),
+    inset 0 0 0 .5px var(--hairline-soft),
+    0 2px 4px rgba(var(--tint-ink),.05),
+    0 12px 24px -6px rgba(var(--tint-ink),.10),
+    0 32px 64px -16px rgba(var(--tint-sky),.14);
 }
 section { scroll-margin-top: 88px; }
 #sec-strategy { scroll-margin-top: 88px; }   /* v1.9.8: 战法雷达卡(div非section)锚点偏移与section同口径 */
@@ -162,10 +228,21 @@ section { scroll-margin-top: 88px; }
 
 /* ── 候选股卡片 ── */
 .cand {
-  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
-  padding: 22px 24px; margin-top: 16px; transition: transform .22s ease, box-shadow .22s ease;
+  position:relative; isolation:isolate;
+  background: var(--glass-card); border-radius: var(--radius);
+  padding: 22px 24px; margin-top: 16px;
+  box-shadow:
+    inset 0 1px 0 var(--specular-top),
+    inset 0 -1px 0 var(--specular-bottom),
+    0 0 0 .5px var(--hairline),
+    inset 0 0 0 .5px var(--hairline-soft),
+    0 1px 1px rgba(var(--tint-ink),.04),
+    0 2px 4px rgba(var(--tint-ink),.04),
+    0 8px 20px -6px rgba(var(--tint-ink),.08),
+    0 24px 48px -16px rgba(var(--tint-sky),.10);
+  transition: transform var(--d-base) var(--ease-glass), box-shadow var(--d-base) var(--ease-glass), background-color var(--d-base) var(--ease-glass);
 }
-.cand:hover { transform: translateY(-3px); box-shadow: 0 4px 8px rgba(0,0,0,.05), 0 14px 32px rgba(0,0,0,.08); }
+.cand:active { transform: translateY(0) scale(.997); transition-duration: 140ms; }
 .cand-head { display:flex; align-items:center; gap:14px; }
 .cand-rank {
   width:34px; height:34px; border-radius:10px; background:var(--bg); display:flex; align-items:center; justify-content:center;
@@ -211,8 +288,18 @@ section { scroll-margin-top: 88px; }
 
 /* ── 操作总方针横幅 ── */
 .master {
-  position:relative; margin-top:22px; background:var(--card); border-radius:var(--radius);
-  box-shadow:var(--shadow); padding:22px 26px 22px 30px;
+  position:relative; isolation:isolate; margin-top:22px;
+  background:var(--glass-card); border-radius:var(--radius);
+  padding:22px 26px 22px 30px;
+  box-shadow:
+    inset 0 1px 0 var(--specular-top),
+    inset 0 -1px 0 var(--specular-bottom),
+    0 0 0 .5px var(--hairline),
+    inset 0 0 0 .5px var(--hairline-soft),
+    0 1px 1px rgba(var(--tint-ink),.04),
+    0 2px 4px rgba(var(--tint-ink),.04),
+    0 8px 20px -6px rgba(var(--tint-ink),.08),
+    0 24px 48px -16px rgba(var(--tint-sky),.10);
 }
 .master::before { content:''; position:absolute; left:0; top:16px; bottom:16px; width:5px; border-radius:0 3px 3px 0; }
 .master.buy::before { background:var(--green); }
@@ -275,7 +362,20 @@ section { scroll-margin-top: 88px; }
 .charts { display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
 /* [移动端修复] grid子项含横向滚动表(tbl-scroll·min-width:max-content)时,
    子项min-content被表格撑爆1fr轨道(643px>视口)导致整页横向溢出 → min-width:0放行收缩, 表格改在容器内滚动 */
-.chart-box { background:var(--card); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px 16px 10px; min-width:0; }
+.chart-box {
+  position:relative; isolation:isolate;
+  background:var(--glass-card); border-radius:var(--radius);
+  padding:18px 16px 10px; min-width:0;
+  box-shadow:
+    inset 0 1px 0 var(--specular-top),
+    inset 0 -1px 0 var(--specular-bottom),
+    0 0 0 .5px var(--hairline),
+    inset 0 0 0 .5px var(--hairline-soft),
+    0 1px 1px rgba(var(--tint-ink),.04),
+    0 2px 4px rgba(var(--tint-ink),.04),
+    0 8px 20px -6px rgba(var(--tint-ink),.08),
+    0 24px 48px -16px rgba(var(--tint-sky),.10);
+}
 .chart-box h3 { font-size:15px; font-weight:700; padding:0 6px 10px; display:flex; align-items:center; gap:8px; }
 .chart-box h3 .hint { font-size:11.5px; color:var(--tertiary); font-weight:500; margin-left:auto; }
 .chart { width:100%; height: 240px; }
@@ -316,7 +416,7 @@ section { scroll-margin-top: 88px; }
 .strat-kpi-cell .v { font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.3px; }
 .strat-kpi-cell .l { font-size:11px; color:var(--secondary); margin-top:1px; }
 .strat-years { font-size:11.5px; color:var(--tertiary); margin-top:9px; line-height:1.6; }
-.strat-rule { margin-top:10px; font-size:12.5px; color:var(--secondary); background:var(--card); border-radius:10px; padding:9px 13px; line-height:1.65; }
+.strat-rule { margin-top:10px; font-size:12.5px; color:var(--secondary); background:var(--card2); border-radius:10px; padding:9px 13px; line-height:1.65; }
 .strat-rule b { color:var(--text); }
 .strat-sig { display:flex; align-items:flex-start; gap:11px; padding:11px 13px; background:var(--card); border-radius:12px; margin-top:9px; flex-wrap:wrap; }
 .strat-sig .s-l { flex:1; min-width:180px; }
@@ -340,7 +440,7 @@ section { scroll-margin-top: 88px; }
 .ns-top-card .t2 { font-size:11.5px; color:var(--secondary); margin-top:5px; line-height:1.58; }
 /* v1.9.5 交易计划行: 入场/止损/仓位 */
 .ns-top-card .t3p { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
-.ns-top-card .t3p .pp { font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:6px; background:var(--card); font-variant-numeric:tabular-nums; }
+.ns-top-card .t3p .pp { font-size:10.5px; font-weight:700; padding:3px 8px; border-radius:6px; background:var(--card2); font-variant-numeric:tabular-nums; }
 .ns-score { background:var(--green-soft); color:var(--green); border-radius:999px; padding:2.5px 9px; font-size:11px; font-weight:800; flex:none; font-variant-numeric:tabular-nums; }
 .ns-top-card.forming .ns-score { background:var(--primary-soft); color:var(--primary); }
 .strat-pool-label { display:flex; align-items:center; gap:6px; margin-top:10px; font-size:11.5px; font-weight:700; color:var(--orange); }
@@ -414,12 +514,22 @@ section { scroll-margin-top: 88px; }
 .rule-box li { font-size:13.5px; padding-left:16px; position:relative; }
 .rule-box li::before { content:''; position:absolute; left:2px; top:9px; width:5px; height:5px; border-radius:50%; background:var(--primary); }
 
-/* ── 侧边导航 ── */
+/* ── 侧边导航 (Liquid Glass 胶囊: 垂直面左缘高光更亮) ── */
 .side-nav {
   position:fixed; right:18px; top:50%; transform:translateY(-50%); z-index:50;
-  background:rgba(255,255,255,.88); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  border-radius:22px; box-shadow: 0 2px 10px rgba(0,0,0,.08), 0 8px 28px rgba(0,0,0,.06);
-  padding:10px 7px; display:flex; flex-direction:column; gap:4px;
+  background:var(--glass-nav);
+  -webkit-backdrop-filter: saturate(200%) blur(40px);
+  backdrop-filter: saturate(200%) blur(40px);
+  border-radius:22px; padding:10px 7px; display:flex; flex-direction:column; gap:4px;
+  box-shadow:
+    inset 1px 0 0 var(--specular-top),
+    inset -1px 0 0 var(--specular-bottom),
+    inset 0 1px 0 var(--specular-top),
+    inset 0 -1px 0 var(--specular-bottom),
+    0 0 0 .5px var(--hairline),
+    0 2px 4px rgba(var(--tint-ink),.04),
+    0 6px 16px -4px rgba(var(--tint-ink),.06),
+    0 16px 32px -8px rgba(var(--tint-sky),.10);
 }
 .side-nav a {
   display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%;
@@ -444,13 +554,19 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 /* ECharts 缺失降级 */
 .nochart { display:none; height:200px; align-items:center; justify-content:center; color:var(--secondary); font-size:13px; flex-direction:column; gap:8px; }
 
-/* ── 顶部导航栏(点击展开详情) ── */
+/* ── 顶部导航栏(点击展开详情) (Liquid Glass: 横向功能层) ── */
 .topbar {
   position: sticky; top: 0; z-index: 100;
-  background: rgba(255,255,255,.72);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
-  box-shadow: 0 1px 0 rgba(60,60,67,.05), 0 10px 30px rgba(0,0,0,.03);
+  background: var(--glass-nav);
+  -webkit-backdrop-filter: var(--blur-nav);
+  backdrop-filter: var(--blur-nav);
+  box-shadow:
+    inset 0 1px 0 var(--specular-top),
+    inset 0 -1px 0 var(--specular-bottom),
+    0 0 0 .5px var(--hairline),
+    0 2px 6px rgba(var(--tint-ink),.04),
+    0 8px 20px -4px rgba(var(--tint-ink),.06),
+    0 24px 48px -12px rgba(var(--tint-sky),.10);
 }
 .topbar-inner { max-width:1100px; margin:0 auto; padding:10px 20px 8px; display:flex; align-items:center; gap:14px; }
 .brand { display:flex; align-items:center; gap:10px; flex:none; }
@@ -478,7 +594,13 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 .np-clip { overflow:hidden; min-height:0; }
 .np-body { max-width:1100px; margin:0 auto; padding:2px 20px 18px; }
 .np-card {
-  background:var(--card); border-radius:16px; box-shadow: 0 4px 12px rgba(0,0,0,.05), 0 16px 40px rgba(0,0,0,.06);
+  /* topbar(已开backdrop-filter)内嵌浮层: 禁嵌套模糊, 用高白静态玻璃保可读性 */
+  background:var(--glass-pop); border-radius:16px;
+  box-shadow:
+    inset 0 1px 0 var(--specular-top),
+    0 0 0 .5px var(--hairline),
+    0 4px 12px rgba(var(--tint-ink),.06),
+    0 16px 40px rgba(var(--tint-sky),.10);
   padding:18px 20px 14px; opacity:0; transform:translateY(-8px);
   transition: opacity .3s ease .06s, transform .42s cubic-bezier(.32,.72,.35,1) .06s;
 }
@@ -800,6 +922,29 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 @media (pointer: coarse) and (min-width: 901px) {
   .side-nav a { width: 44px; height: 44px; }
   .side-nav a .tip { right: 52px; }
+}
+
+/* ═══ v1.9.9 Liquid Glass · 降级与无障碍 ═══ */
+/* 不支持 backdrop-filter 的浏览器: 导航高不透明度纯色, 数据可读性优先 */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .topbar { background: rgba(255,255,255,.94); }
+  .side-nav { background: rgba(255,255,255,.94); }
+}
+/* 高对比度: 玻璃加实 */
+@media (prefers-contrast: more) {
+  .card, .cand, .master, .chart-box, .badge { background: rgba(255,255,255,.86); }
+  .topbar, .side-nav { background: rgba(255,255,255,.88); }
+}
+/* 减少透明度: 玻璃近乎实色 */
+@media (prefers-reduced-transparency: reduce) {
+  body::before { opacity: .35; }
+  .card, .cand, .master, .chart-box, .badge, .topbar, .side-nav { background: rgba(255,255,255,.94); }
+}
+/* 减少动效: 关闭玻璃悬浮/过渡 */
+@media (prefers-reduced-motion: reduce) {
+  .card, .cand, .card:hover, .cand:hover, .card:active, .cand:active {
+    transform: none !important; transition: none !important;
+  }
 }
 </style>
 </head>
@@ -1880,7 +2025,7 @@ function renderCharts(){
     ['chTrend','chLadder','chPromo','chZb'].forEach(id => { $(id).style.display='none'; });
     return;
   }
-  const base = { textStyle:{ fontFamily: FONT }, grid:{ left:44, right:14, top:28, bottom:26 } };
+  const base = { backgroundColor:'transparent', textStyle:{ fontFamily: FONT }, grid:{ left:44, right:14, top:28, bottom:26 } };
   const axStyle = { axisLine:{show:false}, axisTick:{show:false}, axisLabel:{ color:'#86868B', fontSize:11 }, splitLine:{ lineStyle:{ color:'rgba(60,60,67,.08)' } } };
 
   // 情绪周期色带 (v1.7): 四态区段铺底 + 图例 + 当前阶段徽章
