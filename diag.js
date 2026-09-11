@@ -1,9 +1,10 @@
-/* diag.js v1.1.2 — 诊断中心逻辑
+/* diag.js v1.1.3 — 诊断中心逻辑
    数据: 腾讯JSONP(GBK, K线/行情/搜索) + 东财push2his→push2→push2delay(资金流) + DC(大宗) + fund_data.js(快照兜底)
    计算: MA/MACD/RSI/KDJ/BOLL/量比 → 六类信号 → 五档位阶聚类 → 综合评分
    声明: 全部为条件概率诊断, 非预测, 不构成投资建议
    v1.1.2: 资金流改走 push2his(东财官网同款完整历史接口); em()加时间戳防CDN缓存;
-           资金流/大宗接口全挂时从 fund_data.js 快照兜底; 标注主力口径与同花顺差异 */
+           资金流/大宗接口全挂时从 fund_data.js 快照兜底; 标注主力口径与同花顺差异
+   v1.1.3: em()加 referrerPolicy=no-referrer 修复 push2his/push2 跨域空响应 — 完整120日历史恢复 */
 (function () {
 'use strict';
 
@@ -35,7 +36,10 @@ function tencent(url, varName, timeout) {
 
 /* 东财 JSONP: cb= 全局回调
    v1.1.0: 支持 cbParam 指定回调参数名 — push2系用 cb=, datacenter-web 只认 callback=
-   v1.1.2: 加 _= 时间戳, 防止 CDN/浏览器缓存旧 JSONP 响应 */
+   v1.1.2: 加 _= 时间戳, 防止 CDN/浏览器缓存旧 JSONP 响应
+   v1.1.3: 加 referrerPolicy=no-referrer — 东财 push2/push2his 对「有 Referer 且非东财域名」
+           的跨域 JSONP 直接返回空响应(ERR_EMPTY_RESPONSE), 无 Referer 则放行(同 Python 直连);
+           实测该策略下 push2his 可返回完整 120 日资金流历史 */
 function em(url, timeout, cbParam) {
   return new Promise((resolve, reject) => {
     const cb = '_emcb' + (++cbSeq);
@@ -44,6 +48,7 @@ function em(url, timeout, cbParam) {
     window[cb] = (data) => { clearTimeout(tm); delete window[cb]; s.remove(); resolve(data); };
     tm = setTimeout(() => { delete window[cb]; s.remove(); reject(new Error('timeout')); }, timeout || 9000);
     s.onerror = () => { clearTimeout(tm); delete window[cb]; s.remove(); reject(new Error('network')); };
+    s.referrerPolicy = 'no-referrer';
     s.src = url + (url.includes('?') ? '&' : '?') + (cbParam || 'cb') + '=' + cb + '&_=' + Date.now();
     document.head.appendChild(s);
   });
