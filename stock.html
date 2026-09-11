@@ -474,7 +474,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
         <div class="fund-bars" id="fundBars"></div>
       </div>
       <div class="chart-box" style="margin-top:16px;"><div id="fundHist" class="chart h240"></div></div>
-      <div class="fund-note" id="fundHistNote">主力 = 超大单 + 大单；净流入率为净额占成交额比例。历史趋势需逐日累积。</div>
+      <div class="fund-note" id="fundHistNote">主力 = 超大单(单笔≥100万) + 大单(20~100万)，东财口径；与同花顺(单笔≥20万即计大单)划分标准不同，数值差异属正常。净流入率为净额占成交额比例。</div>
     </section>
 
     <!-- 大宗交易(暗盘) -->
@@ -562,7 +562,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 </div>
 
 <script src="./echarts.min.js"></script>
-<script src="./fund_data.js"></script>
-<script src="./diag.js"></script>
+<script src="./fund_data.js?v=112"></script>
+<script src="./diag.js?v=112"></script>
 </body>
 </html>

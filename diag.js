@@ -1,7 +1,9 @@
-/* diag.js v1.0.0 — 诊断中心逻辑
-   数据: 腾讯JSONP(GBK, K线/行情/搜索) + 东财push2→push2delay(资金流) + DC(大宗) + fund_data.js(快照)
+/* diag.js v1.1.2 — 诊断中心逻辑
+   数据: 腾讯JSONP(GBK, K线/行情/搜索) + 东财push2his→push2→push2delay(资金流) + DC(大宗) + fund_data.js(快照兜底)
    计算: MA/MACD/RSI/KDJ/BOLL/量比 → 六类信号 → 五档位阶聚类 → 综合评分
-   声明: 全部为条件概率诊断, 非预测, 不构成投资建议 */
+   声明: 全部为条件概率诊断, 非预测, 不构成投资建议
+   v1.1.2: 资金流改走 push2his(东财官网同款完整历史接口); em()加时间戳防CDN缓存;
+           资金流/大宗接口全挂时从 fund_data.js 快照兜底; 标注主力口径与同花顺差异 */
 (function () {
 'use strict';
 
@@ -32,7 +34,8 @@ function tencent(url, varName, timeout) {
 }
 
 /* 东财 JSONP: cb= 全局回调
-   v1.1.0: 支持 cbParam 指定回调参数名 — push2系用 cb=, datacenter-web 只认 callback= */
+   v1.1.0: 支持 cbParam 指定回调参数名 — push2系用 cb=, datacenter-web 只认 callback=
+   v1.1.2: 加 _= 时间戳, 防止 CDN/浏览器缓存旧 JSONP 响应 */
 function em(url, timeout, cbParam) {
   return new Promise((resolve, reject) => {
     const cb = '_emcb' + (++cbSeq);
@@ -41,7 +44,7 @@ function em(url, timeout, cbParam) {
     window[cb] = (data) => { clearTimeout(tm); delete window[cb]; s.remove(); resolve(data); };
     tm = setTimeout(() => { delete window[cb]; s.remove(); reject(new Error('timeout')); }, timeout || 9000);
     s.onerror = () => { clearTimeout(tm); delete window[cb]; s.remove(); reject(new Error('network')); };
-    s.src = url + (url.includes('?') ? '&' : '?') + (cbParam || 'cb') + '=' + cb;
+    s.src = url + (url.includes('?') ? '&' : '?') + (cbParam || 'cb') + '=' + cb + '&_=' + Date.now();
     document.head.appendChild(s);
   });
 }
@@ -89,29 +92,54 @@ async function fetchQuote(full) {
   };
 }
 
-/* 东财资金流历史: push2 优先(完整) → push2delay(当日) */
+/* 东财资金流历史: v1.1.2 四级降级链
+   push2his(东财官网资金历史同款, 完整120日) → push2(原完整接口, 现常被拦截) →
+   push2delay(仅当日) → fund_data.js 快照(候选池个股当日, 万→元)
+   注: push2 域名浏览器直连常返回空响应(ORB/风控), push2his 实测稳定 */
 async function fetchFundFlow(mkt, code) {
-  const base = 'https://push2.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=0&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63,f64,f65&secid=' + mkt + '.' + code + '&ut=b2884a393a59ad64002292a3e90d46a5';
-  for (const host of ['https://push2.eastmoney.com', 'https://push2delay.eastmoney.com']) {
+  const path = '/api/qt/stock/fflow/daykline/get?lmt=0&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63,f64,f65&secid=' + mkt + '.' + code + '&ut=b2884a393a59ad64002292a3e90d46a5';
+  for (const host of ['https://push2his.eastmoney.com', 'https://push2.eastmoney.com', 'https://push2delay.eastmoney.com']) {
     try {
-      const d = await em(base.replace('https://push2.eastmoney.com', host));
+      const d = await em(host + path);
       const kl = (d && d.data && d.data.klines) || [];
       const rows = kl.map(line => {
         const p = line.split(',');
         return { d: p[0], main: +p[1], small: +p[2], mid: +p[3], big: +p[4], sup: +p[5], rate: +p[6], close: +p[11], pct: +p[12] };
       });
-      if (rows.length) return { rows, full: host.indexOf('push2delay') < 0 };
+      if (rows.length) return { rows, full: host.indexOf('push2delay') < 0, src: host.indexOf('push2his') >= 0 ? 'hist' : 'live' };
     } catch (e) { /* 降级 */ }
+  }
+  /* 快照兜底: 候选池个股当日(单位万→元); 中/小单不可拆分, 合并归入小单保持代数闭合 */
+  const st = (window.FUND_DATA && window.FUND_DATA.stocks && window.FUND_DATA.stocks[code]) || null;
+  if (st) {
+    const sup = st.super * 1e4, big = st.big * 1e4, main = st.main * 1e4;
+    return { rows: [{ d: st.d, main, small: -main, mid: 0, big, sup, rate: st.rate, close: 0, pct: st.pct }], full: false, src: 'snapshot' };
   }
   return null;
 }
 
-/* DC 大宗交易(个股近60日) — v1.1.0: datacenter-web 只支持 callback= 参数(cb=会返回裸JSON被ORB拦截) */
+/* DC 大宗交易(个股近60日) — v1.1.0: datacenter-web 只支持 callback= 参数(cb=会返回裸JSON被ORB拦截)
+   v1.1.2: 失败自动重试1次; 仍失败时从 fund_data.js 当日全市场大宗 Top10 匹配兜底 */
 async function fetchBlockTrade(code) {
   const d60 = new Date(Date.now() - 61 * 864e5).toISOString().slice(0, 10);
   const url = 'https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_DATA_BLOCKTRADE&columns=SECURITY_CODE,SECURITY_NAME_ABBR,TRADE_DATE,DEAL_PRICE,DEAL_AMT,PREMIUM_RATIO,DEAL_VOLUME,BUYER_NAME,SELLER_NAME&filter=(SECURITY_CODE%3D%22' + code + '%22)(TRADE_DATE%3E%3D%27' + d60 + '%27)&pageSize=60&pageNumber=1&sortColumns=TRADE_DATE&sortTypes=-1&source=WEB&client=WEB';
-  const d = await em(url, 10000, 'callback');
-  return (d && d.result && d.result.data) || [];
+  for (let i = 0; i < 2; i++) {
+    try {
+      const d = await em(url, 10000, 'callback');
+      return (d && d.result && d.result.data) || [];
+    } catch (e) { if (i) break; await new Promise(r => setTimeout(r, 600)); }
+  }
+  /* 快照兜底: 当日全市场大宗 Top10 中该股记录(命中有限, 聊胜于无) */
+  try {
+    const blk = (window.FUND_DATA && window.FUND_DATA.latest && window.FUND_DATA.latest.block) || null;
+    const hit = ((blk && blk.top) || []).filter(x => x.code === code);
+    if (hit.length) return hit.map(x => ({
+      SECURITY_CODE: x.code, SECURITY_NAME_ABBR: x.name,
+      TRADE_DATE: ((blk.date || '') + ' 00:00:00'),
+      DEAL_PRICE: x.price, DEAL_AMT: (x.amt || 0) * 1e8, PREMIUM_RATIO: x.prem,
+    }));
+  } catch (e) { /* 忽略 */ }
+  return [];
 }
 
 /* ═══════════ 指标计算 ═══════════ */
@@ -530,7 +558,7 @@ async function diagnose(full) {
     const mainEl = $('fundMain');
     mainEl.textContent = (fl.main >= 0 ? '+' : '-') + fmtNum(amtYi, 2) + '亿';
     mainEl.className = 'v ' + (fl.main >= 0 ? 'up' : 'down');
-    $('fundDate').textContent = fl.d + (fund.full ? '' : ' · 仅当日');
+    $('fundDate').textContent = fl.d + (fund.full ? '' : (fund.src === 'snapshot' ? ' · 快照兜底 · 仅当日' : ' · 仅当日'));
     const mx = Math.max(Math.abs(fl.sup), Math.abs(fl.big), Math.abs(fl.mid), Math.abs(fl.small), 1);
     const rows = [
       ['超大单', fl.sup, ARED], ['大单', fl.big, '#FF6B5E'], ['中单', fl.mid, '#8E8E93'], ['小单', fl.small, AGREEN],
@@ -555,7 +583,9 @@ async function diagnose(full) {
       itemStyle: { color: p => p.value >= 0 ? 'rgba(255,59,48,.75)' : 'rgba(52,199,89,.75)', borderRadius: [3, 3, 0, 0] }, barMaxWidth: 14,
     }];
     ch.setOption(opt); currentCharts.push(ch);
-    $('fundHistNote').textContent = '主力 = 超大单 + 大单 · 净流入率 ' + R2(fl.rate) + '% · 近30日累计 ' + fmtNum(hist.reduce((a, r) => a + r.main / 1e8, 0), 2) + '亿' + (fund.full ? '' : '（历史接口受限，当前仅当日，趋势将随每日快照累积）');
+    $('fundHistNote').textContent = '主力 = 超大单(单笔≥100万) + 大单(20~100万)，东财口径 · 净流入率 ' + R2(fl.rate) + '% · 近30日累计 ' + fmtNum(hist.reduce((a, r) => a + r.main / 1e8, 0), 2) + '亿'
+      + (fund.full ? '' : '（历史接口受限，当前仅当日，趋势将随每日快照累积）')
+      + (fund.src === 'snapshot' ? ' · 快照兜底：中/小单合并计入小单' : ' · 与同花顺划分标准不同(≥20万即计大单)，数值差异属正常');
   } else {
     $('fundMain').textContent = '—';
     $('fundDate').textContent = '获取失败';
