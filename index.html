@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>打板情绪雷达</title>
 <style>
+/* v1.9.10 Liquid Glass 透明增强: 玻璃卡片不透明度 .62→.45(更通透), 背景折射光斑加浓
+   (.48→.60)并新增中部紫斑(6光斑层次), 镜面顶部高光 .85→.95, hover .72→.58;
+   降级/高对比/减透明适配同步更新, 保持浅色模式与真blur仅2处的性能架构不变 */
 /* v1.9.9 iOS Liquid Glass 界面材质改版: 顶部导航+右侧胶囊为真backdrop-filter玻璃(全页仅2处,
    桌面Chrome/手机Safari不掉帧), 20+数据卡片用静态玻璃(半透明+镜面高光+发丝边+环境蓝弥散阴影,
    零合成层开销), 卡内凹槽统一蓝灰蚀刻(--bg), 嵌套子层白雾(--card2, 顺带修复card2未定义的悬浮
@@ -45,27 +48,28 @@
    / 因子格6格化(板级契合×市值语义修正, 移动3×2) / 价格fp()两位小数(止损2.7→2.70)
    / mk-sub网格对齐(弃122px硬编码) / 禁止入场时操作chip降灰 / 买卖计划默认折叠 */
 :root {
-  --bg: rgba(116,116,128,.12); --card: rgba(255,255,255,.62); --card2: rgba(255,255,255,.55);
+  --bg: rgba(116,116,128,.12); --card: rgba(255,255,255,.36); --card2: rgba(255,255,255,.32);
   --primary: #007AFF; --primary-soft: rgba(0,122,255,.08);
-  --text: #1D1D1F; --secondary: #86868B; --tertiary: #AEAEB2;
+  --text: #1D1D1F; --secondary: #6E6E73; --tertiary: #929298;
   --green: #34C759; --green-soft: rgba(52,199,89,.10);
   --red: #FF3B30; --red-soft: rgba(255,59,48,.08);
   --orange: #FF9500; --orange-soft: rgba(255,149,0,.10);
   --gray-badge: #8E8E93; --sep: rgba(60,60,67,.10);
   --radius: 16px; --touch: 44px;
   --shadow: 0 1px 3px rgba(0,0,0,.04), 0 6px 18px rgba(0,0,0,.05);
-  /* ── v1.9.9 Liquid Glass 令牌 ── */
-  --glass-card: rgba(255,255,255,.62);
-  --glass-card-hover: rgba(255,255,255,.72);
-  --glass-nav: rgba(255,255,255,.68);
-  --glass-pop: rgba(255,255,255,.92);
-  --specular-top: rgba(255,255,255,.85);
+  /* ── v1.9.10 Liquid Glass 令牌(透明增强: 玻璃更透+真折射) ── */
+  --glass-card: rgba(255,255,255,.22);
+  --glass-card-hover: rgba(255,255,255,.40);
+  --glass-nav: rgba(255,255,255,.55);
+  --glass-pop: rgba(255,255,255,.90);
+  --specular-top: rgba(255,255,255,.92);
   --specular-bottom: rgba(174,196,255,.20);
   --hairline: rgba(15,23,42,.10);
   --hairline-soft: rgba(15,23,42,.05);
   --tint-ink: 15,23,42;
   --tint-sky: 56,96,190;
   --blur-nav: saturate(180%) blur(24px);
+  --blur-card: saturate(200%) blur(20px);
   --ease-glass: cubic-bezier(.32,.72,0,1);
   --d-base: 240ms;
 }
@@ -76,16 +80,17 @@ body {
   font: 17px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-/* Liquid Glass 折射背景层: 冷色光斑, fixed定位(滚动不动, 玻璃有物可透; 兼容iOS Safari) */
+/* Liquid Glass 折射背景层(v1.9.10 三调): 中部双斑加浓, 卡片正后方保彩量 */
 body::before {
   content:''; position:fixed; inset:0; z-index:-1; pointer-events:none;
   background:
-    radial-gradient(60% 50% at 18% 8%,  rgba(174,190,255,.48) 0%, transparent 62%),
-    radial-gradient(50% 45% at 92% 12%, rgba(196,216,255,.44) 0%, transparent 60%),
-    radial-gradient(55% 50% at 78% 88%, rgba(226,210,248,.36) 0%, transparent 62%),
-    radial-gradient(45% 40% at 8% 92%, rgba(200,228,252,.34) 0%, transparent 60%),
-    radial-gradient(40% 36% at 50% 45%, rgba(214,222,248,.22) 0%, transparent 65%),
-    linear-gradient(180deg, #F4F5F8 0%, #EEF0F4 100%);
+    radial-gradient(64% 54% at 18% 8%,  rgba(158,180,255,.75) 0%, transparent 64%),
+    radial-gradient(54% 50% at 92% 12%, rgba(186,210,255,.68) 0%, transparent 62%),
+    radial-gradient(60% 56% at 78% 88%, rgba(218,196,250,.60) 0%, transparent 64%),
+    radial-gradient(50% 44% at 8% 92%, rgba(190,224,252,.58) 0%, transparent 62%),
+    radial-gradient(48% 42% at 52% 42%, rgba(198,214,252,.56) 0%, transparent 64%),
+    radial-gradient(44% 40% at 30% 68%, rgba(220,198,250,.50) 0%, transparent 62%),
+    linear-gradient(180deg, #F5F6FA 0%, #EDF0F5 100%);
 }
 .page { max-width: 1100px; margin: 0 auto; padding: 0 20px 60px; }
 
@@ -100,7 +105,7 @@ body::before {
 .badge {
   display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:0 14px;
   border-radius: 18px; font-size:14px; font-weight:600;
-  background:var(--glass-card);
+  background: rgba(255,255,255,.55);   /* v1.9.10: 徽章直叠背景无blur, 白度高于卡片 */
   box-shadow: inset 0 1px 0 var(--specular-top), 0 0 0 .5px var(--hairline),
     0 2px 6px rgba(var(--tint-ink),.05), 0 12px 28px -8px rgba(var(--tint-sky),.10);
 }
@@ -109,7 +114,7 @@ body::before {
 .badge.green { color:var(--green); } .badge.green .dot { background:var(--green); }
 .badge.gray { color:var(--secondary); } .badge.gray .dot { background:var(--tertiary); }
 
-/* ── Cards (v1.9.9 Liquid Glass: 静态玻璃, 不开backdrop-filter保性能) ── */
+/* ── Cards (v1.9.10 Liquid Glass 透明增强) ── */
 .card {
   position:relative; isolation:isolate;
   background: var(--glass-card); border-radius: var(--radius);
@@ -125,18 +130,30 @@ body::before {
     0 24px 48px -16px rgba(var(--tint-sky),.10);
   transition: transform var(--d-base) var(--ease-glass), box-shadow var(--d-base) var(--ease-glass);
 }
-/* 顶部镜面高光带 + 右下曲面副反光 (伪造玻璃折射) */
+/* 顶层 section 卡片: 真玻璃折射(blur+saturate), 光斑透出产生液态感; 顶层≈10张, GPU可控 */
+section.card {
+  -webkit-backdrop-filter: var(--blur-card);
+  backdrop-filter: var(--blur-card);
+}
+/* 嵌套 div.card: 禁嵌套模糊, 伪折射光斑(自带淡蓝紫渐变模拟透光) */
+div.card {
+  background:
+    radial-gradient(130% 90% at 12% 0%, rgba(158,180,255,.18) 0%, transparent 52%),
+    radial-gradient(90% 80% at 92% 100%, rgba(218,196,250,.15) 0%, transparent 58%),
+    var(--glass-card);
+}
+/* 顶部窄镜面高光带(iOS式顶部反光条) + 右下曲面副反光 (v1.9.10三调: 收窄为带状) */
 .card::before, .cand::before, .chart-box::before {
   content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:0;
   background:
-    radial-gradient(120% 60% at 50% 0%, rgba(255,255,255,.55) 0%, rgba(255,255,255,.12) 35%, transparent 60%),
-    radial-gradient(60% 50% at 85% 100%, rgba(255,255,255,.22) 0%, transparent 70%);
-  mix-blend-mode: screen; opacity:.9;
+    linear-gradient(180deg, rgba(255,255,255,.85) 0%, rgba(255,255,255,.85) .8%, rgba(255,255,255,.26) 2%, rgba(255,255,255,0) 3.6%),
+    radial-gradient(60% 50% at 85% 100%, rgba(255,255,255,.14) 0%, transparent 70%);
+  opacity:.9;   /* v1.9.10终调: 改normal直显, 顶部1px锐利反光线 */
 }
 .card > *, .cand > *, .chart-box > * { position:relative; z-index:1; }
 .card:hover, .cand:hover {
   transform: translateY(-2px);
-  background: var(--glass-card-hover);
+  background-color: var(--glass-card-hover);   /* v1.9.10: 只提亮底色, 保留光斑层 */
   box-shadow:
     inset 0 1px 0 var(--specular-top),
     inset 0 -1px 0 var(--specular-bottom),
@@ -226,10 +243,14 @@ section { scroll-margin-top: 88px; }
 .tl-connector { position:absolute; top:31px; right:-11px; width:8px; height:2px; background:var(--sep); z-index:1; }
 .tl-node.active .tl-connector, .tl-node.done .tl-connector { background:var(--green); }
 
-/* ── 候选股卡片 ── */
+/* ── 候选股卡片 (v1.9.10: 伪折射光斑, 嵌套层禁模糊) ── */
 .cand {
   position:relative; isolation:isolate;
-  background: var(--glass-card); border-radius: var(--radius);
+  background:
+    radial-gradient(130% 90% at 12% 0%, rgba(158,180,255,.17) 0%, transparent 52%),
+    radial-gradient(90% 80% at 92% 100%, rgba(218,196,250,.14) 0%, transparent 58%),
+    var(--glass-card);
+  border-radius: var(--radius);
   padding: 22px 24px; margin-top: 16px;
   box-shadow:
     inset 0 1px 0 var(--specular-top),
@@ -364,7 +385,11 @@ section { scroll-margin-top: 88px; }
    子项min-content被表格撑爆1fr轨道(643px>视口)导致整页横向溢出 → min-width:0放行收缩, 表格改在容器内滚动 */
 .chart-box {
   position:relative; isolation:isolate;
-  background:var(--glass-card); border-radius:var(--radius);
+  background:
+    radial-gradient(130% 90% at 12% 0%, rgba(158,180,255,.12) 0%, transparent 52%),
+    radial-gradient(90% 80% at 92% 100%, rgba(218,196,250,.10) 0%, transparent 58%),
+    rgba(255,255,255,.42);
+  border-radius:var(--radius);
   padding:18px 16px 10px; min-width:0;
   box-shadow:
     inset 0 1px 0 var(--specular-top),
@@ -925,10 +950,11 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 }
 
 /* ═══ v1.9.9 Liquid Glass · 降级与无障碍 ═══ */
-/* 不支持 backdrop-filter 的浏览器: 导航高不透明度纯色, 数据可读性优先 */
+/* 不支持 backdrop-filter 的浏览器: 导航与卡片回高不透明度纯色, 数据可读性优先 */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .topbar { background: rgba(255,255,255,.94); }
   .side-nav { background: rgba(255,255,255,.94); }
+  .card, .cand, .chart-box, .badge { background: rgba(255,255,255,.84); }
 }
 /* 高对比度: 玻璃加实 */
 @media (prefers-contrast: more) {
