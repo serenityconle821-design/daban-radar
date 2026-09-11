@@ -31,8 +31,9 @@ function tencent(url, varName, timeout) {
   });
 }
 
-/* 东财 JSONP: cb= 全局回调 */
-function em(url, timeout) {
+/* 东财 JSONP: cb= 全局回调
+   v1.1.0: 支持 cbParam 指定回调参数名 — push2系用 cb=, datacenter-web 只认 callback= */
+function em(url, timeout, cbParam) {
   return new Promise((resolve, reject) => {
     const cb = '_emcb' + (++cbSeq);
     const s = document.createElement('script');
@@ -40,24 +41,26 @@ function em(url, timeout) {
     window[cb] = (data) => { clearTimeout(tm); delete window[cb]; s.remove(); resolve(data); };
     tm = setTimeout(() => { delete window[cb]; s.remove(); reject(new Error('timeout')); }, timeout || 9000);
     s.onerror = () => { clearTimeout(tm); delete window[cb]; s.remove(); reject(new Error('network')); };
-    s.src = url + (url.includes('?') ? '&' : '?') + 'cb=' + cb;
+    s.src = url + (url.includes('?') ? '&' : '?') + (cbParam || 'cb') + '=' + cb;
     document.head.appendChild(s);
   });
 }
 
-/* 腾讯搜索: v_hint="sz~002161~远望谷~ywg~GP-A;..." */
+/* 腾讯搜索: v_hint="sz~002161~远望谷~ywg~GP-A;..."
+   v1.1.0 修复: 实际格式为 mkt~code~name~拼音~type 五段, 完整代码 = p[0]+p[1]
+   (v1.0 错取 p[0] 当完整代码, 导致名称搜索后 full='sz' 丢码 → 数据获取失败) */
 async function searchStock(q) {
   const hint = await tencent('https://smartbox.gtimg.cn/s3/?v=2&q=' + encodeURIComponent(q) + '&t=all', 'v_hint', 6000);
   const raw = String(hint || '').trim();
-  if (!raw) return [];
+  if (!raw || raw === 'N') return [];
   return raw.split(';').filter(Boolean).map(seg => {
     const p = seg.split('~');
     if (p.length < 3) return null;
-    const full = p[0];                       // sz002161 / sh600000
+    const mkt = p[0], code = p[1];                 // p[0]=sz p[1]=002161
     return {
-      mkt: full.slice(0, 2), code: full.slice(2), full,
-      name: p[2], type: p[4] || '',
-      valid: /^\d{6}$/.test(p[2 - 1]) && (p[4] || '').includes('GP'),
+      mkt, code, full: mkt + code,
+      name: (p[2] || '').replace(/\s+/g, ''), type: p[4] || '',
+      valid: /^\d{6}$/.test(code) && (p[4] || '').includes('GP'),
     };
   }).filter(x => x && x.valid);
 }
@@ -73,13 +76,13 @@ async function fetchKline(full, n) {
   }));
 }
 
-/* 腾讯实时行情 88字段 */
+/* 腾讯实时行情 88字段 (v1.1.0: 腾讯对短名称做空格填充如"远 望 谷", 统一去除内部空格) */
 async function fetchQuote(full) {
   const v = await tencent('https://qt.gtimg.cn/q=' + full, 'v_' + full);
   const f = String(v).split('~');
   if (f.length < 50) throw new Error('quote fields');
   return {
-    name: f[1].trim(), code: f[2], price: +f[3], prevClose: +f[4], open: +f[5],
+    name: (f[1] || '').replace(/\s+/g, ''), code: f[2], price: +f[3], prevClose: +f[4], open: +f[5],
     pct: +f[32], high: +f[33], low: +f[34], volHand: +f[36], amtWan: +f[37],
     turnover: +f[38], pe: +f[39], ztPrice: +f[47], dtPrice: +f[48], volRatio: +f[49],
     floatMV: +f[44], totalMV: +f[45], time: f[30],
@@ -103,10 +106,11 @@ async function fetchFundFlow(mkt, code) {
   return null;
 }
 
-/* DC 大宗交易(个股近60日) */
+/* DC 大宗交易(个股近60日) — v1.1.0: datacenter-web 只支持 callback= 参数(cb=会返回裸JSON被ORB拦截) */
 async function fetchBlockTrade(code) {
-  const url = 'https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_DATA_BLOCKTRADE&columns=SECURITY_CODE,SECURITY_NAME_ABBR,TRADE_DATE,DEAL_PRICE,DEAL_AMT,PREMIUM_RATIO,DEAL_VOLUME,BUYER_NAME,SELLER_NAME&filter=(SECURITY_CODE%3D%22' + code + '%22)&pageSize=30&pageNumber=1&sortColumns=TRADE_DATE&sortTypes=-1&source=WEB&client=WEB';
-  const d = await em(url, 10000);
+  const d60 = new Date(Date.now() - 61 * 864e5).toISOString().slice(0, 10);
+  const url = 'https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_DATA_BLOCKTRADE&columns=SECURITY_CODE,SECURITY_NAME_ABBR,TRADE_DATE,DEAL_PRICE,DEAL_AMT,PREMIUM_RATIO,DEAL_VOLUME,BUYER_NAME,SELLER_NAME&filter=(SECURITY_CODE%3D%22' + code + '%22)(TRADE_DATE%3E%3D%27' + d60 + '%27)&pageSize=60&pageNumber=1&sortColumns=TRADE_DATE&sortTypes=-1&source=WEB&client=WEB';
+  const d = await em(url, 10000, 'callback');
   return (d && d.result && d.result.data) || [];
 }
 
@@ -269,7 +273,87 @@ function calcScore(k, ind, fund) {
   return { total, trend, vol, emo, risk, notes: notes.slice(0, 6) };
 }
 
-/* ═══════════ ECharts ═══════════ */
+/* ═══════════ 操作建议合成 (v1.1.0 新增) ═══════════
+   信号多空力量 + 综合评分 + 资金方向 + 量价关系 + 位阶位置 → 五档动作 + 入场/止损/目标/盈亏比 */
+function calcAdvice(sigs, score, lvl, fund, k, ind) {
+  const i = k.length - 1, c = k[i].c;
+  const c1 = k[i - 1] || k[i];
+  const pctToday = (c / c1.c - 1) * 100;
+
+  /* 多空力量 (按置信度加权) */
+  let bull = 0, bear = 0;
+  sigs.forEach(s => { if (s.dir === 'buy') bull += s.conf; else bear += s.conf; });
+  const net = bull - bear;
+
+  /* 资金方向: 当日方向 + 近3日累计, 合成 -2..+2 */
+  let fundDir = 0, fundTxt = '资金流数据缺失';
+  if (fund && fund.rows && fund.rows.length) {
+    const rows = fund.rows, fl = rows[rows.length - 1];
+    const sum3 = rows.slice(-3).reduce((a, r) => a + r.main, 0);
+    fundDir = (fl.main > 0 ? 1 : -1) + (sum3 > 0 ? 1 : -1);
+    fundTxt = '当日主力' + (fl.main >= 0 ? '净流入 ' : '净流出 ') + fmtWan(Math.abs(fl.main) / 1e4) +
+      (sum3 >= 0 ? ' · 近3日累计流入' : ' · 近3日累计流出');
+  }
+
+  /* 量价关系一句话 */
+  const volAvg5 = k.slice(-6, -1).reduce((a, r) => a + r.v, 0) / 5;
+  const vr = volAvg5 ? k[i].v / volAvg5 : 1;
+  let pv;
+  if (pctToday >= 1 && vr >= 1.3) pv = { t: '量价齐升', d: '放量上涨，多头主动，趋势延续概率较高', cls: 'up' };
+  else if (pctToday >= 0.5 && vr < 0.85) pv = { t: '缩量上涨', d: '缩量上涨，抛压减轻但追涨动能有限', cls: 'up' };
+  else if (pctToday <= -1 && vr >= 1.3) pv = { t: '放量下跌', d: '放量下跌，抛压沉重，短线规避', cls: 'down' };
+  else if (pctToday <= -0.5 && vr < 0.85) pv = { t: '缩量回调', d: '缩量回调，浮筹清洗特征，关注支撑位企稳', cls: 'down' };
+  else if (Math.abs(pctToday) < 0.5 && vr < 0.8) pv = { t: '缩量整理', d: '缩量横盘，方向待选择，等待放量确认', cls: '' };
+  else if (Math.abs(pctToday) < 0.5 && vr >= 1.3) pv = { t: '放量滞涨', d: '放量滞涨，多空分歧加大，警惕变盘', cls: '' };
+  else pv = { t: '量能温和', d: '量能温和，延续既有结构观察', cls: pctToday >= 0 ? 'up' : 'down' };
+
+  /* 位阶位置 */
+  const sup1 = lvl.levels.find(x => x.tag === '支撑①');
+  const sup2 = lvl.levels.find(x => x.tag === '强支撑');
+  const res1 = lvl.levels.find(x => x.tag === '压力①');
+  const res2 = lvl.levels.find(x => x.tag === '强压力');
+  const nearRes = res1 && (res1.p / c - 1) < 0.03;   // 距压力① 3%以内
+
+  /* 决策矩阵: 五档动作 */
+  let action, cls, plan;
+  if (net >= 3 && score.total >= 60 && fundDir >= 1) {
+    action = '积极关注'; cls = 'adv-strong';
+    plan = '多头信号占优、资金配合、结构评分 ' + score.total + '，回踩支撑不破可分批参与';
+  } else if (net >= 2 && score.total >= 45) {
+    action = '轻仓试错'; cls = 'adv-mid';
+    plan = '偏多信号存在但未全面共振（评分 ' + score.total + (fundDir < 0 ? '，资金未配合' : '') + '），轻仓验证、破位即止损';
+  } else if (net <= -3 || (bear >= 3 && score.total < 45)) {
+    action = '减仓避险'; cls = 'adv-weak';
+    plan = '空头信号占优（净力量 ' + net + '），逢反弹降低仓位，暂不抄底';
+  } else if (score.total < 35) {
+    action = '空仓等待'; cls = 'adv-weak';
+    plan = '结构评分仅 ' + score.total + '，量价结构偏弱，等待右侧放量信号再介入';
+  } else {
+    action = '持有观望'; cls = 'adv-hold';
+    plan = '多空信号均衡（净力量 ' + net + '），维持既有仓位，按位阶区间高抛低吸';
+  }
+
+  /* 交易计划: 入场/止损/目标/盈亏比 (全部锚定位阶聚类, 不预测)
+     v1.1.1: 突破入场(nearRes)时 entryNum=压力①, 目标①顺延到压力②, 避免盈亏比恒为0 */
+  let entry = '—', entryTxt = '结构未给出明确锚点', entryNum = c;
+  const sup = sup1 || sup2;
+  if (nearRes && res1) {
+    entry = '突破 ' + fmtNum(res1.p, 2) + ' 确认'; entryTxt = '现价贴近压力①，放量突破后回踩确认再介入';
+    entryNum = res1.p;
+  } else if (sup) {
+    entry = fmtNum(sup.p, 2) + ' ±1%'; entryTxt = '回踩支撑' + (sup.tag === '强支撑' ? '(强) ' : '') + sup.p + ' 企稳分批，不追高';
+    entryNum = sup.p;
+  }
+  const stopNum = sup ? Math.min(sup.p * 0.97, c * 0.95) : c * 0.95;
+  const stop = fmtNum(stopNum, 2);
+  const stopTxt = sup ? ('支撑失守 -3% 即离场（' + stop + '）') : '无支撑锚点, 按现价 -5% 纪律止损';
+  const t1 = nearRes ? (res2 ? res2.p : R2(c * 1.06)) : (res1 ? res1.p : R2(c * 1.08));
+  const t2 = nearRes ? (res2 ? R2(res2.p * 1.05) : R2(c * 1.12)) : (res2 ? res2.p : R2(c * 1.15));
+  const rrRaw = (t1 - entryNum) / Math.max(entryNum - stopNum, 1e-9);
+  return { action, cls, plan, bull, bear, net, pv, fundTxt, fundDir, nearRes: !!(nearRes && res1), entry, entryTxt, stop, stopTxt, t1, t2, rr: rrRaw > 0 ? R2(rrRaw) : 0, rrOk: rrRaw > 0 };
+}
+
+
 function baseOpt() {
   return { backgroundColor: 'transparent', textStyle: { fontFamily: '-apple-system, PingFang SC, sans-serif' } };
 }
@@ -407,6 +491,32 @@ async function diagnose(full) {
       '<div class="sig-body"><div class="sig-name">' + s.name + '<span class="badge2 ' + conf[0] + '">置信度' + conf[1] + '</span></div>' +
       '<div class="sig-desc">' + s.desc + '</div><div class="sig-why">依据: ' + s.why + '</div></div></div>';
   }).join('') : '<div class="sig-row"><div class="sig-ico info">i</div><div class="sig-body"><div class="sig-name">无有效信号</div><div class="sig-desc">当前量价结构未触发任何规则阈值，保持观望也是信号</div></div></div>';
+
+  /* 操作建议 (v1.1.0): 量价/信号/资金/位阶 → 五档动作 + 交易计划 */
+  const adv = calcAdvice(sigs, score, lvl, fund, k, ind);
+  const actEl = $('advAction');
+  actEl.textContent = adv.action;
+  actEl.className = 'adv-action ' + adv.cls;
+  const pvEl = $('advPv');
+  pvEl.textContent = '量价 · ' + adv.pv.t;
+  pvEl.title = adv.pv.d;
+  pvEl.className = 'badge2 ' + (adv.pv.cls === 'up' ? 'b-red' : adv.pv.cls === 'down' ? 'b-green' : 'b-gray');
+  const fdEl = $('advFund');
+  fdEl.textContent = adv.fundTxt;
+  fdEl.className = 'badge2 ' + (adv.fundDir > 0 ? 'b-red' : adv.fundDir < 0 ? 'b-green' : 'b-gray');
+  $('advPlan').textContent = adv.plan;
+  $('advBar').innerHTML = '<i class="b" style="flex:' + Math.max(adv.bull, .1) + '"></i><i class="s" style="flex:' + Math.max(adv.bear, .1) + '"></i>';
+  $('advBull').textContent = adv.bull;
+  $('advBear').textContent = adv.bear;
+  const num2 = (v) => typeof v === 'number' ? fmtNum(v, 2) : String(v);
+  const hasRes2 = lvl.levels.some(x => x.tag === '强压力');
+  $('advPlanGrid').innerHTML = [
+    ['入场参考', num2(adv.entry), adv.entryTxt],
+    ['止损纪律', num2(adv.stop), adv.stopTxt],
+    ['目标①', num2(adv.t1), adv.nearRes ? (hasRes2 ? '强压力锚点' : '突破延伸 +6%') : '压力①锚点'],
+    ['目标②', num2(adv.t2), adv.nearRes ? '突破延伸目标' : (hasRes2 ? '强压力锚点' : '动量延伸 +15%')],
+    ['盈亏比', adv.rrOk ? fmtNum(adv.rr, 2) : '—', adv.rrOk ? '(目标①−入场)÷(入场−止损)' : '目标低于入场价，结构异常'],
+  ].map(([k2, v, s]) => '<div class="kpi"><div class="k">' + k2 + '</div><div class="v">' + v + '</div><div class="s">' + s + '</div></div>').join('');
 
   /* 位阶表 */
   $('lvlBody').innerHTML = lvl.levels.map(lv =>

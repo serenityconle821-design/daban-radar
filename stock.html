@@ -219,6 +219,26 @@ div.card {
 .sig-desc { font-size:12.5px; color:var(--secondary); margin-top:4px; line-height:1.6; }
 .sig-why { font-size:11.5px; color:var(--tertiary); margin-top:5px; line-height:1.55; }
 
+/* 操作建议 (v1.1.0) — 色彩语义: 红=偏多 绿=偏空 与A股惯例一致 */
+.adv-hero { display:flex; align-items:center; gap:16px; margin-top:18px; flex-wrap:wrap; }
+.adv-action {
+  display:inline-flex; align-items:center; min-height:46px; padding:0 24px;
+  border-radius:23px; font-size:21px; font-weight:800; letter-spacing:-.4px; flex:none;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35);
+}
+.adv-strong { color:#fff; background:linear-gradient(135deg,#FF6B5E 0%,#FF3B30 100%); box-shadow:0 8px 22px rgba(255,59,48,.32); }
+.adv-mid { color:#fff; background:linear-gradient(135deg,#5AB8FF 0%,#007AFF 100%); box-shadow:0 8px 22px rgba(0,122,255,.28); }
+.adv-hold { color:var(--text); background:rgba(120,120,128,.16); }
+.adv-weak { color:#fff; background:linear-gradient(135deg,#52D06B 0%,#34C759 100%); box-shadow:0 8px 22px rgba(52,199,89,.28); }
+.adv-tags { display:flex; flex-direction:column; gap:7px; min-width:0; }
+.adv-plan { font-size:15px; line-height:1.7; color:var(--text); margin-top:14px; font-weight:500; }
+.adv-bar-wrap { margin-top:16px; }
+.adv-bar { display:flex; height:12px; border-radius:6px; overflow:hidden; background:rgba(120,120,128,.12); }
+.adv-bar .b { background:linear-gradient(90deg,#FF6B5E,#FF3B30); transition:flex .7s var(--ease-glass); }
+.adv-bar .s { background:linear-gradient(90deg,#34C759,#52D06B); transition:flex .7s var(--ease-glass); }
+.adv-bar-lab { display:flex; justify-content:space-between; font-size:12px; color:var(--secondary); margin-top:7px; font-weight:600; }
+.adv-bar-lab b { font-variant-numeric:tabular-nums; }
+
 /* 位阶表 */
 .tbl-scroll { overflow-x:auto; margin-top:14px; -webkit-overflow-scrolling:touch; }
 table.lvl { width:100%; border-collapse:collapse; min-width:520px; }
@@ -403,6 +423,29 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
       <div class="fund-note">信号均为收盘级判定（确认K线），置信度由触发条件数量决定；同页并列看多/看空信号，避免单向偏差。</div>
     </section>
 
+    <!-- 操作建议 (v1.1.0) -->
+    <section class="card fade vis">
+      <div class="sec-title">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="m16.2 7.8-2.9 2.9"/><path d="M22 12h-4"/><path d="m16.2 16.2-2.9-2.9"/><path d="M12 22v-4"/><path d="m7.8 16.2 2.9-2.9"/><path d="M2 12h4"/><path d="m7.8 7.8 2.9 2.9"/><circle cx="12" cy="12" r="2.5"/></svg></span>
+        <span>操作建议 · 五档决策</span>
+        <span class="badge2 b-blue" style="margin-left:auto;">规则合成</span>
+      </div>
+      <div class="adv-hero">
+        <span class="adv-action adv-hold" id="advAction">—</span>
+        <div class="adv-tags">
+          <span class="badge2 b-gray" id="advPv">量价 —</span>
+          <span class="badge2 b-gray" id="advFund">资金 —</span>
+        </div>
+      </div>
+      <p class="adv-plan" id="advPlan">输入标的后将根据量价关系、多空信号、资金方向与位阶结构合成操作建议。</p>
+      <div class="adv-bar-wrap">
+        <div class="adv-bar" id="advBar"><i class="b" style="flex:1"></i><i class="s" style="flex:1"></i></div>
+        <div class="adv-bar-lab"><span class="up">多头力量 <b id="advBull">0</b></span><span class="down">空头力量 <b id="advBear">0</b></span></div>
+      </div>
+      <div class="kpi-grid" id="advPlanGrid"></div>
+      <div class="fund-note">五档动作由信号多空力量、综合评分、资金方向共同决定；入场 / 止损 / 目标均锚定下方位阶聚类结果（非预测）；盈亏比 = (目标①−入场) ÷ (入场−止损)。建议为规则化合成输出，不构成投资指导。</div>
+    </section>
+
     <!-- 支撑压力位阶 -->
     <section class="card fade vis">
       <div class="sec-title">
@@ -512,7 +555,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 </div>
 
 <footer>
-  打板策略看板 · 诊断中心 v1.0.0 · 数据源: 腾讯行情 / 东财资金流(push2delay) / 东财数据中心<br>
+  打板策略看板 · 诊断中心 v1.1.0 · 数据源: 腾讯行情 / 东财资金流(push2delay) / 东财数据中心<br>
   每日 15:10 自动快照 · 页面数据实时直连 · Liquid Glass UI
 </footer>
 
