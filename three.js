@@ -133,8 +133,8 @@ function renderPre() {
     const c = it.contrib || 0;
     const w = Math.min(Math.abs(c), maxC) / maxC * 50;
     const fill = c >= 0
-      ? '<i class="ct-fill pos" style="width:' + w.toFixed(1) + '%"></i>'
-      : '<i class="ct-fill neg" style="width:' + w.toFixed(1) + '%"></i>';
+      ? '<i class="ct-fill pos" style="width:' + w.toFixed(2) + '%"></i>'
+      : '<i class="ct-fill neg" style="width:' + w.toFixed(2) + '%"></i>';
     return '<div class="ct-row">' +
       '<span class="ct-name">' + it.name + (it.inverse ? '<span style="font-size:9px;color:var(--tertiary);font-weight:600;"> 反</span>' : '') + '</span>' +
       '<span class="ct-pct ' + pctClass(it.pct) + '">' + fmtSigned(it.pct) + '</span>' +

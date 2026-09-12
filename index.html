@@ -1049,6 +1049,11 @@ tr.pt-excluded-row td { opacity:.52; }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         节奏<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
+      <!-- v1.13.0 高分标的榜: 全市场诊断评分≥75榜单 (观察名单定位) -->
+      <button class="tnav-item" data-target="np-score">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/><line x1="12" y1="2" x2="12" y2="9.24"/></svg>
+        高分榜<span style="font-size:10px;color:var(--primary);font-weight:800;">NEW</span><svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
       <button class="tnav-item" data-target="np-cands">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4zm0 2c-4 0-8 2-8 5v3h16v-3c0-3-4-5-8-5z"/></svg>
         候选<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1118,6 +1123,19 @@ tr.pt-excluded-row td { opacity:.52; }
         <button class="np-goto" data-goto="sec-rhythm">查看详情<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
       </div>
       <div id="npRhBody"></div>
+    </div></div></div>
+  </div>
+
+  <!-- 面板③b 高分榜 (v1.13.0 全市场诊断评分≥75) -->
+  <div class="np-wrap" id="np-score">
+    <div class="np-clip"><div class="np-body"><div class="np-card">
+      <div class="np-head">
+        <div class="h-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg></div>
+        <div class="np-title">高分标的榜</div>
+        <span class="np-badge" id="npScBadge">—</span>
+        <button class="np-goto" data-goto="sec-score">查看详情<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
+      </div>
+      <div id="npScBody"></div>
     </div></div></div>
   </div>
 
@@ -1242,6 +1260,23 @@ tr.pt-excluded-row td { opacity:.52; }
     </div>
     <p class="sec-sub">名单在前、竞价验证、盘中定型 — 每个阶段由定时任务自动刷新本页数据</p>
     <div class="tl" id="timeline"></div>
+  </section>
+
+  <!-- ═══ v1.13.0 高分标的榜 · 全市场诊断评分≥75 (观察名单定位) ═══ -->
+  <section id="sec-score" class="card fade">
+    <div class="sec-title">
+      <span class="ico" style="background:var(--primary-soft); color:var(--primary);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg></span>
+      <span>高分标的榜 · 诊断评分 ≥75</span>
+      <span class="sc-count" id="scCount"></span>
+    </div>
+    <p class="sec-sub" id="scSub">全市场约3000只收盘诊断 · 趋势40+量能25+情绪20+风险15 · 定位: 客观诊断/复盘层</p>
+    <div class="sc-warn" id="scWarn"></div>
+    <div class="sc-head" id="scHead"></div>
+    <div class="tbl-scroll"><table class="tbl sc-tbl" id="scTbl"></table></div>
+    <div id="scSubBox"></div>
+    <div class="sc-foot-wrap">
+      <div class="chart-box sc-hist-box"><h3>近90日榜容趋势 <span class="hint">≥75分 / ≥65分 每日只数</span></h3><div id="chScore" class="chart sc-hist-chart"></div><div class="nochart" id="ncScore">图表库离线 · 数据仍可读</div></div>
+    </div>
   </section>
 
   <!-- ═══ 候选股 ═══ -->
@@ -1377,6 +1412,7 @@ tr.pt-excluded-row td { opacity:.52; }
 
 <script src="echarts.min.js"></script>
 <script src="data.js"></script>
+<script src="score_data.js"></script>
 <script>
 'use strict';
 const D = (typeof SITE_DATA !== 'undefined') ? SITE_DATA : null;
@@ -1691,7 +1727,7 @@ function candCard(c, planOpen){
     /* v1.9.2 修正: 板级契合与市值拆为两格(原"板级契合"格的值显示市值, 语义错位)
        6格 = 移动端完美3×2 / 桌面一行6列, 消除3+2失衡 */
     { l:'板级契合', v: (c.score_parts.lb ?? 0).toFixed(1) + '/5', s:'档位契合加成' },
-    { l:'市值', v: (c.mv ?? 0).toFixed(1) + '亿', s: (c.mv ?? 0) >= 100 ? '大票' : '' },
+    { l:'市值', v: (c.mv ?? 0).toFixed(2) + '亿', s: (c.mv ?? 0) >= 100 ? '大票' : '' },
   ];
   const inner = `<div class="num"><b style="color:${color}">${Math.round(c.score)}</b><span>确定性</span></div>`;
   const tag = c.tag ? `<span class="pill cautious">${c.tag}</span>` : '';
@@ -1761,12 +1797,12 @@ function dragonCard(d){
   const isW = d.tier === 'cautious';
   const c = isA ? 'var(--green)' : (isW ? 'var(--orange)' : 'var(--primary)');
   const tierBg = isA ? 'var(--green-soft)' : (isW ? 'var(--orange-soft)' : 'var(--primary-soft)');
-  const stopPct = d.stop_pct ? (d.stop_pct * 100).toFixed(1) : '3.0';
+  const stopPct = d.stop_pct ? (d.stop_pct * 100).toFixed(2) : '3.00';
   const t1Sell = d.t1_sell ? (d.t1_sell * 100).toFixed(0) : '3';
   const holdDays = d.hold_days || 2;
-  const posPct = d.pos_pct || (isA ? 18.5 : 10.0);
-  const us = d.upper_shadow != null ? d.upper_shadow.toFixed(1) : '—';
-  const dp = d.depth != null ? d.depth.toFixed(1) : '—';
+  const posPct = (d.pos_pct != null ? d.pos_pct : (isA ? 18.5 : 10.0)).toFixed(2);
+  const us = d.upper_shadow != null ? d.upper_shadow.toFixed(2) : '—';
+  const dp = d.depth != null ? d.depth.toFixed(2) : '—';
   const vr = d.vr != null ? d.vr.toFixed(2) : '—';
   const volTxt = d.vr != null ? (d.vr <= 0.9 ? '缩量' : d.vr <= 1.2 ? '平量' : '放量⚠') : '';
   const actRow = A.key ? `
@@ -1784,8 +1820,8 @@ function dragonCard(d){
         <div class="n2">现价 ${d.price.toFixed(2)} · 最低 ${d.low.toFixed(2)} · 回踩${d.touch} · 深度${dp}% · ${volTxt}${vr} · 上影${us}%</div>
       </div>
       <div style="text-align:right;">
-        <div style="font-size:22px;font-weight:800;color:${c};">${d.score.toFixed(1)}</div>
-        <div style="font-size:11px;color:var(--secondary);">龙回头评分${(d.mkt_penalty||0)+(d.freeze_penalty||0) > 0 ? ' · 市场扣' + ((d.mkt_penalty||0)+(d.freeze_penalty||0)).toFixed(1) : ''}</div>
+        <div style="font-size:22px;font-weight:800;color:${c};">${d.score.toFixed(2)}</div>
+        <div style="font-size:11px;color:var(--secondary);">龙回头评分${(d.mkt_penalty||0)+(d.freeze_penalty||0) > 0 ? ' · 市场扣' + ((d.mkt_penalty||0)+(d.freeze_penalty||0)).toFixed(2) : ''}</div>
       </div>
     </div>
     <div class="dragon-ma">
@@ -2328,7 +2364,7 @@ function renderAdvice(){
         <td>${r.name}<span class="code" style="margin-left:4px;">${r.code}</span></td>
         <td style="font-size:12.5px;white-space:nowrap;">${ADV_TYPE_TXT[r.type] || r.type}</td>
         <td style="white-space:nowrap;"><b style="color:${GRADE_COLOR[r.grade] || 'var(--secondary)'};font-size:12.5px;">${r.grade_label || r.grade || '—'}</b></td>
-        <td class="mono">${r.score != null ? r.score.toFixed(1) : '—'}</td>
+        <td class="mono">${r.score != null ? r.score.toFixed(2) : '—'}</td>
         <td class="${st[0]}" style="font-size:12.5px;white-space:nowrap;">${st[1]}</td>
         <td class="mono ${ret == null ? '' : pctCls(ret)}" style="font-weight:700;">${ret == null ? '—' : sign(ret, '%')}</td>
         <td style="font-size:12px;color:var(--secondary);">${(r.result || {}).exit_reason || '—'}</td>
@@ -2586,10 +2622,130 @@ function renderRules(){
     box('风控红线', '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>', 'var(--red-soft)', 'var(--red)', R.risk);
 }
 
+/* ── v1.13.0 高分标的榜 ── */
+const SC = (typeof SCORE_DATA !== 'undefined') ? SCORE_DATA : null;
+let scSort = { key: 's', dir: -1 };
+const SC_TH = [['s','总分'],['t','趋势'],['pct','涨跌幅'],['turn','换手'],['amt','成交额'],['vr','量比']];
+function scFmt(v, suffix, signed){
+  if (v == null || (typeof v === 'number' && isNaN(v))) return '<span class="dim">—</span>';
+  const t = Math.abs(v).toFixed(2);
+  if (signed) return (v >= 0 ? '+' : '−') + t + suffix;
+  return t + suffix;
+}
+function scRing(s){
+  const p = Math.max(0, Math.min(100, s));
+  const col = s >= 80 ? 'var(--red)' : s >= 78 ? 'var(--orange)' : 'var(--primary)';
+  return `<span class="sc-ring" style="background:conic-gradient(${col} ${p * 3.6}deg, rgba(120,120,128,.12) 0);"><i style="color:${col};">${s}</i></span>`;
+}
+function scDims(x){
+  const seg = [['t',40,'var(--primary)'],['v',25,'#32ADE6'],['e',20,'var(--green)'],['r',15,'#FF9F0A']];
+  const total = Math.max(1, x.t + x.v + x.e + x.r);
+  return `<span class="sc-dims">${seg.map(([k, max, c]) =>
+    `<i style="width:${(x[k] / total * 100).toFixed(1)}%;background:${c};opacity:${0.45 + 0.55 * x[k] / max};"></i>`).join('')}</span>`;
+}
+function scRowHtml(x, i, isSub){
+  const pctCls = x.pct == null ? '' : (x.pct >= 9.9 ? 'zt' : x.pct > 0 ? 'up' : x.pct < 0 ? 'dn' : '');
+  const fund = x.fund === 'in' ? '<span class="sc-fund in">主力流入</span>'
+    : x.fund === 'out' ? '<span class="sc-fund out">大幅流出</span>' : '<span class="dim">中性</span>';
+  return `<tr${isSub ? ' class="sc-sub-row"' : ''}>
+    <td class="dim">${i + 1}</td>
+    <td class="sc-name"><b>${x.n}</b><span class="sc-code">${x.c}</span></td>
+    <td>${scRing(x.s)}</td>
+    <td class="sc-dim-cell">${scDims(x)}<span class="sc-dim-num">${x.t}<em>/40</em> · ${x.v}<em>/25</em> · ${x.e}<em>/20</em> · ${x.r}<em>/15</em></span></td>
+    <td class="${pctCls}">${scFmt(x.pct, '%', true)}</td>
+    <td>${scFmt(x.turn, '%')}</td>
+    <td>${scFmt(x.amt, '亿')}</td>
+    <td>${scFmt(x.vr, '')}</td>
+    <td>${fund}</td>
+  </tr>`;
+}
+function renderScoreTable(){
+  const box = $('scTbl'); if (!box) return;
+  const list = (SC.main || []).slice();
+  const k = scSort.key, dir = scSort.dir;
+  list.sort((a, b) => {
+    const va = a[k] ?? -1e9, vb = b[k] ?? -1e9;
+    return (va === vb ? (b.s - a.s) : (va > vb ? dir : -dir));
+  });
+  box.innerHTML = `<thead><tr>
+    <th>#</th><th>名称</th><th class="sc-sortable" data-k="s">总分${scSort.key === 's' ? (scSort.dir < 0 ? '▾' : '▴') : ''}</th>
+    <th>四维构成 <span class="hint">趋势/量能/情绪/风险</span></th>
+    <th class="sc-sortable" data-k="pct">涨跌幅${scSort.key === 'pct' ? (scSort.dir < 0 ? '▾' : '▴') : ''}</th>
+    <th class="sc-sortable" data-k="turn">换手率${scSort.key === 'turn' ? (scSort.dir < 0 ? '▾' : '▴') : ''}</th>
+    <th class="sc-sortable" data-k="amt">成交额${scSort.key === 'amt' ? (scSort.dir < 0 ? '▾' : '▴') : ''}</th>
+    <th class="sc-sortable" data-k="vr">量比${scSort.key === 'vr' ? (scSort.dir < 0 ? '▾' : '▴') : ''}</th>
+    <th>资金</th>
+  </tr></thead><tbody>${list.map((x, i) => scRowHtml(x, i, false)).join('')}</tbody>`;
+  box.querySelectorAll('.sc-sortable').forEach(th => th.addEventListener('click', () => {
+    const key = th.dataset.k;
+    if (scSort.key === key) scSort.dir *= -1; else { scSort.key = key; scSort.dir = -1; }
+    renderScoreTable();
+  }));
+}
+function renderScoreHist(){
+  const el = $('chScore'); if (!el || !SC) return;
+  const hist = SC.hist || [];
+  const nc = $('ncScore');
+  if (typeof echarts === 'undefined' || !hist.length){
+    if (nc){
+      nc.style.display = 'flex';
+      if (typeof echarts !== 'undefined') nc.textContent = '暂无榜容历史 · 每日扫描后自动累积(近90日)';
+    }
+    return;
+  }
+  const inst = echarts.init(el);
+  inst.setOption({
+    grid: { left: 34, right: 34, top: 26, bottom: 20 },
+    tooltip: { trigger: 'axis', textStyle: { fontSize: 11 } },
+    legend: { data: ['≥75分', '≥65分'], top: 0, right: 0, itemWidth: 10, itemHeight: 10, textStyle: { fontSize: 11, color: '#8E8E93' } },
+    xAxis: { type: 'category', data: hist.map(h => String(h.d).slice(4, 6) + '/' + String(h.d).slice(6, 8)),
+      axisLabel: { fontSize: 10, color: '#8E8E93', interval: Math.max(0, Math.floor(hist.length / 9) - 1) }, axisLine: { lineStyle: { color: 'rgba(120,120,128,.25)' } } },
+    yAxis: { type: 'value', splitLine: { lineStyle: { color: 'rgba(120,120,128,.12)' } }, axisLabel: { fontSize: 10, color: '#8E8E93' } },
+    series: [
+      { name: '≥75分', type: 'bar', stack: 'sc', data: hist.map(h => h.n75), barMaxWidth: 14, itemStyle: { color: 'rgba(0,122,255,.85)', borderRadius: [4,4,0,0] } },
+      { name: '≥65分', type: 'bar', stack: 'sc', data: hist.map(h => Math.max(0, h.n65 - h.n75)), barMaxWidth: 14, itemStyle: { color: 'rgba(100,210,255,.55)', borderRadius: [4,4,0,0] } },
+    ],
+  });
+  const ro = () => { const i2 = echarts.getInstanceByDom(el); if (i2) i2.resize(); };
+  addEventListener('resize', ro); addEventListener('orientationchange', () => setTimeout(ro, 150));
+}
+function renderScore(){
+  if (!$('scTbl')) return;   // data.js 缺失时 body 已被降级替换, 无处渲染
+  if (!SC){
+    $('scCount').textContent = '数据未生成';
+    $('scWarn').innerHTML = '<div class="sc-warn-inner">score_data.js 尚未生成 · 15:10 管道自动扫描全市场后更新，或手动运行 score_scan.py。</div>';
+    return;
+  }
+  const main = SC.main || [], sub = SC.sub || [], bt = SC.bt || {};
+  const dl = (SC.date || '').replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3');
+  $('scCount').textContent = `≥75分 ${SC.n_main} 只 · 候补 ${SC.n_sub} 只`;
+  $('scSub').textContent = `数据日 ${dl} · 全市场收盘诊断 · 趋势40+量能25+情绪20+风险15+资金分 · 定位: 客观诊断/复盘层（与「次日候选」前瞻筛选层互不替代）`;
+  const mono = (bt.mono || []).map(w => w != null ? w.toFixed(2) + '%' : '—').join(' → ');
+  $('scWarn').innerHTML = `<div class="sc-warn-inner">
+    <b>历史验证提示</b> · ≥75分组合持有5日净收益 <span class="sc-neg">${scFmt(bt.net5, '%', true)}</span>（${bt.n != null ? bt.n : '—'}笔 · 胜率${bt.win5 != null ? bt.win5.toFixed(2) : '—'}%），低于全样本基准 ${scFmt(bt.base_net, '%', true)} · 评分分层胜率（0-44 → 75-85分）: ${mono}
+    <span class="sc-warn-tag">观察名单 · 不构成买入信号</span></div>`;
+  if (!main.length){
+    $('scHead').innerHTML = `<div class="sc-empty"><b>今日 ≥75分 空窗</b> · 自动降级展示 65-74分候补榜（显著标注 · 不改变≥75分统计口径）</div>`;
+    $('scSubBox').innerHTML = sub.length
+      ? `<div class="sc-subbox open"><div class="sc-sub-head">候补榜 · 65-74分 · ${SC.n_sub}只（前${Math.min(10, sub.length)}只）<span class="sc-sub-tag">候补 · 不等同于高分标的</span></div><div class="tbl-scroll"><table class="tbl sc-tbl">${sub.slice(0, 10).map((x, i) => scRowHtml(x, i, true)).reduce((a, r) => a + r, '<tbody>') + '</tbody>'}</table></div></div>`
+      : '<div class="sc-empty">今日无≥75分标的, 亦无候补 · 全市场评分偏低, 观望为主。</div>';
+    $('scTbl').innerHTML = '<tbody><tr><td class="sc-void">— 今日空窗 —</td></tr></tbody>';
+  } else {
+    $('scHead').innerHTML = '';
+    $('scSubBox').innerHTML = sub.length
+      ? `<details class="sc-subbox"><summary>候补榜 · 65-74分 · ${SC.n_sub}只（展开前${Math.min(10, sub.length)}只）<span class="sc-sub-tag">候补 · 不等同于高分标的</span></summary>
+        <div class="tbl-scroll"><table class="tbl sc-tbl">${'<tbody>' + sub.slice(0, 10).map((x, i) => scRowHtml(x, i, true)).join('') + '</tbody>'}</table></div></details>`
+      : '';
+  }
+  renderScoreTable();
+  renderScoreHist();
+}
+
 /* ── 侧边导航 ── */
 const NAV = [
   ['sec-signal','信号','M13 2 3 14h7l-1 8 10-12h-7l1-8z'],
   ['sec-rhythm','节奏','M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'],
+  ['sec-score','高分榜','M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z'],
   ['sec-candidates','候选','M12 12c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4zm0 2c-4 0-8 2-8 5v3h16v-3c0-3-4-5-8-5z'],
   ['sec-dragons','龙回头','M1 4v6h6 M3.51 15a9 9 0 1 0 2.13-9.36L1 10'],
   ['sec-watch','监控','M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'],
@@ -2689,7 +2845,7 @@ function renderPanels(){
       ${npStat(dr.length + '只', '龙回头信号')}
     </div>
     <div class="np-note">${top
-      ? `当前评分最高: <b>${top.name}</b>（${(top.score||0).toFixed(1)}分 · ${top.tier_txt||''} · ${((top.action||{}).label)||''}）· `
+      ? `当前评分最高: <b>${top.name}</b>（${(top.score||0).toFixed(2)}分 · ${top.tier_txt||''} · ${((top.action||{}).label)||''}）· `
       : '今日无符合条件的候选 · 规则下观望为主 · '}
       每日三段式节奏: 15:10 名单生成 → 09:26 竞价验证 → 10:30 定型复查</div>`;
 
@@ -2739,6 +2895,34 @@ function renderPanels(){
     </div>
     <div class="np-note">当前阶段: <b>${m.stage_label || '—'}</b>${staleAfter ? ' · <span style="color:var(--orange);">今日 15:10 盘后名单待生成</span>' : ''} · 名单始终是"次日预案"，盘中按 09:26 竞价验证结果决定是否执行，10:30 复查定型。</div>`;
 
+  // ③b 高分标的榜 (v1.13.0 · 独立于 SITE_DATA, 读 SCORE_DATA)
+  const SCD = (typeof SCORE_DATA !== 'undefined') ? SCORE_DATA : null;
+  if (SCD){
+    const scBt = SCD.bt || {}, nM = SCD.n_main || 0;
+    const scTop = (SCD.main || [])[0];
+    $('npScBadge').textContent = nM ? '≥75分 ' + nM + '只' : '今日空窗';
+    $('npScBadge').className = 'np-badge ' + (nM ? 'blue' : 'gray');
+    $('npScBody').innerHTML = `
+      <div class="np-stats">
+        ${npStat(nM + '只', '评分≥75', nM ? 'var(--primary)' : '')}
+        ${npStat((SCD.n_sub || 0) + '只', '候补 65-74分')}
+        ${npStat(scBt.win5 != null ? scBt.win5.toFixed(2) + '%' : '—', 'hold5 历史胜率', (scBt.win5 ?? 50) >= 50 ? 'var(--green)' : 'var(--red)')}
+        ${npStat(scBt.net5 != null ? scBt.net5.toFixed(2) + '%' : '—', 'hold5 净收益', (scBt.net5 ?? 0) >= 0 ? 'var(--green)' : 'var(--red)')}
+      </div>
+      ${scTop ? `<div class="np-rows">${npRow(
+        `${scTop.n}<span class="code">${scTop.c}</span>`,
+        `总分 ${scTop.s} · ${scTop.t}/40+${scTop.v}/25+${scTop.e}/20+${scTop.r}/15`,
+        scTop.pct != null ? ((scTop.pct>=0?'+':'') + scTop.pct.toFixed(2) + '%') : '—',
+        scTop.fund === 'in' ? '主力净流入' : (scTop.fund === 'out' ? '大幅流出' : '资金中性'),
+        scTop.fund === 'in' ? 'var(--green)' : (scTop.fund === 'out' ? 'var(--red)' : 'var(--secondary)')
+      )}</div>` : ''}
+      <div class="np-note">⚠ 观察名单定位: 评分越高未来5日表现反而越差(分层胜率${(scBt.mono||[]).map(w => w != null ? w.toFixed(2) : '—').join(' → ')}) — 不构成买入信号 · 完整榜单与候补见详情。</div>`;
+  } else {
+    $('npScBadge').textContent = '数据未生成';
+    $('npScBadge').className = 'np-badge gray';
+    $('npScBody').innerHTML = '<div class="np-note">score_data.js 未加载或尚未生成 · 15:10 管道自动扫描全市场后更新。</div>';
+  }
+
   // ④ 候选
   $('npCdBadge').textContent = cands ? cands + '只候选' : '今日无候选';
   $('npCdBadge').className = 'np-badge ' + (cands ? 'blue' : 'gray');
@@ -2747,7 +2931,7 @@ function renderPanels(){
       ${all.slice(0, 5).map(c => npRow(
         `${c.name}<span class="code">${c.code}</span>`,
         `${c.lb}板→${(c.lb||0)+1}板`,
-        (c.score||0).toFixed(1) + '分 · ' + (c.tier_txt||''),
+        (c.score||0).toFixed(2) + '分 · ' + (c.tier_txt||''),
         ((c.action||{}).label) || '',
         TIER_COLOR[c.tier] || 'var(--primary)'
       )).join('')}
@@ -2899,6 +3083,10 @@ if (D){
 } else {
   document.body.innerHTML = '<div style="padding:60px;text-align:center;color:#86868B;">数据文件缺失: 请先运行 web_build.py 生成 web/data.js</div>';
 }
+
+/* v1.13.0 高分标的榜: 独立于 SITE_DATA 渲染 (score_data.js 缺失时降级提示, 不阻塞主链路) */
+renderScore();
+
 </script>
 </body>
 </html>

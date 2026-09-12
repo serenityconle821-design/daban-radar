@@ -9,7 +9,11 @@
            JSONP 9s超时严重拖慢首屏; 后端直连亦被IP封禁, 完整历史改由 15:10 管道逐日累积(每股75日)
    v1.3.0: 新增新浪 MoneyFlow 接口补全非候选池 60 日历史(实测后端直连+浏览器跨站 JSONP 均放行):
            降级链变四级 FUND_DATA.hist → 新浪60日 → push2delay → FUND_DATA.stocks。新浪口径主力=特大单+大单,
-           与东财划分标准不同(同股同日差可达5-10倍), 图表与KPI同源自洽, 绝对值不与东财直接对比 */
+           与东财划分标准不同(同股同日差可达5-10倍), 图表与KPI同源自洽, 绝对值不与东财直接对比
+   v1.4.0: 大盘诊断新增「多周期轨道·海拔体系」(蒸馏自公开博主@Keep方法论, 已回测校准):
+           腾讯60分钟线 → 60分/120分布林轨道 + MACD背离预警 + 日线中轨破位/收复状态。
+           回测证据(700日日线+256日60分线): 顶背离后3日下跌概率75%(n=8); 破中轨后3日反弹概率64.86%(n=37);
+           收复中轨后3日胜率63.16%(n=38); 中轨支撑买入(B1)与「小级别服从大级别」持有(B5)无超额, 不作为信号输出 */
 (function () {
 'use strict';
 
@@ -87,6 +91,103 @@ async function fetchKline(full, n) {
   return rows.map(r => ({
     d: r[0], o: +r[1], c: +r[2], h: +r[3], l: +r[4], v: +r[5],
   }));
+}
+
+/* v1.4.1 腾讯60分钟线: [datetime,open,close,high,low,vol]; 大盘轨道数据源
+   proxy.finance.qq.com 镜像优先(web.ifzq 的 mkline 路径会302到 web3 且连接被关闭,
+   与 Python 回测侧同结论); 双域名兜底, 均失败时轨道节降级为日线级展示 */
+async function fetchM60(n) {
+  const varName = 'mk_' + Math.random().toString(36).slice(2, 8);
+  const param = 'param=sh000001,m60,,' + n + '&_var=' + varName;
+  const hosts = [
+    'https://proxy.finance.qq.com/ifzqgtimg/appstock/app/kline/mkline',
+    'https://web.ifzq.gtimg.cn/appstock/app/kline/mkline',
+  ];
+  let rows = [];
+  for (const h of hosts) {
+    try {
+      const d = await tencent(h + '?' + param, varName, 10000);
+      rows = (d && d.data && d.data.sh000001 && d.data.sh000001.m60) || [];
+      if (rows.length) break;
+    } catch (e) { /* 尝试下一域名 */ }
+  }
+  if (!rows.length) throw new Error('m60 empty');
+  return rows.map(r => ({ d: String(r[0]), c: +r[2], h: +r[3], l: +r[4] }));
+}
+
+/* v1.4.0 60分钟→120分钟聚合(同日两根合1) */
+function agg120(m60) {
+  const out = []; let buf = [], lastDay = null;
+  const flush = () => {
+    if (!buf.length) return;
+    out.push({ d: buf[0].d, c: buf[buf.length - 1].c,
+      h: Math.max(...buf.map(b => b.h)), l: Math.min(...buf.map(b => b.l)) });
+    buf = [];
+  };
+  for (const b of m60) {
+    const day = b.d.slice(0, 8);
+    if (day !== lastDay && buf.length) flush();
+    buf.push(b); lastDay = day;
+    if (buf.length === 2) flush();
+  }
+  flush();
+  return out;
+}
+
+/* v1.4.0 布林序列: 中轨=SMA20, 上下轨=±2σ(总体标准差, 与常用软件一致) */
+function bollSeries(vals, w, k) {
+  const mid = [], up = [], low = [];
+  for (let i = 0; i < vals.length; i++) {
+    if (i < w - 1) { mid.push(null); up.push(null); low.push(null); continue; }
+    const seg = vals.slice(i - w + 1, i + 1);
+    const m = seg.reduce((a, b) => a + b, 0) / w;
+    const sd = Math.sqrt(seg.reduce((a, b) => a + (b - m) * (b - m), 0) / w);
+    mid.push(m); up.push(m + k * sd); low.push(m - k * sd);
+  }
+  return { mid, up, low };
+}
+
+/* v1.4.0 EMA序列 + MACD·DIF */
+function emaArr(vals, w) {
+  const out = []; const kk = 2 / (w + 1); let e = null;
+  for (const v of vals) { e = e === null ? v : v * kk + e * (1 - kk); out.push(e); }
+  return out;
+}
+function difArr(closes) {
+  const f = emaArr(closes, 12), s = emaArr(closes, 26);
+  return closes.map((_, i) => f[i] - s[i]);
+}
+
+/* v1.4.0 60分钟MACD背离检测(与回测脚本同参数: order=2/间隔≥6/等高低点±0.1%/强度≥0.05)
+   返回 [{idx, kind, strength, dt}] */
+function detectDiv60(m60) {
+  const closes = m60.map(r => r.c);
+  const dif = difArr(closes);
+  const order = 2, minGap = 6, tol = 0.001;
+  const hi = [], lo = [];
+  for (let i = order; i < closes.length - order; i++) {
+    const win = closes.slice(i - order, i + order + 1);
+    if (closes[i] === Math.max(...win) && win.filter(x => x === closes[i]).length === 1) hi.push(i);
+    if (closes[i] === Math.min(...win) && win.filter(x => x === closes[i]).length === 1) lo.push(i);
+  }
+  const out = [];
+  for (let a = 0; a < hi.length - 1; a++) {
+    const i1 = hi[a], i2 = hi[a + 1];
+    if (i2 - i1 < minGap) continue;
+    if (closes[i2] >= closes[i1] * (1 - tol) && dif[i2] < dif[i1]) {
+      const st = (dif[i1] - dif[i2]) / Math.max(Math.abs(dif[i1]), 0.01);
+      if (st >= 0.05) out.push({ idx: i2, kind: 'top', strength: st, dt: m60[i2].d });
+    }
+  }
+  for (let a = 0; a < lo.length - 1; a++) {
+    const i1 = lo[a], i2 = lo[a + 1];
+    if (i2 - i1 < minGap) continue;
+    if (closes[i2] <= closes[i1] * (1 + tol) && dif[i2] > dif[i1]) {
+      const st = (dif[i2] - dif[i1]) / Math.max(Math.abs(dif[i1]), 0.01);
+      if (st >= 0.05) out.push({ idx: i2, kind: 'bottom', strength: st, dt: m60[i2].d });
+    }
+  }
+  return out;
 }
 
 /* 腾讯实时行情 88字段 (v1.1.0: 腾讯对短名称做空格填充如"远 望 谷", 统一去除内部空格) */
@@ -763,16 +864,118 @@ function renderChips() {
 renderChips();
 
 /* ═══════════ TAB 2: 大盘板块 ═══════════ */
+/* v1.4.0 多周期轨道·海拔体系: 蒸馏自公开博主@Keep方法论, 按回测证据校准信号权重
+   dk=上证日K, m20arr=日线SMA20序列(=日线布林中轨) */
+async function renderOrbit(dk, m20arr) {
+  const kpisEl = $('orbKpis'), ladderEl = $('orbLadder'), sigsEl = $('orbSigs');
+  if (!kpisEl) return;
+  try {
+    const closes = dk.map(r => r.c);
+    const i = closes.length - 1, c = closes[i];
+    /* 日线BOLL(20,2) */
+    const dm = m20arr[i];
+    const seg20 = closes.slice(-20);
+    const dsd = Math.sqrt(seg20.reduce((a, b) => a + (b - dm) * (b - dm), 0) / 20);
+    const dUp = dm + 2 * dsd, dLow = dm - 2 * dsd;
+    /* 60分钟 + 120分钟轨道(失败降级为日线级) */
+    let m60 = [], m60mid = null, m60low = null, m60lowPrev = null, m120mid = null, divs = [], m60ok = false;
+    try {
+      m60 = await fetchM60(320);
+      m60ok = m60.length >= 60;
+    } catch (e) { m60ok = false; }
+    if (m60ok) {
+      const b60 = bollSeries(m60.map(r => r.c), 20, 2);
+      const j = b60.mid.length - 1;
+      m60mid = b60.mid[j]; m60low = b60.low[j];
+      m60lowPrev = b60.low[Math.max(0, j - 4)];          /* 前一交易日下轨(4根/日) */
+      const b120 = bollSeries(agg120(m60).map(r => r.c), 20, 2);
+      m120mid = b120.mid[b120.mid.length - 1];
+      divs = detectDiv60(m60);
+    }
+    /* 破位/收复状态: 收盘与日中轨的连续相对位置 */
+    let belowRun = 0, justReclaimed = false;
+    if (c < m20arr[i]) {
+      for (let j2 = i; j2 >= 0 && m20arr[j2] != null; j2--) {
+        if (closes[j2] < m20arr[j2]) belowRun++; else break;
+      }
+    } else if (i > 0 && m20arr[i - 1] != null && closes[i - 1] < m20arr[i - 1]) {
+      justReclaimed = true;   /* 今日收复, 昨日尚在下方 */
+    }
+    const dist = (v) => v ? R2((c / v - 1) * 100) : null;
+
+    $('orbDate').textContent = (dk[i].d || '').slice(0, 10).replace(/-/g, '/') + (m60ok ? ' · 含60分/120分' : ' · 仅日线级');
+
+    /* KPI */
+    $('orbKpis').innerHTML = [
+      ['日线中轨 SMA20', fmtNum(dm, 2), (c >= dm ? '收盘上方 ' : '收盘下方 ') + dist(dm) + '%'],
+      ['120分钟中轨', m120mid ? fmtNum(m120mid, 2) : '—', m120mid ? (c >= m120mid ? '收盘上方 ' : '收盘下方 ') + dist(m120mid) + '%' : '60分数据缺失'],
+      ['60分钟中轨', m60mid ? fmtNum(m60mid, 2) : '—', m60mid ? (c >= m60mid ? '收盘上方 ' : '收盘下方 ') + dist(m60mid) + '%' : '60分数据缺失'],
+      ['60分钟下轨', m60low ? fmtNum(m60low, 2) : '—', m60low && m60lowPrev ? (m60low >= m60lowPrev ? '抬升中 ↑' : '下移 ↓') : '—'],
+    ].map(([k2, v, s]) => '<div class="kpi"><div class="k">' + k2 + '</div><div class="v">' + v + '</div><div class="s">' + s + '</div></div>').join('');
+
+    /* 海拔梯: 日下轨 → 日上轨 */
+    const span = Math.max(dUp - dLow, 0.01);
+    const ladder = [
+      ['日线上轨', dUp], ['120分中轨', m120mid], ['日线中轨', dm], ['60分中轨', m60mid],
+      ['当前收盘', c, true], ['60分下轨', m60low], ['日线下轨', dLow],
+    ].filter(x => x[1] != null);
+    ladderEl.innerHTML = ladder.map(([n, v, cur]) => {
+      const pos = Math.min(Math.max((v - dLow) / span * 100, 0), 100);
+      return '<div class="orb-row' + (cur ? ' cur' : '') + '"><span class="orb-name">' + n + '</span>' +
+        '<span class="orb-track"><i class="orb-dot" style="left:' + pos.toFixed(1) + '%"></i></span>' +
+        '<span class="orb-val">' + fmtNum(v, 2) + '<small>' + (cur ? '距日中轨 ' + dist(dm) + '%' : '距收盘 ' + R2((v / c - 1) * 100) + '%') + '</small></span></div>';
+    }).join('');
+
+    /* 信号(按回测证据加权): 顶背离=规避预警 > 破位/收复状态 > 底背离观察 */
+    const sigs = [];
+    const recentTop = divs.filter(x => x.kind === 'top' && x.idx >= m60.length - 8);
+    const recentBot = divs.filter(x => x.kind === 'bottom' && x.idx >= m60.length - 8);
+    if (recentTop.length) {
+      const t = recentTop[recentTop.length - 1];
+      sigs.push(['sell', '▼', '60分钟顶背离预警',
+        '价格创新高/平高但MACD·DIF未创新高，动能衰竭结构（' + t.dt.slice(4, 6) + '/' + t.dt.slice(6, 8) + ' ' + t.dt.slice(8, 10) + ':' + t.dt.slice(10, 12) + ' 第二个高点）',
+        '回测近一年8次，其后3日下跌概率75%，平均-0.94% — 体系中最强规避信号，打板仓位应相应收敛']);
+    }
+    if (belowRun >= 1) {
+      sigs.push(['warn', '!', '日线中轨下方 · 第' + belowRun + '日',
+        '收盘 ' + fmtNum(c, 2) + ' 低于日线中轨 ' + fmtNum(dm, 2) + '（' + dist(dm) + '%）',
+        '近3年37次破位后3日反弹概率64.86%（均值+0.46%）— 短线不宜恐慌割肉；若3日内收复中轨，收复后3日胜率63.16%']);
+    } else if (justReclaimed) {
+      sigs.push(['buy', '▲', '刚收复日线中轨',
+        '收盘重新站上日线中轨 ' + fmtNum(dm, 2),
+        '近3年38次收复后3日胜率63.16%，均值+0.45% — 收复确认比破位当日追空更可靠']);
+    }
+    if (recentBot.length) {
+      sigs.push(['info', 'i', '60分钟底背离观察',
+        '价格创新低/平低但MACD·DIF未创新低（' + recentBot[recentBot.length - 1].dt.slice(4, 6) + '/' + recentBot[recentBot.length - 1].dt.slice(6, 8) + '）',
+        '回测近一年6次，3日胜率50%（+0.05%）— 统计上无显著优势，仅作观察不加仓']);
+    }
+    if (!sigs.length) {
+      sigs.push(['info', 'i', '轨道中性区',
+        '收盘位于日线中轨上方且无背离结构',
+        '「中轨上方持有」在回测中无超额（次日胜率50.77% vs 下方59.20%）— 不作为加仓依据，仅描述位置']);
+    }
+    sigsEl.innerHTML = sigs.map(([ico, sym, name, desc, why]) =>
+      '<div class="sig-row"><div class="sig-ico ' + ico + '">' + sym + '</div>' +
+      '<div class="sig-body"><div class="sig-name">' + name + '</div>' +
+      '<div class="sig-desc">' + desc + '</div><div class="sig-why">回测依据: ' + why + '</div></div></div>').join('');
+  } catch (e) {
+    kpisEl.innerHTML = '<div class="fund-note">多周期轨道获取失败，请稍后刷新。</div>';
+  }
+}
+
 async function renderMarket() {
   const FD = window.FUND_DATA || {};
   const latest = FD.latest || {};
 
   /* 指数环境: 腾讯上证K线算 MA20/60 */
+  let envK = null, envM20 = null;
   try {
     const k = await fetchKline('sh000001', 90);
     const closes = k.map(r => r.c);
     const ma = (w) => closes.map((_, i) => i < w - 1 ? null : closes.slice(i - w + 1, i + 1).reduce((a, b) => a + b, 0) / w);
     const m20 = ma(20), m60 = ma(60);
+    envK = k; envM20 = m20;
     const i = k.length - 1, c = closes[i];
     const env = c > m20[i] && m20[i] > m60[i] ? 'strong' : c > m60[i] ? 'mid' : 'weak';
     const pill = $('mEnvPill');
@@ -802,6 +1005,9 @@ async function renderMarket() {
   } catch (e) {
     $('idxChart').innerHTML = '<div style="display:flex;height:100%;align-items:center;justify-content:center;color:var(--secondary);font-size:13px;">指数K线获取失败</div>';
   }
+
+  /* v1.4.0 多周期轨道·海拔体系 (日线K线复用, 60分钟线另拉) */
+  if (envK) renderOrbit(envK, envM20);
 
   /* 大盘资金流 (快照累积 + 当日) */
   const idx = latest.index || {};
@@ -839,7 +1045,7 @@ async function renderMarket() {
     opt.yAxis = { type: 'category', data: s12.map(s => s.name), ...axisStyle, axisLabel: { ...axisStyle.axisLabel, fontSize: 11, color: '#1D1D1F', fontWeight: 600 } };
     opt.series = [{ type: 'bar', data: s12.map(s => s.main), barMaxWidth: 15,
       itemStyle: { color: p => p.value >= 0 ? 'rgba(255,59,48,.78)' : 'rgba(52,199,89,.78)', borderRadius: [0, 4, 4, 0] },
-      label: { show: true, position: 'right', fontSize: 10, fontWeight: 700, color: '#6E6E73', formatter: p => fmtNum(p.value, 1) } }];
+      label: { show: true, position: 'right', fontSize: 10, fontWeight: 700, color: '#6E6E73', formatter: p => fmtNum(p.value, 2) } }];
     ch.setOption(opt); currentCharts.push(ch);
     $('sectorTail').innerHTML = tail.map(s =>
       '<div class="sec-row"><span class="sec-name">' + s.name + '</span><div class="sec-track"><i class="sec-fill" style="right:0;width:' + Math.min(Math.abs(s.main) / 12 * 100, 100) + '%;background:rgba(52,199,89,.65)"></i></div><span class="sec-val down">' + fmtNum(s.main, 2) + '亿</span></div>').join('');

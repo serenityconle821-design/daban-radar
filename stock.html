@@ -296,6 +296,16 @@ table.lvl tr td:first-child { font-weight:700; }
 .sec-name { width:88px; font-size:13.5px; font-weight:700; flex:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .sec-track { flex:1; height:22px; border-radius:11px; background:rgba(120,120,128,.10); position:relative; overflow:hidden; }
 .sec-fill { position:absolute; top:0; height:100%; border-radius:11px; transition:width .7s var(--ease-glass); }
+
+/* v1.4.0 多周期轨道·海拔梯 */
+.orb-row { display:flex; align-items:center; gap:12px; min-height:36px; }
+.orb-name { width:86px; font-size:12px; color:var(--secondary); font-weight:600; flex:none; }
+.orb-track { flex:1; height:8px; border-radius:4px; background:rgba(120,120,128,.10); position:relative; }
+.orb-dot { position:absolute; top:50%; transform:translate(-50%,-50%); width:9px; height:9px; border-radius:50%; background:var(--tertiary); transition:all .5s var(--ease-glass); }
+.orb-row.cur .orb-dot { width:14px; height:14px; background:var(--primary); box-shadow:0 0 0 4px var(--primary-soft); }
+.orb-val { width:148px; text-align:right; font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; flex:none; }
+.orb-val small { display:block; font-size:10.5px; color:var(--tertiary); font-weight:600; margin-top:1px; }
+.orb-row.cur .orb-val { color:var(--primary); }
 .sec-val { width:92px; text-align:right; font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums; flex:none; }
 
 /* 环境仪表 */
@@ -512,6 +522,19 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
     <div class="kpi-grid" id="idxKpis"></div>
   </section>
 
+  <!-- 多周期轨道 · 海拔体系 (v1.4.0, 蒸馏自@Keep方法论并回测校准) -->
+  <section class="card fade vis">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 20 6-11 4 6 3-4 3 5 4-6"/><path d="M2 20h20"/></svg></span>
+      <span>多周期轨道 · 海拔体系</span>
+      <span class="badge2 b-gray" style="margin-left:auto;" id="orbDate">—</span>
+    </div>
+    <div class="kpi-grid" id="orbKpis"></div>
+    <div id="orbLadder" style="margin-top:18px;"></div>
+    <div class="sig-list" id="orbSigs"></div>
+    <div class="fund-note">轨道体系蒸馏自公开博主@Keep的多周期布林方法论（「海拔」=上证点位，中轨=SMA20、上下轨=±2σ），经 700 个交易日日线 + 256 日 60 分钟线回测校准：仅顶背离规避与破位/收复节奏按有效证据输出；中轨支撑买入与「小级别服从大级别」持有因无超额收益不作为信号。统计描述，不构成投资建议。</div>
+  </section>
+
   <!-- 大盘主力资金 -->
   <section class="card fade vis">
     <div class="sec-title">
@@ -556,7 +579,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 </div>
 
 <footer>
-  打板策略看板 · 诊断中心 v1.3.0 · 数据源: 腾讯行情 / 东财资金流(快照+push2delay) / 新浪60日资金流(非候选池) / 东财数据中心<br>
+  打板策略看板 · 诊断中心 v1.4.0 · 数据源: 腾讯行情(日线+60分钟) / 东财资金流(快照+push2delay) / 新浪60日资金流(非候选池) / 东财数据中心<br>
   每日 15:10 自动快照 · 页面数据实时直连 · Liquid Glass UI
 </footer>
 
@@ -564,6 +587,6 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 
 <script src="./echarts.min.js"></script>
 <script src="./fund_data.js?v=115"></script>
-<script src="./diag.js?v=115"></script>
+<script src="./diag.js?v=116"></script>
 </body>
 </html>
