@@ -1,8 +1,9 @@
-/* three.js v1.0.0 — 三时段作战室逻辑
+/* three.js v1.0.1 — 三时段作战室逻辑
    数据: premarket_data.js(PREMARKET_DATA) + intraday_data.js(INTRADAY_DATA) + settle_data.js(SETTLE_DATA)
          + 腾讯JSONP实时轮询(竞价雷达/盘中指数, 浏览器直连零token)
    渲染: 盘前温度计gauge+贡献条+隔夜明细+命中率 | 盘中情绪/资金/时点曲线+竞价雷达+尾盘异动 | 盘后复盘全景
-   声明: 全部为条件概率观察, 非预测, 不构成投资建议 */
+   声明: 全部为条件概率观察, 非预测, 不构成投资建议
+   v1.0.1: 手动点击Tab后phaseLocked锁定, 每秒时段自动迁移仅在未锁定时执行, 横幅追加锁定提示 */
 (function () {
 'use strict';
 
@@ -60,6 +61,7 @@ const PHASE_TXT = {
 };
 
 let phase = 'pre';
+let phaseLocked = false;   /* 手动切换后锁定: 时段自动迁移暂停, 刷新页面恢复自动 */
 let charts = {};
 
 function setPhase(p) {
@@ -71,7 +73,8 @@ function setPhase(p) {
   $('phMid').classList.toggle('on', p === 'mid');
   $('phPost').classList.toggle('on', p === 'post');
   const t = PHASE_TXT[p];
-  $('pbTxt').innerHTML = '<b>' + t[0] + '</b> — ' + t[1];
+  $('pbTxt').innerHTML = '<b>' + t[0] + '</b> — ' + t[1] +
+    (phaseLocked ? ' · <span style="color:#007AFF;font-weight:600;">手动锁定 (刷新恢复自动)</span>' : '');
   renderLiveCards();
   setTimeout(() => { Object.values(charts).forEach(c => c && c.resize()); }, 60);
 }
