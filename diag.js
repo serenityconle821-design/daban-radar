@@ -1,10 +1,12 @@
-/* diag.js v1.1.3 — 诊断中心逻辑
-   数据: 腾讯JSONP(GBK, K线/行情/搜索) + 东财push2his→push2→push2delay(资金流) + DC(大宗) + fund_data.js(快照兜底)
+/* diag.js v1.2.0 — 诊断中心逻辑
+   数据: 腾讯JSONP(GBK, K线/行情/搜索) + fund_data.js快照(个股累积历史) + push2delay(资金流当日) + DC(大宗)
    计算: MA/MACD/RSI/KDJ/BOLL/量比 → 六类信号 → 五档位阶聚类 → 综合评分
    声明: 全部为条件概率诊断, 非预测, 不构成投资建议
-   v1.1.2: 资金流改走 push2his(东财官网同款完整历史接口); em()加时间戳防CDN缓存;
-           资金流/大宗接口全挂时从 fund_data.js 快照兜底; 标注主力口径与同花顺差异
-   v1.1.3: em()加 referrerPolicy=no-referrer 修复 push2his/push2 跨域空响应 — 完整120日历史恢复 */
+   v1.1.2: em()加时间戳防CDN缓存; 资金流/大宗接口全挂时从 fund_data.js 快照兜底; 标注主力口径与同花顺差异
+   v1.1.3: em()加 referrerPolicy=no-referrer 尝试绕过东财 Referer 拦截
+   v1.2.0: 资金流改为「后端快照优先」三级降级链: FUND_DATA.hist(候选池累积历史) → push2delay(任意股票当日) →
+           FUND_DATA.stocks(当日兜底)。移除浏览器直连 push2his/push2 — 实测被 Sec-Fetch-Site 跨站拦截且
+           JSONP 9s超时严重拖慢首屏; 后端直连亦被IP封禁, 完整历史改由 15:10 管道逐日累积(每股75日) */
 (function () {
 'use strict';
 
@@ -37,9 +39,9 @@ function tencent(url, varName, timeout) {
 /* 东财 JSONP: cb= 全局回调
    v1.1.0: 支持 cbParam 指定回调参数名 — push2系用 cb=, datacenter-web 只认 callback=
    v1.1.2: 加 _= 时间戳, 防止 CDN/浏览器缓存旧 JSONP 响应
-   v1.1.3: 加 referrerPolicy=no-referrer — 东财 push2/push2his 对「有 Referer 且非东财域名」
-           的跨域 JSONP 直接返回空响应(ERR_EMPTY_RESPONSE), 无 Referer 则放行(同 Python 直连);
-           实测该策略下 push2his 可返回完整 120 日资金流历史 */
+   v1.1.3: 加 referrerPolicy=no-referrer
+   v1.2.0 注: push2his/push2 无论是否带 Referer 均被 Sec-Fetch-Site: cross-site 拦截(浏览器受保护头,
+           前端无法移除), 仅 push2delay/datacenter 对跨站 JSONP 放行 — 资金流完整历史改走后端快照 */
 function em(url, timeout, cbParam) {
   return new Promise((resolve, reject) => {
     const cb = '_emcb' + (++cbSeq);
@@ -97,24 +99,32 @@ async function fetchQuote(full) {
   };
 }
 
-/* 东财资金流历史: v1.1.2 四级降级链
-   push2his(东财官网资金历史同款, 完整120日) → push2(原完整接口, 现常被拦截) →
-   push2delay(仅当日) → fund_data.js 快照(候选池个股当日, 万→元)
-   注: push2 域名浏览器直连常返回空响应(ORB/风控), push2his 实测稳定 */
+/* 东财资金流: v1.2.0 快照优先三级降级链
+   1) FUND_DATA.hist[code] — 后端15:10管道逐日累积的完整历史(候选池个股, 万→元)
+   2) push2delay JSONP — 任意股票当日(浏览器实测可用; push2his/push2 被Sec-Fetch-Site拦截已移除)
+   3) FUND_DATA.stocks[code] — 候选池个股当日兜底(万→元) */
 async function fetchFundFlow(mkt, code) {
-  const path = '/api/qt/stock/fflow/daykline/get?lmt=0&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63,f64,f65&secid=' + mkt + '.' + code + '&ut=b2884a393a59ad64002292a3e90d46a5';
-  for (const host of ['https://push2his.eastmoney.com', 'https://push2.eastmoney.com', 'https://push2delay.eastmoney.com']) {
-    try {
-      const d = await em(host + path);
-      const kl = (d && d.data && d.data.klines) || [];
-      const rows = kl.map(line => {
-        const p = line.split(',');
-        return { d: p[0], main: +p[1], small: +p[2], mid: +p[3], big: +p[4], sup: +p[5], rate: +p[6], close: +p[11], pct: +p[12] };
-      });
-      if (rows.length) return { rows, full: host.indexOf('push2delay') < 0, src: host.indexOf('push2his') >= 0 ? 'hist' : 'live' };
-    } catch (e) { /* 降级 */ }
+  /* 1. 后端快照: 候选池个股累积历史 (m主力/u超大/b大/n中/s小/r净率%, 万→元) */
+  const sh = (window.FUND_DATA && window.FUND_DATA.hist && window.FUND_DATA.hist[code]) || null;
+  if (sh && sh.length) {
+    const rows = sh.map(x => ({
+      d: x.d, main: x.m * 1e4, small: x.s * 1e4, mid: x.n * 1e4,
+      big: x.b * 1e4, sup: x.u * 1e4, rate: x.r, close: 0, pct: 0,
+    }));
+    return { rows, full: true, src: 'snap' };
   }
-  /* 快照兜底: 候选池个股当日(单位万→元); 中/小单不可拆分, 合并归入小单保持代数闭合 */
+  /* 2. push2delay: 任意股票当日 */
+  const path = '/api/qt/stock/fflow/daykline/get?lmt=0&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63,f64,f65&secid=' + mkt + '.' + code + '&ut=b2884a393a59ad64002292a3e90d46a5';
+  try {
+    const d = await em('https://push2delay.eastmoney.com' + path);
+    const kl = (d && d.data && d.data.klines) || [];
+    const rows = kl.map(line => {
+      const p = line.split(',');
+      return { d: p[0], main: +p[1], small: +p[2], mid: +p[3], big: +p[4], sup: +p[5], rate: +p[6], close: +p[11], pct: +p[12] };
+    });
+    if (rows.length) return { rows, full: false, src: 'live' };
+  } catch (e) { /* 降级 */ }
+  /* 3. 快照兜底: 候选池个股当日(单位万→元); 中/小单不可拆分, 合并归入小单保持代数闭合 */
   const st = (window.FUND_DATA && window.FUND_DATA.stocks && window.FUND_DATA.stocks[code]) || null;
   if (st) {
     const sup = st.super * 1e4, big = st.big * 1e4, main = st.main * 1e4;
@@ -563,7 +573,7 @@ async function diagnose(full) {
     const mainEl = $('fundMain');
     mainEl.textContent = (fl.main >= 0 ? '+' : '-') + fmtNum(amtYi, 2) + '亿';
     mainEl.className = 'v ' + (fl.main >= 0 ? 'up' : 'down');
-    $('fundDate').textContent = fl.d + (fund.full ? '' : (fund.src === 'snapshot' ? ' · 快照兜底 · 仅当日' : ' · 仅当日'));
+    $('fundDate').textContent = fl.d + (fund.src === 'snap' ? ' · 每日快照' : fund.full ? '' : (fund.src === 'snapshot' ? ' · 快照兜底 · 仅当日' : ' · 仅当日'));
     const mx = Math.max(Math.abs(fl.sup), Math.abs(fl.big), Math.abs(fl.mid), Math.abs(fl.small), 1);
     const rows = [
       ['超大单', fl.sup, ARED], ['大单', fl.big, '#FF6B5E'], ['中单', fl.mid, '#8E8E93'], ['小单', fl.small, AGREEN],
@@ -589,7 +599,7 @@ async function diagnose(full) {
     }];
     ch.setOption(opt); currentCharts.push(ch);
     $('fundHistNote').textContent = '主力 = 超大单(单笔≥100万) + 大单(20~100万)，东财口径 · 净流入率 ' + R2(fl.rate) + '% · 近30日累计 ' + fmtNum(hist.reduce((a, r) => a + r.main / 1e8, 0), 2) + '亿'
-      + (fund.full ? '' : '（历史接口受限，当前仅当日，趋势将随每日快照累积）')
+      + (fund.src === 'snap' ? '（完整历史自 2026-09-12 起逐日累积）' : fund.full ? '' : '（历史接口受限，当前仅当日，趋势将随每日快照累积）')
       + (fund.src === 'snapshot' ? ' · 快照兜底：中/小单合并计入小单' : ' · 与同花顺划分标准不同(≥20万即计大单)，数值差异属正常');
   } else {
     $('fundMain').textContent = '—';
