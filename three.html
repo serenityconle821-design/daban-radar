@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>三时段作战室 · 盘前预判 / 盘中分析 / 盘后复盘</title>
+<!-- three.html v1.0.0 三时段作战室 (三时段体系 · 第一期)
+     盘前: 外围温度计(美股三大/A50夜盘/日经/CNH/港股/商品) + 命中率验证
+     盘中: 情绪仪表 + 指数/板块资金流 + 时点演变 + 尾盘异动 + 竞价雷达(9:15-9:30前端轮询)
+     盘后: 复盘总览 + 温度计验证 + 情绪演变 + 信号表现 + 明日关注
+     数据: premarket_data.js(08:45) + intraday_data.js(10:30/14:00/14:30) + settle_data.js(15:10后)
+           + 腾讯JSONP实时轮询(竞价/盘中指数, 浏览器直连零token)
+     风格: 与主看板/诊断中心一致的 iOS Liquid Glass -->
+<style>
+:root {
+  --bg: rgba(116,116,128,.12); --card: rgba(255,255,255,.36); --card2: rgba(255,255,255,.32);
+  --primary: #007AFF; --primary-soft: rgba(0,122,255,.08);
+  --text: #1D1D1F; --secondary: #6E6E73; --tertiary: #929298;
+  --green: #34C759; --green-soft: rgba(52,199,89,.10);
+  --red: #FF3B30; --red-soft: rgba(255,59,48,.08);
+  --orange: #FF9500; --orange-soft: rgba(255,149,0,.10);
+  --gray-badge: #8E8E93; --sep: rgba(60,60,67,.10);
+  --radius: 16px; --touch: 44px;
+  --glass-card: rgba(255,255,255,.22);
+  --glass-nav: rgba(255,255,255,.55);
+  --specular-top: rgba(255,255,255,.92);
+  --specular-bottom: rgba(174,196,255,.20);
+  --hairline: rgba(15,23,42,.10);
+  --hairline-soft: rgba(15,23,42,.05);
+  --tint-ink: 15,23,42; --tint-sky: 56,96,190;
+  --blur-nav: saturate(180%) blur(24px);
+  --blur-card: saturate(200%) blur(20px);
+  --ease-glass: cubic-bezier(.32,.72,0,1);
+  --d-base: 240ms;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html { scroll-behavior:smooth; }
+body {
+  background:#F2F2F7; color:var(--text);
+  font:17px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+body::before {
+  content:''; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(64% 54% at 18% 8%,  rgba(158,180,255,.75) 0%, transparent 64%),
+    radial-gradient(54% 50% at 92% 12%, rgba(186,210,255,.68) 0%, transparent 62%),
+    radial-gradient(60% 56% at 78% 88%, rgba(218,196,250,.60) 0%, transparent 64%),
+    radial-gradient(50% 44% at 8% 92%, rgba(190,224,252,.58) 0%, transparent 62%),
+    radial-gradient(48% 42% at 52% 42%, rgba(198,214,252,.56) 0%, transparent 64%),
+    radial-gradient(44% 40% at 30% 68%, rgba(220,198,250,.50) 0%, transparent 62%),
+    linear-gradient(180deg, #F5F6FA 0%, #EDF0F5 100%);
+}
+.page { max-width:1100px; margin:0 auto; padding:0 20px 60px; }
+
+/* ── 顶栏 ── */
+.topbar {
+  position:sticky; top:0; z-index:100;
+  background:var(--glass-nav);
+  -webkit-backdrop-filter:var(--blur-nav); backdrop-filter:var(--blur-nav);
+  box-shadow:
+    inset 0 1px 0 var(--specular-top), inset 0 -1px 0 var(--specular-bottom),
+    0 0 0 .5px var(--hairline), 0 2px 6px rgba(var(--tint-ink),.04),
+    0 8px 20px -4px rgba(var(--tint-ink),.06), 0 24px 48px -12px rgba(var(--tint-sky),.10);
+}
+.topbar-inner { max-width:1100px; margin:0 auto; padding:10px 20px; display:flex; align-items:center; gap:14px; }
+.brand { display:flex; align-items:center; gap:10px; flex:none; text-decoration:none; color:var(--text); }
+.brand-dot { width:10px; height:10px; border-radius:50%; background:var(--primary); flex:none; animation:brandPulse 2.6s ease-in-out infinite; }
+@keyframes brandPulse { 0%,100%{ box-shadow:0 0 0 3px rgba(0,122,255,.14);} 50%{ box-shadow:0 0 0 7px rgba(0,122,255,.04);} }
+.brand-name { font-size:15.5px; font-weight:800; letter-spacing:-.3px; line-height:1.2; }
+.brand-meta { font-size:11px; color:var(--secondary); line-height:1.3; }
+.segment {
+  margin-left:auto; display:flex; background:rgba(120,120,128,.14); border-radius:12px; padding:2px;
+  box-shadow:inset 0 0 0 .5px var(--hairline-soft); flex:none;
+}
+.segment button {
+  border:none; background:transparent; cursor:pointer; min-height:38px; padding:0 16px;
+  font:600 14px/1 -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; color:var(--text);
+  border-radius:10px; transition:all .22s var(--ease-glass);
+}
+.segment button.on {
+  background:rgba(255,255,255,.92); color:var(--text);
+  box-shadow:0 1px 3px rgba(0,0,0,.10), 0 3px 8px rgba(0,0,0,.06);
+}
+@media (max-width:640px){ .topbar-inner{ flex-wrap:wrap; } .segment{ margin:0 auto; } }
+
+/* ── 卡片 (Liquid Glass) ── */
+.card {
+  position:relative; isolation:isolate;
+  background:var(--glass-card); border-radius:var(--radius);
+  padding:26px 28px; margin-top:22px;
+  box-shadow:
+    inset 0 1px 0 var(--specular-top), inset 0 -1px 0 var(--specular-bottom),
+    0 0 0 .5px var(--hairline), inset 0 0 0 .5px var(--hairline-soft),
+    0 1px 1px rgba(var(--tint-ink),.04), 0 2px 4px rgba(var(--tint-ink),.04),
+    0 8px 20px -6px rgba(var(--tint-ink),.08), 0 24px 48px -16px rgba(var(--tint-sky),.10);
+  transition:transform var(--d-base) var(--ease-glass), box-shadow var(--d-base) var(--ease-glass);
+}
+section.card { -webkit-backdrop-filter:var(--blur-card); backdrop-filter:var(--blur-card); }
+section.card {
+  background:
+    radial-gradient(130% 90% at 12% 0%, rgba(158,180,255,.18) 0%, transparent 52%),
+    radial-gradient(90% 80% at 92% 100%, rgba(218,196,250,.15) 0%, transparent 58%),
+    var(--glass-card);
+}
+.card::before {
+  content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:0;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.85) 0%, rgba(255,255,255,.85) .8%, rgba(255,255,255,.26) 2%, rgba(255,255,255,0) 3.6%),
+    radial-gradient(60% 50% at 85% 100%, rgba(255,255,255,.14) 0%, transparent 70%);
+  opacity:.9;
+}
+.card > * { position:relative; z-index:1; }
+.sec-title { display:flex; align-items:center; gap:11px; font-size:19px; font-weight:800; letter-spacing:-.3px; flex-wrap:wrap; }
+.sec-title .ico {
+  width:34px; height:34px; border-radius:10px; background:var(--primary-soft); color:var(--primary);
+  display:inline-flex; align-items:center; justify-content:center; flex:none;
+}
+.sec-title .ico svg { width:17px; height:17px; }
+.sec-sub { color:var(--secondary); font-size:13.5px; margin-top:9px; line-height:1.6; }
+.hero { padding:44px 0 8px; }
+.hero h1 { font-size:44px; font-weight:800; letter-spacing:-1px; margin:2px 0 10px; }
+.hero .sub { color:var(--secondary); font-size:15.5px; }
+
+/* ── 时段横幅 ── */
+.phase-banner {
+  margin-top:22px; border-radius:var(--radius); padding:16px 22px;
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  background:var(--glass-card); -webkit-backdrop-filter:var(--blur-card); backdrop-filter:var(--blur-card);
+  box-shadow:inset 0 1px 0 var(--specular-top), 0 0 0 .5px var(--hairline), 0 8px 20px -6px rgba(var(--tint-ink),.08);
+}
+.phase-banner .pb-dot { width:9px; height:9px; border-radius:50%; background:var(--primary); flex:none; animation:brandPulse 2.6s ease-in-out infinite; }
+.phase-banner .pb-txt { font-size:14px; font-weight:600; color:var(--text); }
+.phase-banner .pb-txt b { font-weight:800; }
+.phase-banner .pb-clock { margin-left:auto; font-size:13px; color:var(--secondary); font-variant-numeric:tabular-nums; font-weight:600; }
+
+/* ── KPI / 徽章 / 表格 ── */
+.kpi-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-top:16px; }
+.kpi {
+  background:var(--bg); border-radius:12px; padding:13px 15px;
+  box-shadow:inset 0 0 0 .5px var(--hairline-soft);
+}
+.kpi .k { font-size:11.5px; color:var(--secondary); font-weight:600; }
+.kpi .v { font-size:20px; font-weight:800; margin-top:3px; font-variant-numeric:tabular-nums; letter-spacing:-.3px; }
+.kpi .s { font-size:11px; color:var(--tertiary); margin-top:2px; }
+.badge2 {
+  display:inline-flex; align-items:center; gap:6px; min-height:26px; padding:0 11px;
+  border-radius:13px; font-size:12px; font-weight:700; background:var(--bg);
+}
+.b-blue { color:var(--primary); } .b-green { color:var(--green); background:var(--green-soft); }
+.b-red { color:var(--red); background:var(--red-soft); } .b-orange { color:var(--orange); background:var(--orange-soft); }
+.b-gray { color:var(--secondary); }
+.tbl-scroll { overflow-x:auto; margin-top:14px; -webkit-overflow-scrolling:touch; }
+table.lvl { width:100%; border-collapse:collapse; min-width:520px; }
+table.lvl th { font-size:11.5px; color:var(--secondary); text-align:left; font-weight:600; padding:8px 10px; white-space:nowrap; }
+table.lvl td { font-size:14.5px; padding:10px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+table.lvl tr td:first-child { font-weight:700; }
+.up { color:var(--red); } .down { color:var(--green); }
+
+/* ── 温度计 gauge ── */
+.gauge-wrap { display:flex; align-items:center; gap:26px; margin-top:18px; flex-wrap:wrap; }
+.gauge-svg { flex:none; width:280px; max-width:100%; }
+.gauge-right { flex:1; min-width:250px; }
+.gauge-label-hero {
+  display:inline-flex; align-items:center; gap:8px; min-height:44px; padding:0 22px;
+  border-radius:22px; font-size:20px; font-weight:800; letter-spacing:-.3px;
+}
+.g-hi { color:#fff; background:linear-gradient(135deg,#FF6B5E,#FF3B30); box-shadow:0 8px 22px rgba(255,59,48,.30); }
+.g-warm { color:#C4400A; background:rgba(255,149,0,.16); }
+.g-mid { color:var(--text); background:rgba(120,120,128,.16); }
+.g-cool { color:#0A7C3F; background:var(--green-soft); }
+.g-lo { color:#fff; background:linear-gradient(135deg,#52D06B,#34C759); box-shadow:0 8px 22px rgba(52,199,89,.28); }
+.gauge-hint { margin-top:10px; font-size:14.5px; color:var(--secondary); line-height:1.65; }
+.gauge-meta { margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; }
+
+/* ── 贡献条形 ── */
+.contrib-rows { margin-top:16px; display:flex; flex-direction:column; gap:9px; }
+.ct-row { display:flex; align-items:center; gap:10px; }
+.ct-name { width:96px; font-size:13px; font-weight:700; flex:none; }
+.ct-pct { width:74px; text-align:right; font-size:12.5px; font-variant-numeric:tabular-nums; font-weight:700; flex:none; }
+.ct-track { flex:1; height:18px; border-radius:9px; background:rgba(120,120,128,.10); position:relative; overflow:hidden; }
+.ct-zero { position:absolute; left:50%; top:0; bottom:0; width:1px; background:rgba(120,120,128,.30); }
+.ct-fill { position:absolute; top:2px; bottom:2px; border-radius:8px; transition:all .7s var(--ease-glass); }
+.ct-fill.pos { background:linear-gradient(90deg,#FF6B5E,#FF3B30); left:50%; }
+.ct-fill.neg { background:linear-gradient(270deg,#34C759,#52D06B); right:50%; }
+.ct-val { width:76px; text-align:right; font-size:12.5px; font-weight:800; font-variant-numeric:tabular-nums; flex:none; }
+
+/* ── 行情行 ── */
+.q-rows { margin-top:14px; display:flex; flex-direction:column; }
+.q-row { display:flex; align-items:baseline; gap:12px; padding:10px 2px; border-bottom:1px solid var(--sep); }
+.q-row:last-child { border-bottom:none; }
+.q-row .n { min-width:96px; font-size:14.5px; font-weight:700; flex:none; }
+.q-row .p { font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; }
+.q-row .c { font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; min-width:76px; }
+.q-row .t { margin-left:auto; font-size:11.5px; color:var(--tertiary); font-variant-numeric:tabular-nums; text-align:right; }
+.q-group-title { font-size:12px; font-weight:800; color:var(--primary); letter-spacing:.5px; padding:14px 2px 4px; text-transform:uppercase; }
+
+/* ── 图表容器 ── */
+.chart-box {
+  position:relative; margin-top:16px; background:rgba(255,255,255,.30); border-radius:14px;
+  padding:10px 8px 8px; box-shadow:inset 0 0 0 .5px var(--hairline-soft);
+}
+.chart-box::before {
+  content:''; position:absolute; inset:0; border-radius:inherit; pointer-events:none; z-index:0;
+  background:linear-gradient(180deg, rgba(255,255,255,.60) 0%, rgba(255,255,255,.60) .9%, rgba(255,255,255,.18) 2.4%, rgba(255,255,255,0) 4%);
+}
+.chart { width:100%; height:360px; position:relative; z-index:1; }
+.chart.h300 { height:300px; } .chart.h240 { height:240px; } .chart.h200 { height:200px; }
+@media (max-width:640px){ .chart { height:300px; } .chart.h300{height:240px;} }
+
+/* ── 板块条 ── */
+.sector-rows { margin-top:14px; display:flex; flex-direction:column; gap:8px; }
+.sec-row { display:flex; align-items:center; gap:12px; min-height:38px; }
+.sec-name { width:88px; font-size:13.5px; font-weight:700; flex:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sec-track { flex:1; height:22px; border-radius:11px; background:rgba(120,120,128,.10); position:relative; overflow:hidden; }
+.sec-fill { position:absolute; top:0; height:100%; border-radius:11px; transition:width .7s var(--ease-glass); }
+.sec-val { width:92px; text-align:right; font-size:12.5px; font-weight:700; font-variant-numeric:tabular-nums; flex:none; }
+
+/* ── 复盘叙事 ── */
+.narr { margin-top:14px; padding:16px 20px; border-radius:14px; background:var(--bg);
+  font-size:15px; line-height:1.9; }
+.narr b { font-variant-numeric:tabular-nums; }
+.narr .nl { display:block; padding:3px 0; }
+
+/* ── 验证徽章行 ── */
+.verify-hero { display:flex; align-items:center; gap:16px; margin-top:16px; flex-wrap:wrap; }
+.vscore { text-align:center; flex:none; min-width:120px; }
+.vscore .v { font-size:32px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-1px; }
+.vscore .k { font-size:11.5px; color:var(--secondary); font-weight:600; margin-top:2px; }
+
+/* ── 竞价雷达 ── */
+.live-grid { margin-top:14px; display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:12px; }
+.live-item { background:var(--bg); border-radius:12px; padding:13px 15px; box-shadow:inset 0 0 0 .5px var(--hairline-soft); }
+.live-item .k { font-size:11.5px; color:var(--secondary); font-weight:600; }
+.live-item .v { font-size:21px; font-weight:800; margin-top:3px; font-variant-numeric:tabular-nums; letter-spacing:-.3px; }
+.live-item .s { font-size:12px; font-weight:700; margin-top:2px; font-variant-numeric:tabular-nums; }
+.live-item .tm { font-size:10.5px; color:var(--tertiary); margin-top:3px; font-variant-numeric:tabular-nums; }
+
+/* ── 状态与空态 ── */
+.empty-note { margin-top:14px; padding:14px 18px; border-radius:13px; background:var(--bg);
+  color:var(--secondary); font-size:13.5px; line-height:1.7; }
+.skeleton {
+  margin-top:22px; border-radius:var(--radius); padding:30px; text-align:center;
+  color:var(--secondary); font-size:14px;
+  background:var(--glass-card); box-shadow:inset 0 0 0 .5px var(--hairline);
+}
+.sk-ring { width:38px; height:38px; margin:0 auto 14px; border-radius:50%;
+  border:3px solid rgba(0,122,255,.16); border-top-color:var(--primary); animation:spin .9s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.fade { opacity:0; transform:translateY(16px); transition:opacity .55s ease, transform .55s ease; }
+.fade.vis { opacity:1; transform:none; }
+.hidden { display:none !important; }
+
+footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12.5px; line-height:1.9; }
+.disclaimer {
+  margin-top:26px; padding:16px 20px; border-radius:14px; background:var(--orange-soft);
+  color:var(--orange); font-size:12.5px; line-height:1.75; font-weight:500;
+}
+@media (prefers-reduced-motion:reduce){ *{ animation-duration:.01ms !important; transition-duration:.01ms !important; } }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="./index.html">
+      <span class="brand-dot"></span>
+      <span>
+        <span class="brand-name">三时段作战室</span><br>
+        <span class="brand-meta">盘前预判 · 盘中分析 · 盘后复盘</span>
+      </span>
+    </a>
+    <div class="segment" id="segPhase">
+      <button id="phPre">盘前</button>
+      <button id="phMid">盘中</button>
+      <button id="phPost">盘后</button>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+
+<!-- 时段横幅 -->
+<div class="phase-banner" id="phaseBanner">
+  <span class="pb-dot"></span>
+  <span class="pb-txt" id="pbTxt">—</span>
+  <span class="pb-clock" id="pbClock">—</span>
+</div>
+
+<!-- ══════════════ 盘前预判 ══════════════ -->
+<div id="viewPre">
+  <header class="hero fade vis">
+    <h1>盘前预判</h1>
+    <p class="sub">隔夜外围温度计 — 美股三大 · A50夜盘 · 日经 · 离岸人民币 · 港股 · 大宗商品，每日 08:45 定格</p>
+  </header>
+
+  <!-- 温度计 -->
+  <section class="card fade vis">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0z"/></svg></span>
+      <span>外围温度计</span>
+      <span class="badge2 b-gray" style="margin-left:auto;" id="gaugeTime">—</span>
+    </div>
+    <div class="gauge-wrap">
+      <svg class="gauge-svg" viewBox="0 0 280 158">
+        <defs>
+          <linearGradient id="ggRed" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#FF9500"/><stop offset="1" stop-color="#FF3B30"/>
+          </linearGradient>
+          <linearGradient id="ggGreen" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#34C759"/><stop offset="1" stop-color="#FF9500"/>
+          </linearGradient>
+        </defs>
+        <path d="M 30 140 A 110 110 0 0 1 250 140" fill="none" stroke="rgba(120,120,128,.14)" stroke-width="18" stroke-linecap="round"/>
+        <path id="gaugeArc" d="M 30 140 A 110 110 0 0 1 250 140" fill="none" stroke="url(#ggRed)" stroke-width="18" stroke-linecap="round" stroke-dasharray="0 999"/>
+        <line x1="140" y1="140" x2="140" y2="126" stroke="rgba(120,120,128,.45)" stroke-width="2.5" stroke-linecap="round"/>
+        <text x="30" y="156" font-size="11" fill="#8E8E93" text-anchor="middle" font-weight="600">-100 冷</text>
+        <text x="250" y="156" font-size="11" fill="#8E8E93" text-anchor="middle" font-weight="600">+100 暖</text>
+        <text x="140" y="88" text-anchor="middle" font-size="44" font-weight="800" fill="#1D1D1F" id="gaugeNum" letter-spacing="-1">—</text>
+        <text x="140" y="112" text-anchor="middle" font-size="12.5" fill="#6E6E73" id="gaugeSub" font-weight="600">等待数据</text>
+      </svg>
+      <div class="gauge-right">
+        <span class="gauge-label-hero g-mid" id="gaugeLabel">—</span>
+        <p class="gauge-hint" id="gaugeHint">温度计由隔夜美股(50%) · A50夜盘(30%) · 港股(10%) · 离岸人民币(10%)加权合成，反映外围对A股开盘的综合影响方向。</p>
+        <div class="gauge-meta" id="gaugeMeta"></div>
+      </div>
+    </div>
+    <div class="contrib-rows" id="contribRows"></div>
+    <div class="empty-note" id="gaugeNote" style="display:none;"></div>
+  </section>
+
+  <!-- 隔夜明细 -->
+  <section class="card fade vis">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10z"/><path d="M2 12h20"/></svg></span>
+      <span>隔夜外围明细</span>
+    </div>
+    <div class="q-rows" id="overnightRows"></div>
+    <div class="fund-note" style="margin-top:12px;">A50期货为新加坡夜盘收盘价（北京时间凌晨 05:15 定格），对A股开盘最直接；美股为美东收盘；离岸人民币贬值利空A股（温度计中反向计入）。</div>
+  </section>
+
+  <!-- 温度计历史验证 -->
+  <section class="card fade vis">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></span>
+      <span>温度计命中率 · 验证</span>
+      <span class="badge2 b-gray" style="margin-left:auto;" id="verifyStatsBadge">—</span>
+    </div>
+    <div class="chart-box"><div id="verifyChart" class="chart h240"></div></div>
+    <div class="fund-note">柱=当日盘前温度计，折线=上证实际开盘涨跌幅；开盘方向与温度计方向一致记为命中。样本随每日盘后复盘自动累积。</div>
+  </section>
+</div>
+
+<!-- ══════════════ 盘中分析 ══════════════ -->
+<div id="viewMid" class="hidden">
+  <header class="hero fade vis">
+    <h1>盘中分析</h1>
+    <p class="sub">情绪仪表 · 指数与板块资金流 · 时点演变 — 10:30 / 14:00 / 14:30 快照 + 竞价与盘中实时轮询</p>
+  </header>
+
+  <!-- 竞价雷达 (9:15-9:30 自动显示) -->
+  <section class="card fade vis" id="auctionCard" style="display:none;">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+      <span>竞价雷达</span>
+      <span class="badge2 b-blue" style="margin-left:auto;">实时 · 8秒轮询</span>
+    </div>
+    <div class="live-grid" id="auctionGrid"></div>
+    <div class="fund-note" style="margin-top:12px;">集合竞价时段（9:15-9:25 可撤单 / 9:20-9:25 不可撤单）三大指数匹配价；数据为浏览器直连腾讯行情，零token。</div>
+  </section>
+
+  <!-- 盘中实时指数 (9:30-15:10) -->
+  <section class="card fade vis" id="liveIdxCard" style="display:none;">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg></span>
+      <span>实时指数</span>
+      <span class="badge2 b-blue" style="margin-left:auto;">15秒轮询</span>
+    </div>
+    <div class="live-grid" id="liveIdxGrid"></div>
+  </section>
+
+  <!-- 情绪仪表 -->
+  <section class="card fade vis">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16V8"/><path d="M12 16v-5"/><path d="M17 16V5"/></svg></span>
+      <span>情绪仪表</span>
+      <span class="badge2 b-gray" style="margin-left:auto;" id="midTime">—</span>
+    </div>
+    <div id="midEmotion"></div>
+  </section>
+
+  <!-- 指数资金流 -->
+  <section class="card fade vis">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+      <span>三大指数主力资金</span>
+    </div>
+    <div class="kpi-grid" id="midIdxFund"></div>
+    <div class="fund-note" style="margin-top:12px;">主力=超大单+大单（东财口径），盘中为当日实时累计；负值代表净流出。板块口径与主看板一致。</div>
+  </section>
+
+  <!-- 板块资金流 -->
+  <section class="card fade vis">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>
+      <span>板块资金流 · Top10</span>
+    </div>
+    <div class="sector-rows" id="midSectorIn"></div>
+    <div class="q-group-title" style="margin-top:18px;">净流出 Top10</div>
+    <div class="sector-rows" id="midSectorOut"></div>
+    <div class="fund-note" style="margin-top:12px;">红=净流入 绿=净流出（A股色彩惯例）；条形长度按主力净额绝对值缩放。</div>
+  </section>
+
+  <!-- 时点演变 -->
+  <section class="card fade vis">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"/><path d="M5 20V9"/><path d="M12 20V4"/><path d="M19 20v-7"/></svg></span>
+      <span>当日时点演变</span>
+    </div>
+    <div class="chart-box"><div id="midSeries" class="chart h300"></div></div>
+    <div class="fund-note">涨停家数(柱)与封板率(线)随快照时点演变；快照时点 9:26 / 10:30 / 14:00 / 14:30 / 15:10。</div>
+  </section>
+
+  <!-- 尾盘异动 -->
+  <section class="card fade vis" id="tailCard" style="display:none;">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg></span>
+      <span>尾盘异动</span>
+      <span class="badge2 b-orange" style="margin-left:auto;">14:30 专项</span>
+    </div>
+    <div id="tailBody"></div>
+  </section>
+</div>
+
+<!-- ══════════════ 盘后复盘 ══════════════ -->
+<div id="viewPost" class="hidden">
+  <header class="hero fade vis">
+    <h1>盘后复盘</h1>
+    <p class="sub">当日三时段联动复盘 — 情绪定格 · 资金定格 · 信号表现 · 明日关注，15:10 管道自动生成</p>
+  </header>
+
+  <!-- 复盘总览 -->
+  <section class="card fade vis">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="m16.2 7.8-2.9 2.9"/><path d="M22 12h-4"/><path d="m16.2 16.2-2.9-2.9"/><path d="M12 22v-4"/><path d="m7.8 16.2 2.9-2.9"/><path d="M2 12h4"/><path d="m7.8 7.8 2.9 2.9"/><circle cx="12" cy="12" r="2.5"/></svg></span>
+      <span>复盘总览</span>
+      <span class="badge2 b-gray" style="margin-left:auto;" id="settleDate">—</span>
+    </div>
+    <div class="kpi-grid" id="postKpis"></div>
+    <div class="narr" id="postNarr"></div>
+  </section>
+
+  <!-- 温度计验证 -->
+  <section class="card fade vis">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+      <span>盘前预判 · 当日验证</span>
+    </div>
+    <div id="postVerify"></div>
+  </section>
+
+  <!-- 情绪演变 -->
+  <section class="card fade vis">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+      <span>情绪演变 · 全日时点</span>
+    </div>
+    <div class="chart-box"><div id="postEmoSeries" class="chart h300"></div></div>
+    <div id="postEmoNote" class="fund-note" style="margin-top:12px;"></div>
+  </section>
+
+  <!-- 信号表现 -->
+  <section class="card fade vis">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span>
+      <span>当日信号表现</span>
+      <span class="badge2 b-gray" style="margin-left:auto;" id="sigBadge">—</span>
+    </div>
+    <div class="tbl-scroll"><table class="lvl" id="sigTable">
+      <thead><tr><th>代码</th><th>名称</th><th>板级</th><th>状态</th><th>MA20</th><th>指数环境</th></tr></thead>
+      <tbody id="sigBody"></tbody>
+    </table></div>
+    <div class="fund-note">状态说明: open=已入场持有 · no_touch=未触及入场价 · skipped=信号资格未满足；MA20 与指数环境为 v2.0 影子跟踪标注（主口径信号仍以主看板为准）。</div>
+  </section>
+
+  <!-- 明日关注 -->
+  <section class="card fade vis">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"/><path d="M12 2v20"/><circle cx="12" cy="12" r="10"/></svg></span>
+      <span>明日关注</span>
+    </div>
+    <div id="tomorrowThemes"></div>
+    <div class="tbl-scroll"><table class="lvl" id="candTable">
+      <thead><tr><th>代码</th><th>名称</th><th>行业</th><th>板级</th><th>换手%</th><th>封单亿</th></tr></thead>
+      <tbody id="candBody"></tbody>
+    </table></div>
+    <div class="fund-note">明日候选为主看板黄金组合评分输出，入场仍需次日情绪闸门（昨日核心涨停45-150家等）全部满足。</div>
+  </section>
+</div>
+
+<div class="disclaimer">⚠ 本页为数据聚合与规则化复盘展示：温度计/情绪/资金流均为历史统计的条件概率观察，不构成投资建议，不预测未来价格；据此操作风险自担。数据快照由本机定时任务自动生成（08:45 / 10:30 / 14:00 / 14:30 / 15:10）。</div>
+
+<footer>
+  打板策略看板 · 三时段作战室 v1.0.0 · 数据源: 腾讯行情(JSONP实时) / 新浪外盘期货·外汇·指数 / 东财push2delay资金流 / 本地快照管道<br>
+  三时段联动 · Liquid Glass UI
+</footer>
+
+</div>
+
+<script src="./echarts.min.js"></script>
+<script src="./premarket_data.js?v=100"></script>
+<script src="./intraday_data.js?v=100"></script>
+<script src="./settle_data.js?v=100"></script>
+<script src="./three.js?v=100"></script>
+</body>
+</html>
