@@ -872,6 +872,43 @@ tr.pt-excluded-row td { opacity:.52; }
 .pt-reg .r-n small { font-size:11px; color:var(--tertiary); font-weight:600; }
 .pt-reg .r-sub { font-size:10.5px; color:var(--tertiary); margin-top:3px; line-height:1.5; }
 @media (max-width:720px){ .pt-regimes { grid-template-columns:1fr; } }
+
+/* ── v1.13.1 高分标的榜 · 补齐缺失样式 (遵循A股惯例: 正/流入红, 负/流出绿) ── */
+.sc-count { margin-left:auto; font-size:13px; font-weight:800; color:var(--primary); background:var(--primary-soft); padding:4px 11px; border-radius:11px; white-space:nowrap; }
+.sc-warn { margin:14px 0 4px; }
+.sc-warn-inner { display:block; background:var(--orange-soft); border-radius:13px; padding:12px 15px; font-size:12.5px; color:var(--secondary); line-height:1.75; }
+.sc-warn-inner b { color:var(--orange); }
+.sc-neg { color:var(--green); font-weight:800; }
+.sc-warn-tag { display:inline-block; margin-left:6px; padding:2px 9px; border-radius:9px; background:rgba(255,159,10,.16); color:var(--orange); font-size:11px; font-weight:700; white-space:nowrap; vertical-align:1px; }
+.sc-empty { padding:16px; text-align:center; color:var(--secondary); font-size:13px; background:var(--card2); border-radius:13px; margin:10px 0; }
+.sc-ring { display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:50%; }
+.sc-ring i { font-style:normal; font-size:12.5px; font-weight:800; background:var(--card); width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-variant-numeric:tabular-nums; }
+.sc-dims { display:flex; width:100%; height:5px; border-radius:2.5px; overflow:hidden; gap:1px; margin-bottom:5px; min-width:96px; }
+.sc-dims i { display:block; height:100%; border-radius:1px; }
+.sc-dim-cell { min-width:118px; }
+.sc-dim-num { display:block; font-size:11px; color:var(--tertiary); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.sc-dim-num em { font-style:normal; opacity:.55; font-size:10px; }
+.sc-name b { display:block; font-weight:600; }
+.sc-code { display:block; font-size:10.5px; color:var(--tertiary); font-variant-numeric:tabular-nums; margin-top:1px; }
+.sc-fund { display:inline-block; padding:2px 8px; border-radius:8px; font-size:11px; font-weight:700; white-space:nowrap; }
+.sc-fund.in { color:var(--red); background:var(--red-soft); }
+.sc-fund.out { color:var(--green); background:var(--green-soft); }
+.sc-sortable { cursor:pointer; user-select:none; }
+.sc-sortable:hover { color:var(--primary); }
+.sc-sub-row td { opacity:.72; }
+.sc-subbox { margin-top:14px; border-radius:14px; background:var(--card2); overflow:hidden; }
+.sc-subbox summary, .sc-sub-head { padding:12px 16px; font-size:13px; font-weight:700; cursor:pointer; list-style:none; display:block; color:var(--secondary); }
+.sc-subbox summary::-webkit-details-marker { display:none; }
+.sc-subbox summary::before, .sc-sub-head::before { content:'▸ '; color:var(--tertiary); }
+.sc-subbox[open] summary::before, .sc-subbox.open .sc-sub-head::before { content:'▾ '; }
+.sc-subbox .tbl-scroll { background:transparent; }
+.sc-sub-tag { float:right; font-size:10.5px; font-weight:700; color:var(--orange); background:rgba(255,159,10,.14); padding:2px 8px; border-radius:8px; }
+.sc-void { text-align:center; color:var(--tertiary); padding:26px 0; }
+.sc-foot-wrap { margin-top:18px; }
+.sc-hist-box { margin:0; }
+.sc-hist-chart { height:180px; }
+.dn { color:var(--green); }
+.zt { color:var(--red); font-weight:800; }
 @media (max-width: 900px) {
   .hero h1 { font-size: 40px; }
   .tl { grid-template-columns: 1fr; }
@@ -2907,7 +2944,7 @@ function renderPanels(){
         ${npStat(nM + '只', '评分≥75', nM ? 'var(--primary)' : '')}
         ${npStat((SCD.n_sub || 0) + '只', '候补 65-74分')}
         ${npStat(scBt.win5 != null ? scBt.win5.toFixed(2) + '%' : '—', 'hold5 历史胜率', (scBt.win5 ?? 50) >= 50 ? 'var(--green)' : 'var(--red)')}
-        ${npStat(scBt.net5 != null ? scBt.net5.toFixed(2) + '%' : '—', 'hold5 净收益', (scBt.net5 ?? 0) >= 0 ? 'var(--green)' : 'var(--red)')}
+        ${npStat(scBt.net5 != null ? scBt.net5.toFixed(2) + '%' : '—', 'hold5 净收益', (scBt.net5 ?? 0) >= 0 ? 'var(--red)' : 'var(--green)')}
       </div>
       ${scTop ? `<div class="np-rows">${npRow(
         `${scTop.n}<span class="code">${scTop.c}</span>`,
