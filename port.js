@@ -418,9 +418,10 @@ function validateRow(row) {
   const issues = [];
   let status = 'green';
   const up = (sev, msg) => { issues.push(msg); if (sev === 'red' || status !== 'red') status = sev === 'red' ? 'red' : (status === 'green' ? 'yellow' : status); };
-  /* 5 字段完整性 */
-  if (!row.qty || !row.cost || !row.price || !row.name) up('red', '关键字段缺失（名称/数量/成本/现价不全）');
-  if (row.qty <= 0 || row.cost <= 0 || row.price <= 0) up('red', '数值非法（数量/成本/现价必须为正）');
+  /* 5 字段完整性 (v1.4.0: 现价留空=分析阶段自动取实时行情, 不作为阻塞项) */
+  if (!row.qty || !row.cost || !row.name) up('red', '关键字段缺失（名称/数量/成本不全）');
+  if (row.qty <= 0 || row.cost <= 0) up('red', '数值非法（数量/成本必须为正）');
+  if (row.price != null && row.price <= 0) up('red', '数值非法（现价必须为正）');
   /* v1.4.0: 无市场前缀 → 未匹配代码, 提示手动补录(分析阶段必需) */
   if (!row.full) up('red', '未匹配代码 — 请在代码列手动填6位代码（如 588200 或 sh588200）');
   if (status === 'red') return { status, issues };
@@ -702,13 +703,17 @@ async function onFieldEdit(inp) {
   const v = inp.value.trim();
   if (f === 'name') {
     r.name = v;
-    /* v1.4.0: 名称编辑总是重新匹配 — 修正OCR错名后代码联动更新 */
+    /* v1.4.0: 名称编辑总是重新匹配 — 修正OCR错名后代码联动更新
+       但用户手动填写的代码(codeManual)优先, 不被名称匹配覆盖; 优先选与现有code一致的候选 */
     if (v.length >= 2) {
       try {
         const cands = await matchCandidates(v);
         if (cands.length) {
-          r.cands = cands; r.matched = cands[0]; r.code = cands[0].code; r.full = cands[0].full;
-          if (!r.name) r.name = cands[0].name;
+          r.cands = cands;
+          if (!(r.codeManual && r.code)) {
+            const hit = (r.code ? cands.find(c => c.code === r.code) : null) || cands[0];
+            r.matched = hit; r.code = hit.code; r.full = hit.full;
+          }
         }
       } catch (e) { /* 网络失败静默 */ }
       const ci = tr.querySelector('input[data-f="code"]');
@@ -716,15 +721,16 @@ async function onFieldEdit(inp) {
     }
   } else if (f === 'code') {
     /* v1.4.0: 代码手动补录 — 支持「588200」或「sh588200」式输入
-       解析6位代码后: ①smartbox反查(确定市场前缀+校验真实存在) ②失败本地前缀推断 */
+       解析6位代码后: ①smartbox反查(确定市场前缀+校验真实存在) ②失败本地前缀推断
+       手填代码标记codeManual, 后续名称编辑不覆盖用户意图 */
     const m = v.replace(/\s+/g, '').match(/^(sh|sz|bj)?(\d{6})$/i);
     if (!m) {
-      r.code = ''; r.full = ''; r.matched = null;
+      r.code = ''; r.full = ''; r.matched = null; r.codeManual = false;
       if (v) toast('代码格式：6位数字，可带 sh/sz/bj 前缀（如 588200 或 sh588200）');
     } else {
       const pfx = m[1] ? m[1].toLowerCase() : '';
       const code6 = m[2];
-      r.code = code6;
+      r.code = code6; r.codeManual = true;
       if (pfx) {
         r.full = pfx + code6; r.matched = { code: code6, full: r.full, name: r.name };
       } else {
