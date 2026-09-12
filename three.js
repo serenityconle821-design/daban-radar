@@ -8,7 +8,13 @@
            (60主/30前置/15尾盘)+攻防决策树(进攻/防守/观望/预警)+次日预判(明日中轨/支撑/压力)。
            数据: 日K(fqkline)+m60/m30/m15/m1(mkline)+实时quote+恒指, 全部浏览器直连腾讯零token
    v1.1.1: 修复明日中轨预估公式(分子需含今收+明收假设两个p, 原仅一个导致偏低约现价/20);
-           支撑/压力改以明日中轨为基准, 与次日预判口径一致 */
+           支撑/压力改以明日中轨为基准, 与次日预判口径一致
+   v1.1.2: 新增外弧预警第四通道(野人哥·P1, 独立AI方案合成): 价格创新高∧内部空头量占比抬升=表强实弱
+           空头bar(m5)=阴线(c<o)或假阳/冲高回收(c>=o且c<前收); S_d=当日空头bar量占比;
+           M5=近5完整日S_d均值 vs M5p=前5日; 新高=日内高>max(前19完整日收盘);
+           观察(黄)=新高∧今日S_d>1.10×M5 | 预警(橙)=新高∧M5>1.2×M5p
+           确认(红)=预警∧现价>=0.995×max(日内高,19日收盘高)·当日锁存防闪烁;
+           与div60/div30/div15并行独立不打架, 确认级进决策树「预警」层+风险点 */
 (function () {
 'use strict';
 
@@ -457,6 +463,7 @@ const RT = (function () {
     above: { since: null, ok: false },
     entry: { confirmed: false, price: null, time: null, broken: false },
     div60: { level: 'nodata' }, div30: { level: 'nodata' }, div15: { level: 'nodata' },
+    m5: null, arc: { level: 'nodata' },
     cross30: 0, preScore: null, dec: null,
   };
 
@@ -580,6 +587,60 @@ const RT = (function () {
     return { level: 'none' };
   }
 
+  /* ── P1-2: 外弧预警(野人哥) — 价格新高 ∧ 内部空头量占比抬升 = 表强实弱 ──
+     独立第四预警通道, 与MACD顶背离并行互不干扰。
+     空头bar(m5): 阴线(c<o) 或 假阳/冲高回收(c>=o 且 c<前收)
+     S_d = 当日空头bar成交量占比 | M5 = 近5完整日S_d均值 | M5p = 前5完整日均值
+     新高: 日内高 > max(前19完整日收盘)  级联: 确认(当日锁存) > 预警 > 观察 */
+  function arcCalc(p) {
+    if (!st.m5 || st.m5.length < 240 || !st.prev19 || !st.quote) { st.arc = { level: 'nodata' }; return; }
+    const byDay = new Map();
+    st.m5.forEach(r => {
+      const d = r.d.slice(0, 8);
+      if (!byDay.has(d)) byDay.set(d, []);
+      byDay.get(d).push(r);
+    });
+    const days = [...byDay.keys()].sort();
+    if (days.length < 6) { st.arc = { level: 'nodata' }; return; }
+    const today = days[days.length - 1];
+    const full = days.slice(0, -1);
+    const sOf = rows => {
+      let vb = 0, va = 0, prevC = null;
+      rows.forEach(r => {
+        if ((r.c < r.o) || (r.c >= r.o && prevC !== null && r.c < prevC)) vb += r.v;
+        va += r.v;
+        prevC = r.c;
+      });
+      return va > 0 ? vb / va : null;
+    };
+    const last5 = full.slice(-5).map(d => sOf(byDay.get(d))).filter(x => x !== null);
+    const prev5 = full.slice(-10, -5).map(d => sOf(byDay.get(d))).filter(x => x !== null);
+    if (last5.length < 3) { st.arc = { level: 'nodata' }; return; }
+    const M5 = last5.reduce((a, b) => a + b, 0) / last5.length;
+    const M5p = prev5.length >= 3 ? prev5.reduce((a, b) => a + b, 0) / prev5.length : null;
+    const sToday = sOf(byDay.get(today));
+    const maxC19 = Math.max.apply(null, st.prev19);
+    const nh = st.quote.high > maxC19;
+    const lift = M5p ? M5 / M5p : null;
+    const a0 = { level: 'none', sToday: sToday, m5: M5, m5p: M5p, lift: lift, nh: nh,
+      locked: false, lockDay: null };
+    /* 当日确认锁存(防闪烁): 确认后当日保持, 次日自动解除 */
+    if (st.arc && st.arc.locked && st.arc.lockDay === today) {
+      st.arc = Object.assign(a0, { level: 'confirmed', locked: true, lockDay: today });
+      return;
+    }
+    if (nh && lift !== null && lift > 1.2) {
+      if (p >= 0.995 * Math.max(st.quote.high, maxC19)) {
+        a0.level = 'confirmed'; a0.locked = true; a0.lockDay = today;
+      } else {
+        a0.level = 'warn';
+      }
+    } else if (nh && sToday !== null && M5 > 0 && sToday > M5 * 1.10) {
+      a0.level = 'watch';
+    }
+    st.arc = a0;
+  }
+
   /* ── 当日m1 → VWAP / 量比 / 5分钟桶 ── */
   function buildIntraday() {
     st.vwap = null; st.vr = null; st.buckets = []; st.activeDay = null;
@@ -641,6 +702,13 @@ const RT = (function () {
       return { act: '预警', conf, reasons: [
         hit[0] + '顶背离形成中 · 价格新高但DIF较前峰衰减' + R2((hit[1].drop || 0) * 100) + '%',
         '仓位上限降至50% · 若DIF死叉DEA升级为防守'] };
+    /* P1-2: 外弧确认级 → 预警(独立第四通道, 优先级低于MACD背离) */
+    if (st.arc && st.arc.level === 'confirmed')
+      return { act: '预警', conf, reasons: [
+        '外弧确认 · 价格新高但内部空头量占比抬升' +
+          (st.arc.m5 !== null && st.arc.lift !== null
+            ? '（近5日空头量占比' + R2(st.arc.m5 * 100) + '% · 为前5日的' + R2(st.arc.lift * 100) + '%）' : ''),
+        '表强实弱 · 仓位上限50% · 与MACD背离独立互不覆盖'] };
     if (Math.abs(p - ma) / ma <= 0.003 && st.cross30 >= 3)
       return { act: '观望', conf, reasons: [
         '中轨反复争夺 · 35分钟内穿越' + st.cross30 + '次',
@@ -695,6 +763,8 @@ const RT = (function () {
     st.div60 = divStatus(st.m60, p, liveBar);
     st.div30 = divStatus(st.m30, p, liveBar);
     st.div15 = isTail() ? divStatus(st.m15, p, liveBar) : { level: 'none' };
+    /* P1-2: 外弧预警(独立第四通道) */
+    arcCalc(p);
     /* 边界态: 近35分钟5分钟桶收盘相对中轨的翻转次数 */
     st.cross30 = 0;
     const bs = st.buckets.slice(-7);
@@ -769,6 +839,24 @@ const RT = (function () {
       (isTail() ? divP('15分钟', st.div15, '尾盘逃顶·当日级')
         : '<span class="badge2 b-gray">15分钟 · 14:30后启用</span><span class="badge2 b-gray">尾盘逃顶·当日级</span>') +
       '</div>';
+    /* P1-2: 外弧预警第四通道(野人哥) */
+    const arc = st.arc || { level: 'nodata' };
+    const ARCM = {
+      none: ['外弧无信号', 'b-gray'], watch: ['外弧观察', 'b-orange'],
+      warn: ['外弧预警', 'b-orange'], confirmed: ['外弧确认·表强实弱', 'b-red'],
+      nodata: ['外弧数据不足', 'b-gray'],
+    }[arc.level] || ['外弧 —', 'b-gray'];
+    const divActive = st.div60.level !== 'none' || st.div30.level !== 'none' || st.div15.level !== 'none';
+    const arcReso = divActive && (arc.level === 'warn' || arc.level === 'confirmed');
+    html += '<div class="rt-sub">外弧预警 · 量价结构第四通道 · 野人哥P1' +
+      (arcReso ? ' <span class="badge2 b-red">背离×外弧共振</span>' : '') + '</div>' +
+      '<div class="rt-div-row">' +
+      '<span class="badge2 ' + ARCM[1] + '">' + ARCM[0] + '</span>' +
+      (arc.sToday !== null ? '<span class="badge2 b-gray">今日空头量占比 ' + R2(arc.sToday * 100) + '%</span>' : '') +
+      (arc.m5 !== null ? '<span class="badge2 b-gray">近5日均 ' + R2(arc.m5 * 100) + '%</span>' : '') +
+      (arc.lift !== null ? '<span class="badge2 ' + (arc.lift > 1.2 ? 'b-orange' : 'b-gray') + '">抬升比 ' + R2(arc.lift * 100) + '%</span>' : '') +
+      (arc.nh ? '<span class="badge2 b-orange">日内高>19日收盘高</span>' : '') +
+      '</div>';
     /* 量能/VWAP/外围 */
     const vwapPill = st.vwap === null
       ? '<span class="badge2 b-gray">VWAP 待分时数据</span>'
@@ -799,6 +887,9 @@ const RT = (function () {
     const risks = [];
     if (st.div60.level === 'forming' || st.div60.level === 'confirmed') risks.push('顶背离延续风险');
     if (st.div30.level === 'forming') risks.push('30分钟背离前置信号');
+    if (st.arc && st.arc.level === 'watch') risks.push('外弧观察·新高但今日空头占比抬升');
+    if (st.arc && st.arc.level === 'warn') risks.push('外弧预警·空头占比5日抬升>1.2倍');
+    if (st.arc && st.arc.level === 'confirmed') risks.push('外弧确认·表强实弱');
     if (st.preScore !== null && st.preScore < 40) risks.push('外围温度计<40');
     if (st.quote.vol && st.yVol && st.quote.vol < st.yVol * 0.8) risks.push('量能萎缩 今/昨<0.8');
     html += '<div class="rt-div-row" style="margin-top:12px;">' +
@@ -829,6 +920,7 @@ const RT = (function () {
     try { st.m60 = await rtFetchMk('m60', 120); } catch (e) { /* 静默 */ }
     try { st.m30 = await rtFetchMk('m30', 120); } catch (e) { /* 静默 */ }
     try { st.m15 = await rtFetchMk('m15', 120); } catch (e) { /* 静默 */ }
+    try { st.m5 = await rtFetchMk('m5', 560); } catch (e) { /* 静默·外弧通道容错 */ }
   }
   async function dailyTick() {
     try { const x = await rtFetchDaily(); st.daily = x; st.prev19 = x.prev19; st.yVol = x.yVol; } catch (e) { /* 静默 */ }
@@ -841,6 +933,7 @@ const RT = (function () {
       rtFetchMk('m60', 120).then(x => { st.m60 = x; }).catch(() => {}),
       rtFetchMk('m30', 120).then(x => { st.m30 = x; }).catch(() => {}),
       rtFetchMk('m15', 120).then(x => { st.m15 = x; }).catch(() => {}),
+      rtFetchMk('m5', 560).then(x => { st.m5 = x; }).catch(() => {}),
     ]);
   }
   async function start() {

@@ -477,6 +477,41 @@ function calcPdLow(k) {
   };
 }
 
+/* ═══════════ 野人哥·多空比值估算 (P1-1, v1.3.0) ═══════════
+   《野人哥交易实战笔记》: 以 9010/8515/8020/7030 刻画个股多空力量结构。
+   口径与本地增量回测(p1_fusion_analysis, 178笔基准)完全一致:
+     win20 = 近20日上涨收盘占比 | vp = 阳线日均量/阴线日均量 | c vs MA20
+   档位: 9010=win≥.65∧vp≥1.2∧c>MA20 | 8515=win≥.55∧c>MA20
+         8020=win≥.45 | 7030=其余 (单调可解释, 不依赖未来数据)
+   定位: 独立结构识别标签, 不并入四维评分 — 教训: 评分与未来收益反向单调,
+   相位级动态仓位亦被证伪; 本卡片仅提示力量结构与战法匹配度。
+   回测背书: 8020档 2进3打板胜率 18.92% (n=37, Fisher p=0.0001),
+   剔除后全样本胜率 47.19%→54.61% (+7.42pp), 跨年方向一致(2024/2025均<20%)。 */
+function calcBullBear(k) {
+  if (!k || k.length < 70) return null;
+  const n = k.length;
+  let ups = 0, volUp = 0, volDn = 0, nUp = 0, nDn = 0;
+  for (let j = Math.max(1, n - 20); j < n; j++) {
+    if (k[j].c > k[j - 1].c) { ups++; volUp += k[j].v; nUp++; }
+    else { volDn += k[j].v; nDn++; }
+  }
+  const win20 = ups / 20;
+  const vp = (nUp && nDn && volDn > 0) ? (volUp / nUp) / (volDn / nDn) : 1;
+  const ma20 = k.slice(-20).reduce((a, r) => a + r.c, 0) / 20;
+  const c = k[n - 1].c;
+  let tier, label, mode;
+  if (win20 >= 0.65 && vp >= 1.2 && c > ma20) {
+    tier = '9010'; label = '极强单边'; mode = '龙头/连板持有为主，趋势跟随';
+  } else if (win20 >= 0.55 && c > ma20) {
+    tier = '8515'; label = '强趋势'; mode = '超短趋势/回撤做T';
+  } else if (win20 >= 0.45) {
+    tier = '8020'; label = '多空拉扯'; mode = '极限拉扯/低吸战法区间，打板接力慎入';
+  } else {
+    tier = '7030'; label = '分歧显著'; mode = '谨慎低吸/观望为主';
+  }
+  return { tier, label, mode, win20, vp, c, ma20, above: c > ma20, ups };
+}
+
 /* ═══════════ 操作建议合成 (v1.1.0 新增) ═══════════
    信号多空力量 + 综合评分 + 资金方向 + 量价关系 + 位阶位置 → 五档动作 + 入场/止损/目标/盈亏比 */
 function calcAdvice(sigs, score, lvl, fund, k, ind) {
@@ -749,6 +784,34 @@ async function diagnose(full) {
       }
     } else {
       pdCard.style.display = 'none';
+    }
+  }
+
+  /* 多空比值卡片 (P1-1, v1.3.0): 独立结构标签 — 8020档警示 / 强结构 / 分歧三态 */
+  const bb = calcBullBear(k);
+  const bbCard = $('bbCard');
+  if (bbCard) {
+    if (bb) {
+      bbCard.style.display = '';
+      const box = $('bbBox');
+      const bbFlag = $('bbFlag'), bbDims = $('bbDims'), bbNote = $('bbNote');
+      const ratioTxt = bb.tier.slice(0, 2) + ':' + bb.tier.slice(2);
+      bbDims.innerHTML = '近20日上涨收盘 <b>' + bb.ups + ' 天</b>（占比 ' + R2(bb.win20 * 100) + '%） · 阳/阴日均量比 <b>' + R2(bb.vp) + ' 倍</b> · 收盘' + (bb.above ? '<b>MA20 上方</b>' : 'MA20 下方');
+      if (bb.tier === '8020') {
+        box.className = 'pd-box';
+        bbFlag.textContent = '多空比值 ' + ratioTxt + ' · ' + bb.label + ' · 结构警示';
+        bbNote.textContent = '该档位在 2进3 打板回测中胜率仅 18.92%（n=37，Fisher p=0.0001），剔除后全样本胜率 +7.42pp，跨年方向一致；接力打板慎入，低吸/拉扯战法按各自纪律评估。本标签独立展示，不参与综合评分。';
+      } else if (bb.tier === '9010' || bb.tier === '8515') {
+        box.className = 'pd-box pass';
+        bbFlag.textContent = '多空比值 ' + ratioTxt + ' · ' + bb.label;
+        bbNote.textContent = '多方结构占优，适配「' + bb.mode + '」。独立结构识别标签，不参与综合评分。';
+      } else {
+        box.className = 'pd-box half';
+        bbFlag.textContent = '多空比值 ' + ratioTxt + ' · ' + bb.label;
+        bbNote.textContent = '「' + bb.mode + '」。该档位回测样本仅 5 笔，无统计结论，按常规纪律评估。独立展示，不参与综合评分。';
+      }
+    } else {
+      bbCard.style.display = 'none';
     }
   }
 
