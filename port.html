@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>持仓体检 · 晴雨气象台</title>
-<!-- port.html v1.0.0 持仓体检: 上传券商App截图 → 浏览器端OCR解析 → 六条算术自洽校验 → 晴雨气象台诊断引擎 → 三组分组体检报告
-     设计: iOS Liquid Glass(与主看板/诊断中心同构); OCR: tesseract.js@5 三参CDN; 数据: 腾讯JSONP + SITE_DATA快照
+<!-- port.html v1.1.0 持仓体检: 上传券商App截图 → 浏览器端OCR解析 → 六条算术自洽校验 → 晴雨气象台诊断引擎 → 三组分组体检报告
+     设计: iOS Liquid Glass(与主看板/诊断中心同构); OCR: tesseract.js@5 自托管./ocr/(fast语言包, 打开即预热); 数据: 腾讯JSONP + SITE_DATA快照
      声明: 全站信号观察, 不构成投资建议; 引擎口径与diag.js逐字一致, 生产文件零改动 -->
 <style>
 :root {
@@ -113,6 +113,17 @@ section.card { -webkit-backdrop-filter:var(--blur-card); backdrop-filter:var(--b
 .dz-ico svg { width:24px; height:24px; }
 .dz-main { font-size:16.5px; font-weight:700; }
 .dz-hint { font-size:12.5px; color:var(--tertiary); }
+/* OCR引擎预热徽标: warming琥珀脉动 / ready绿色 / fail红色 */
+.dz-warm {
+  margin-top:10px; display:inline-flex; align-items:center; gap:6px;
+  font-size:12px; font-weight:600; padding:5px 14px; border-radius:999px;
+  background:rgba(120,120,128,.10); color:var(--tertiary);
+  transition:background .3s, color .3s;
+}
+.dz-warm.warming { background:rgba(255,149,0,.12); color:#c77700; animation:warmPulse 1.6s ease-in-out infinite; }
+.dz-warm.ready { background:rgba(52,199,89,.13); color:#1e8e3e; }
+.dz-warm.fail { background:rgba(255,59,48,.10); color:#d70015; }
+@keyframes warmPulse { 0%,100%{opacity:1} 50%{opacity:.55} }
 #previewWrap { margin-top:16px; text-align:center; display:none; }
 #preview { max-height:260px; max-width:100%; border-radius:14px; box-shadow:0 8px 24px -8px rgba(15,23,42,.18); }
 .ocr-btn-row { margin-top:16px; display:flex; gap:12px; flex-wrap:wrap; }
@@ -307,7 +318,8 @@ section.card { -webkit-backdrop-filter:var(--blur-card); backdrop-filter:var(--b
     <div class="dropzone" id="dropzone">
       <div class="dz-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>
       <div class="dz-main">点击选择 或 拖拽截图到此处</div>
-      <div class="dz-hint">长截图自动压缩至1600px宽 · 首次识别约10-15秒（加载中文模型）</div>
+      <div class="dz-hint">长截图自动压缩至1600px宽</div>
+      <div class="dz-warm" id="ocrWarm">引擎待预热</div>
     </div>
     <input type="file" id="fileInput" accept="image/*" hidden>
     <div id="previewWrap"><img id="preview" alt="持仓截图预览"></div>
@@ -428,7 +440,7 @@ section.card { -webkit-backdrop-filter:var(--blur-card); backdrop-filter:var(--b
   <div class="disclaimer">⚠ 本页为量化信号展示：OCR结果需人工确认后进入诊断；所有分组/触发价/纪律均为历史规则的条件概率诊断，不构成投资建议，不预测未来价格；触发价锚定MA20/MA10/布林下轨/20日低点等均线与统计位（非预测），据此操作风险自担。数据口径：腾讯前复权日线 · 指标固定窗口 · 大盘相位来自15:10管道快照。</div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js" defer></script>
+<script src="./ocr/tesseract.min.js" defer></script>
 <script src="./data.js"></script>
 <script src="./health-core.js"></script>
 <script src="./port.js" defer></script>

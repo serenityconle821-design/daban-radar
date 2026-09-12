@@ -1,5 +1,5 @@
-/* port.js v1.0.0 — 持仓体检交互逻辑 (设计手册Problem 2/4/5落地)
-   模块: preprocess(canvas重采样/灰度/锐化) + ocr(tesseract.js@5三参CDN/预热/降级) +
+/* port.js v1.1.0 — 持仓体检交互逻辑 (设计手册Problem 2/4/5落地)
+   模块: preprocess(canvas重采样/灰度/锐化) + ocr(自托管fast语言包/打开即预热/降级) +
          parser(行Y聚类/约束搜索解析/六条算术自洽校验) + match(smartbox反查/ETF多候选) +
          ui(五步状态机/确认表格/报告渲染/localStorage历史)
    引擎: window.Health (health-core.js, 与diag.js口径逐字一致)
@@ -70,35 +70,64 @@ function loadImage(file) {
 }
 
 /* ═══════════════════ 模块2: OCR ═══════════════════
-   tesseract.js@5 三参显式CDN(core/lang/worker path), requestIdleCallback预热(不下载lang)
+   资源自托管 ./ocr/ (Cloudflare Pages 全球边缘节点, 免海外CDN慢链路):
+   worker/core(wasm)/fast语言包全部本地; fast版 chi_sim 1.7MB (best版12MB的1/7,
+   持仓表格为规整印刷体, fast识别足够)
+   预热: 页面打开即后台完整加载引擎(core+语言包), 用户点识别时已就绪
    降级: 连续2次置信度<0.6 或 单次>20s → 手动输入模式 */
+const OCR_BASE = new URL('./ocr/', document.baseURI).href;
 const OCR_CDN = {
-  workerPath: 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/worker.min.js',
-  corePath: 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5',
-  langPath: 'https://tessdata.projectnaptha.com/4.0.0_best',
+  workerPath: OCR_BASE + 'worker.min.js',
+  corePath: OCR_BASE,
+  langPath: OCR_BASE,
 };
 let ocrWorker = null, ocrLoading = null, warmupDone = false;
 
+/* 引擎预热状态显示(上传区徽标) */
+function setWarmBadge(txt, cls) {
+  const el = document.getElementById('ocrWarm');
+  if (el) { el.textContent = txt; el.className = 'dz-warm ' + (cls || ''); }
+}
 function getWorker() {
   if (ocrWorker) return Promise.resolve(ocrWorker);
   if (ocrLoading) return ocrLoading;
   ocrLoading = (async () => {
+    const STAGE = {
+      'loading tesseract core': '加载识别内核',
+      'initializing tesseract': '初始化引擎',
+      'loading language traineddata': '下载中文语言包',
+      'initializing api': '启动识别接口',
+    };
     const w = await Tesseract.createWorker('chi_sim+eng', 1, {
       ...OCR_CDN,
-      logger: (m) => { if (m.status === 'recognizing text' && m.progress != null) setStepMeta('ocr', Math.round(m.progress * 100) + '%'); },
+      logger: (m) => {
+        if (m.status === 'recognizing text' && m.progress != null) setStepMeta('ocr', Math.round(m.progress * 100) + '%');
+        else if (m.progress != null && m.status !== 'recognizing text') {
+          const label = STAGE[m.status] || m.status;
+          setWarmBadge('引擎预热中 · ' + label + ' ' + Math.round(m.progress * 100) + '%', 'warming');
+        }
+      },
     });
     ocrWorker = w;
+    setWarmBadge('✓ 引擎已就绪 · 点击即识别', 'ready');
     return w;
-  })();
+  })().catch((e) => {
+    ocrLoading = null; /* 失败可重试 */
+    setWarmBadge('引擎预热失败 · 可手动输入', 'fail');
+    throw e;
+  });
   return ocrLoading;
 }
-/* 预热: 空闲时创建worker但仅加载core, 不下载语言包(v5 createWorker带lang会直接拉lang,
-   预热改为仅加载脚本与worker骨架 → 首图时才真正拉模型) */
+/* 预热: 页面空闲后(约1s)即完整加载引擎(core+fast语言包约8MB),
+   用户浏览页面/选截图的同时后台完成, 点「开始识别」零等待 */
 function warmup() {
   if (warmupDone) return;
   warmupDone = true;
-  const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 1200));
-  idle(() => { /* 仅标记, 真正的worker在用户点击识别时创建(下载量~15MB不预拉) */ });
+  setWarmBadge('引擎预热中…', 'warming');
+  const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 1000));
+  idle(() => {
+    getWorker().catch(() => { /* 预热失败不弹错, 用户点识别时才真正降级 */ });
+  });
 }
 async function ocrRecognize(canvas, timeoutMs) {
   const w = await getWorker();
@@ -117,8 +146,13 @@ function extractLines(result) {
     for (const b of data.blocks) {
       for (const p of (b.paragraphs || [])) {
         for (const l of (p.lines || [])) {
-          if (l.text && l.bbox) out.push({ text: l.text, bbox: l.bbox, conf: l.confidence != null ? l.confidence : 0.8 });
-        }
+            /* v5 line.confidence 为0-100制, 规范化到0-1(>1视为百分制) */
+            if (l.text && l.bbox) {
+              const raw = l.confidence;
+              const conf = raw == null ? 0.8 : (raw > 1 ? raw / 100 : raw);
+              out.push({ text: l.text, bbox: l.bbox, conf });
+            }
+          }
       }
     }
   }
