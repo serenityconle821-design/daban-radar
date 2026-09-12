@@ -1,13 +1,18 @@
-/* port.js v1.4.0 — 持仓体检交互逻辑 (设计手册Problem 2/4/5落地)
+/* port.js v1.5.0 — 持仓体检交互逻辑 (设计手册Problem 2/4/5落地)
    模块: preprocess(canvas重采样/灰度/锐化) + ocr(自托管fast语言包/打开即预热/降级) +
          parser(双粒度聚类+三通道候选+区域竞争: L1单行/SEG名称锚定段/VP垂直价格对) +
          match(smartbox反查/ETF多候选) + ui(五步状态机/确认表格/报告渲染/localStorage历史)
-   v1.4.0: 成本/现价保留原始精度(≤3位小数, ETF如1.082不再被R2截断, 盈亏计算完全按用户持仓);
-           代码列改为可编辑(支持6位代码或sh588200式带前缀, smartbox反查市场前缀, 失败本地推断);
-           名称编辑总是重新匹配(修正OCR错名后代码联动)
-   v1.3.0: 修复垂直布局(成本上/现价下)识别率低 — 滑窗兜底改为始终启用+竞争去重;
-           报告新增「操作指令+野人两板块建议」行(动作+均线具体数值, 对齐diag.js)
-   引擎: window.Health (health-core.js, 与diag.js口径逐字一致)
+   v1.5.0: 职责边界明确 — OCR只识别名称/数量/成本价, 现价一律实时行情自动匹配:
+           ① 名称/代码双向智能匹配: 输入≥2字符实时下拉候选(名称·代码·市场, 点击/键盘选择),
+             输入代码自动带出名称(修复原只改数据不刷新输入框的bug), 输入名称自动带出代码;
+           ② 确认表现价/市值/盈亏%列全部改实时计算(识别后并发拉行情, 30s缓存),
+             OCR现价仅用于消歧与偏差核对(与实时偏差>2%黄标提示标的可能选错);
+           ③ KPI当日盈亏标注数据时点(截至xx收盘, 消除周末对照截图困惑),
+             明细行新增当日盈亏块((现价-昨收)×数量+涨跌幅);
+           ④ 报告盈亏口径统一quote.price实时价 vs 用户成本(与市值同源, 数据源已验证quote==kline)
+   v1.4.0: 成本保留原始精度(≤3位小数, ETF如1.082); 代码列可编辑(6位代码或sh588200式, 反查前缀)
+   v1.3.0: 修复垂直布局(成本上/现价下)识别率低; 报告「操作指令+野人两板块建议」行
+   引擎: window.Health (health-core.js v1.2.0, 与diag.js口径逐字一致)
    声明: 条件概率诊断, 非预测, 不构成投资建议 */
 (function () {
 'use strict';
@@ -23,6 +28,144 @@ function fmtPx(x) {
   let s = Number(x).toFixed(3);
   if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, '');
   return s === '-0' ? '0' : s;
+}
+
+/* ═══════════ v1.5.0: 实时行情层 ═══════════
+   职责边界: OCR只识别名称/数量/成本价; 现价/市值/盈亏/分析全部实时数据
+   30s缓存避免确认表回填与报告引擎重复拉取 */
+const quoteCache = {};
+async function getLiveQuote(full) {
+  if (!full) return null;
+  const hit = quoteCache[full];
+  if (hit && Date.now() - hit.ts < 30000) return hit.q;
+  try {
+    const q = await H.fetchQuote(full);
+    quoteCache[full] = { q, ts: Date.now() };
+    return q;
+  } catch (e) { return hit ? hit.q : null; }
+}
+/* 行情数据时点: quote.time(yyyymmddhhmmss) → 「截至09-11收盘」 */
+function quoteAsOf(quotes) {
+  for (const q of quotes) {
+    if (q && q.time && /^\d{14}$/.test(q.time)) {
+      const mm = q.time.slice(4, 6), dd = q.time.slice(6, 8);
+      return '截至' + mm + '-' + dd + '收盘';
+    }
+  }
+  return '';
+}
+
+/* ═══════════ v1.5.0: 名称/代码双向智能匹配下拉 ═══════════
+   输入≥2字符(350ms防抖) → smartbox候选 → fixed定位下拉(名称·代码·市场)
+   点击/Enter选中 → 名称+代码+前缀全填充 → 拉实时行情回填现价
+   挂body避免.tbl-wrap overflow裁剪; 同一时间仅一个下拉 */
+let acBox = null, acCtx = null, acTimer = null, acHi = -1;
+function closeAc() {
+  if (acBox) { acBox.remove(); acBox = null; acCtx = null; acHi = -1; }
+  if (acTimer) { clearTimeout(acTimer); acTimer = null; }
+}
+function openAc(inp, r, tr) {
+  const v = inp.value.trim();
+  if (v.length < 2) { closeAc(); return; }
+  acCtx = { inp, r, tr };
+  acTimer = setTimeout(async () => {
+    let cands = [];
+    try { cands = await searchAll(v); } catch (e) { return; }
+    if (!acCtx || acCtx.inp !== inp || inp.value.trim() !== v) return; /* 已切换目标 */
+    if (!cands.length) { closeAc(); return; }
+    showAc(cands.slice(0, 8));
+  }, 350);
+}
+function showAc(cands) {
+  closeAc();
+  const rect = acCtx.inp.getBoundingClientRect();
+  acBox = document.createElement('div');
+  acBox.className = 'ac-drop';
+  acBox.style.left = Math.max(8, Math.min(rect.left, innerWidth - 336)) + 'px';
+  acBox.style.top = (rect.bottom + 6) + 'px';
+  acBox.style.width = 'min(320px, calc(100vw - 24px))';
+  acBox.__cands = cands;
+  cands.forEach((c, i) => {
+    const it = document.createElement('div');
+    it.className = 'ac-item';
+    it.innerHTML = '<span class="ac-name">' + esc(c.name) + '</span><span class="ac-code">' + c.full.toUpperCase() + '</span>';
+    /* mousedown先于blur(真实点击)保住dropPickedAt时序; click兜底(触屏/自动化场景) — applyCandidate幂等, 二次进入acCtx已清直接返回 */
+    const pick = (ev) => { ev.preventDefault(); applyCandidate(c); };
+    it.addEventListener('mousedown', pick);
+    it.addEventListener('click', pick);
+    acBox.appendChild(it);
+  });
+  document.body.appendChild(acBox);
+  acHi = -1;
+}
+function acMove(d) {
+  if (!acBox) return;
+  const items = [...acBox.children];
+  if (!items.length) return;
+  acHi = (acHi + d + items.length) % items.length;
+  items.forEach((el, i) => el.classList.toggle('hi', i === acHi));
+  items[acHi].scrollIntoView({ block: 'nearest' });
+}
+async function applyCandidate(c) {
+  const { r, tr } = acCtx || {};
+  closeAc();
+  if (!r || !tr) return;
+  r.name = c.name; r.code = c.code; r.full = c.full;
+  r.matched = c; r.cands = [c]; r.codeManual = false; r.dropPickedAt = Date.now();
+  const ni = tr.querySelector('input[data-f="name"]'), ci = tr.querySelector('input[data-f="code"]');
+  if (ni) ni.value = c.name;
+  if (ci) { ci.value = c.code; ci.title = c.full.toUpperCase() + '（已匹配）'; }
+  await fillLive(r, tr);
+}
+/* 拉实时行情回填行内显示: 现价/市值/盈亏% + 与OCR价偏差核对(选错标的黄标) */
+async function fillLive(r, tr) {
+  r.liveLoading = true;
+  const pxTd = tr.querySelector('td[data-td="px"]'), mvTd = tr.querySelector('td[data-td="mv"]'), pnlTd = tr.querySelector('td[data-td="pnl"]');
+  if (pxTd) pxTd.textContent = '…';
+  const q = await getLiveQuote(r.full);
+  r.liveLoading = false;
+  if (!q) {
+    if (pxTd) pxTd.textContent = r.price != null ? fmtPx(r.price) : '—';
+    return;
+  }
+  r.livePrice = q.price; r.livePrev = q.prevClose; r.liveName = q.name;
+  if (r.price != null && r.price > 0 && Math.abs(q.price - r.price) / r.price > 0.02) {
+    r.liveWarn = '识别现价' + fmtPx(r.price) + '与实时' + fmtPx(q.price) + '偏差>' + '2% — 请核对名称是否选对标的';
+  } else r.liveWarn = null;
+  refreshLiveCells(r, tr);
+  const res = validateRow(r);
+  r.status = res.status; r.issues = res.issues;
+  tr.className = r.status === 'red' ? 'row-err' : r.status === 'yellow' ? 'row-warn' : '';
+  const badgeTd = tr.querySelector('td:nth-child(8)');
+  if (badgeTd) badgeTd.innerHTML = statusBadge(r);
+}
+/* 确认表实时列刷新: 现价 | 市值=现价×数量 | 盈亏%=(现价/成本-1)×100 */
+function refreshLiveCells(r, tr) {
+  const px = r.livePrice != null ? r.livePrice : r.price;
+  const pxTd = tr && tr.querySelector('td[data-td="px"]');
+  const mvTd = tr && tr.querySelector('td[data-td="mv"]');
+  const pnlTd = tr && tr.querySelector('td[data-td="pnl"]');
+  if (pxTd) pxTd.textContent = r.livePrice != null ? fmtPx(r.livePrice) : (r.price != null ? fmtPx(r.price) + '*' : '—');
+  if (mvTd) mvTd.textContent = (px != null && r.qty > 0) ? fmtNum(px * r.qty, 2) : '—';
+  if (pnlTd) {
+    if (px != null && r.cost > 0) {
+      const pv = (px / r.cost - 1) * 100;
+      pnlTd.textContent = R2(pv) + '%';
+      pnlTd.style.color = pv >= 0 ? ARED : AGREEN;
+    } else { pnlTd.textContent = '—'; pnlTd.style.color = ''; }
+  }
+}
+/* 智能输入框: input防抖下拉 + keydown键盘导航 + blur自动匹配兜底 */
+function bindSmartInput(inp, r, tr) {
+  inp.addEventListener('input', () => { closeAc(); openAc(inp, r, tr); });
+  inp.addEventListener('keydown', (e) => {
+    if (!acBox) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); acMove(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); acMove(-1); }
+    else if (e.key === 'Enter' && acHi >= 0 && acBox.__cands) { e.preventDefault(); applyCandidate(acBox.__cands[acHi]); }
+    else if (e.key === 'Escape') closeAc();
+  });
+  inp.addEventListener('blur', () => setTimeout(closeAc, 200));
 }
 
 /* ═══════════════════ 模块1: 预处理 ═══════════════════
@@ -412,36 +555,37 @@ function parseScreenshot(lines) {
 }
 
 /* ═══════════════════ 模块4: 六条算术自洽校验 ═══════════════════ */
-/* row: {name, code, full, qty, cost, price, mv, pnlPct, dayPnl}
-   返回 {status: 'green|yellow|red', issues: []} — 设计手册Problem 2容差 */
+/* row: {name, code, full, qty, cost, price, mv, pnlPct, livePrice, liveWarn}
+   返回 {status: 'green|yellow|red', issues: []} — 设计手册Problem 2容差
+   v1.5.0: 现价已非用户输入(实时行情), OCR价仅作消歧; 新增实时偏差黄标(选错标的预警) */
 function validateRow(row) {
   const issues = [];
   let status = 'green';
   const up = (sev, msg) => { issues.push(msg); if (sev === 'red' || status !== 'red') status = sev === 'red' ? 'red' : (status === 'green' ? 'yellow' : status); };
-  /* 5 字段完整性 (v1.4.0: 现价留空=分析阶段自动取实时行情, 不作为阻塞项) */
+  /* 5 字段完整性 (v1.5.0: 现价自动实时, 不校验) */
   if (!row.qty || !row.cost || !row.name) up('red', '关键字段缺失（名称/数量/成本不全）');
   if (row.qty <= 0 || row.cost <= 0) up('red', '数值非法（数量/成本必须为正）');
-  if (row.price != null && row.price <= 0) up('red', '数值非法（现价必须为正）');
-  /* v1.4.0: 无市场前缀 → 未匹配代码, 提示手动补录(分析阶段必需) */
-  if (!row.full) up('red', '未匹配代码 — 请在代码列手动填6位代码（如 588200 或 sh588200）');
+  if (row.price != null && row.price <= 0) up('yellow', '识别现价异常（不影响分析，现价按实时行情）');
+  /* v1.5.0: 未匹配代码 → 提示(名称或代码列输入即自动匹配) */
+  if (!row.full) up('red', '未匹配代码 — 在名称或代码列输入即可自动匹配（名称→代码 / 代码→名称双向）');
+  /* v1.5.0: OCR识别现价 vs 实时价偏差>2% → 标的可能选错, 黄标核对 */
+  if (row.liveWarn) up('yellow', row.liveWarn);
   if (status === 'red') return { status, issues };
-  /* 1 市值一致性 V ≈ P×Q ±2% */
-  if (row.mv != null && row.mv > 0) {
+  /* 1 市值一致性 V ≈ P×Q ±2% (OCR截图市值, 仅在解析出时校验数量) */
+  if (row.mv != null && row.mv > 0 && row.price != null && row.price > 0) {
     const Vcalc = row.price * row.qty;
     const dev = Math.abs(row.mv - Vcalc) / Vcalc;
-    if (dev > 0.02) up('yellow', '市值校验偏差' + R2(dev * 100) + '%（现价×数量 ≠ 市值，请核对数量或市值单位是否为万）');
+    if (dev > 0.02) up('yellow', '截图市值校验偏差' + R2(dev * 100) + '%（现价×数量 ≠ 市值，请核对数量是否识别正确）');
   }
-  /* 2 盈亏比例 R ≈ (P/C-1)×100% ±0.3pp */
-  if (row.pnlPct != null) {
+  /* 2 盈亏比例 R ≈ (P/C-1)×100% ±0.3pp (OCR截图盈亏%, 仅在解析出时校验成本/现价) */
+  if (row.pnlPct != null && row.price != null && row.price > 0) {
     const Rcalc = (row.price / row.cost - 1) * 100;
     const dev = Math.abs(row.pnlPct - Rcalc);
-    if (dev > 0.3) up('yellow', '盈亏比校验偏差' + R2(dev) + 'pp（截图盈亏' + R2(row.pnlPct) + '% vs 计算值' + R2(Rcalc) + '%，请核对成本/现价）');
+    if (dev > 0.3) up('yellow', '截图盈亏' + R2(row.pnlPct) + '% vs 计算值' + R2(Rcalc) + '%（请核对成本/数量是否识别正确）');
   }
-  /* 3 当日盈亏 D ≈ (P-P_prev)×Q ±3%或±1元 — P_prev由实时行情昨收补, 此处跳过(行情阶段校验) */
   /* 4 数值合法性(位数/量级) */
   if (row.qty != null && row.qty > 5e7) up('yellow', '持仓数量异常（>5000万股，请核对单位）');
-  if (row.price != null && row.price > 10000) up('yellow', '现价异常（A股主板<10000元，请核对是否抓到市值）');
-  /* 6 代码与名称匹配 → match阶段处理 */
+  if (row.price != null && row.price > 10000) up('yellow', '识别现价异常（主板<10000元，可能抓到市值，不影响分析）');
   return { status, issues };
 }
 
@@ -556,7 +700,7 @@ els.btnManual.addEventListener('click', () => {
   reviewRows = [emptyRow()];
   renderConfirmTable();
   showSection('confirm');
-  toast('手动输入模式：填名称后失焦自动匹配代码，或直接填6位代码');
+  toast('手动输入模式：名称列输入名称或代码（≥2字符出候选下拉），现价/市值自动取实时行情');
 });
 function emptyRow() {
   return { name: '', code: '', full: '', cands: [], qty: null, cost: null, price: null, mv: null, pnlPct: null, status: 'red', issues: ['手动输入行'], manual: true };
@@ -658,25 +802,34 @@ els.btnOcr.addEventListener('click', async () => {
 /* ── 确认表格 ── */
 els.btnAddRow.addEventListener('click', () => { reviewRows.push(emptyRow()); renderConfirmTable(); });
 function renderConfirmTable() {
+  closeAc();
   els.editBody.innerHTML = '';
   reviewRows.forEach((r, i) => {
     const tr = document.createElement('tr');
     tr.className = r.status === 'red' ? 'row-err' : r.status === 'yellow' ? 'row-warn' : '';
-    /* v1.4.0: 代码列改为可编辑(6位代码或带sh/sz/bj前缀), 匹配失败可手动补录 */
+    /* v1.5.0: 现价/市值/盈亏% 改实时单元格(数据源自动匹配, 非输入);
+       名称/代码框均支持智能下拉(输入名称匹配代码, 输入代码带出名称) */
     tr.innerHTML =
-      '<td class="cell-name"><input class="inp" data-f="name" value="' + esc(r.name) + '" placeholder="名称/代码"></td>' +
-      '<td class="cell-code"><input class="inp' + fldCls(r, 'code') + '" data-f="code" value="' + esc(r.code || '') + '" placeholder="6位代码" inputmode="text" style="min-width:86px;" title="' + esc(r.full ? r.full.toUpperCase() + '（已匹配）' : '未匹配：填6位代码或sh588200式前缀') + '"></td>' +
+      '<td class="cell-name"><input class="inp' + fldCls(r, 'name') + '" data-f="name" value="' + esc(r.name) + '" placeholder="名称或代码" autocomplete="off"></td>' +
+      '<td class="cell-code"><input class="inp' + fldCls(r, 'code') + '" data-f="code" value="' + esc(r.code || '') + '" placeholder="6位代码" inputmode="text" style="min-width:86px;" autocomplete="off" title="' + esc(r.full ? r.full.toUpperCase() + '（已匹配）' : '输入名称或代码自动匹配') + '"></td>' +
       '<td><input class="inp' + fldCls(r, 'qty') + '" data-f="qty" inputmode="numeric" value="' + (r.qty != null ? r.qty : '') + '"></td>' +
       '<td><input class="inp' + fldCls(r, 'cost') + '" data-f="cost" inputmode="decimal" value="' + fmtPx(r.cost) + '"></td>' +
-      '<td><input class="inp' + fldCls(r, 'price') + '" data-f="price" inputmode="decimal" value="' + fmtPx(r.price) + '" placeholder="留空自动取实时"></td>' +
-      '<td class="cell-mv" data-td="mv">' + (r.mv != null ? fmtNum(r.mv, 2) : '—') + '</td>' +
-      '<td class="cell-pnl" data-td="pnl">' + (r.pnlPct != null ? R2(r.pnlPct) + '%' : '—') + '</td>' +
+      '<td class="cell-px" data-td="px" title="实时行情价">' + (r.liveLoading ? '…' : (r.livePrice != null ? fmtPx(r.livePrice) : (r.price != null ? fmtPx(r.price) + '*' : '—'))) + '</td>' +
+      '<td class="cell-mv" data-td="mv">' + ((r.livePrice != null || r.price != null) && r.qty > 0 ? fmtNum((r.livePrice != null ? r.livePrice : r.price) * r.qty, 2) : '—') + '</td>' +
+      '<td class="cell-pnl" data-td="pnl">' + ((r.livePrice != null || r.price != null) && r.cost > 0 ? R2(((r.livePrice != null ? r.livePrice : r.price) / r.cost - 1) * 100) + '%' : '—') + '</td>' +
       '<td>' + statusBadge(r) + '</td>' +
       '<td><button class="icon-btn" data-del="' + i + '" title="删除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></td>';
     els.editBody.appendChild(tr);
+    /* 已匹配行: 实时行情回填(现价/市值/盈亏%) */
+    if (r.full && !r.livePrice && !r.liveLoading && !r.liveDone) { r.liveDone = true; fillLive(r, tr); }
   });
   /* 事件绑定 */
   els.editBody.querySelectorAll('input[data-f]').forEach(inp => {
+    const tr = inp.closest('tr');
+    const idx = [...els.editBody.children].indexOf(tr);
+    const r = reviewRows[idx];
+    if (!r) return;
+    if (f0(inp) === 'name' || f0(inp) === 'code') bindSmartInput(inp, r, tr);
     inp.addEventListener('change', () => onFieldEdit(inp));
     inp.addEventListener('blur', () => onFieldEdit(inp));
   });
@@ -684,6 +837,7 @@ function renderConfirmTable() {
     btn.addEventListener('click', () => { reviewRows.splice(+btn.dataset.del, 1); renderConfirmTable(); });
   });
 }
+function f0(inp) { return inp.dataset.f; }
 function fldCls(r, f) {
   if (r.status === 'red' && ['name', 'qty', 'cost', 'code'].includes(f)) return ' err';
   if (r.status === 'yellow' && ['cost', 'price', 'qty'].includes(f)) return ' warn';
@@ -701,57 +855,70 @@ async function onFieldEdit(inp) {
   if (!r) return;
   const f = inp.dataset.f;
   const v = inp.value.trim();
+  /* 下拉刚选中800ms内跳过blur自动匹配(避免覆盖用户明确选择) */
+  if (r.dropPickedAt && Date.now() - r.dropPickedAt < 800) { r.dropPickedAt = 0; return; }
+  /* change+blur连触防重入(400ms) */
+  if (r._lastF === f && Date.now() - (r._lastT || 0) < 400) return;
+  r._lastF = f; r._lastT = Date.now();
   if (f === 'name') {
     r.name = v;
-    /* v1.4.0: 名称编辑总是重新匹配 — 修正OCR错名后代码联动更新
-       但用户手动填写的代码(codeManual)优先, 不被名称匹配覆盖; 优先选与现有code一致的候选 */
-    if (v.length >= 2) {
+    /* v1.5.0: 名称→代码自动匹配(下拉未交互时blur兜底); codeManual手填代码不被覆盖 */
+    if (v.length >= 2 && !(r.codeManual && r.code)) {
       try {
         const cands = await matchCandidates(v);
+        if (Date.now() - (r.dropPickedAt || 0) < 1500) return; /* await期间用户已从下拉选择, 不覆盖 */
         if (cands.length) {
           r.cands = cands;
-          if (!(r.codeManual && r.code)) {
-            const hit = (r.code ? cands.find(c => c.code === r.code) : null) || cands[0];
-            r.matched = hit; r.code = hit.code; r.full = hit.full;
-          }
+          const hit = (r.code ? cands.find(c => c.code === r.code) : null) || cands[0];
+          r.matched = hit; r.code = hit.code; r.full = hit.full;
+          const ci = tr.querySelector('input[data-f="code"]');
+          if (ci) { ci.value = hit.code; ci.title = hit.full.toUpperCase() + '（已匹配）'; }
+          r.liveDone = true; fillLive(r, tr);
         }
       } catch (e) { /* 网络失败静默 */ }
-      const ci = tr.querySelector('input[data-f="code"]');
-      if (ci && r.code) { ci.value = r.code; ci.title = r.full ? r.full.toUpperCase() + '（已匹配）' : ''; }
     }
   } else if (f === 'code') {
-    /* v1.4.0: 代码手动补录 — 支持「588200」或「sh588200」式输入
-       解析6位代码后: ①smartbox反查(确定市场前缀+校验真实存在) ②失败本地前缀推断
-       手填代码标记codeManual, 后续名称编辑不覆盖用户意图 */
+    /* v1.5.0: 代码→名称自动带出(修复原只改数据不刷新输入框) + 实时行情回填 */
     const m = v.replace(/\s+/g, '').match(/^(sh|sz|bj)?(\d{6})$/i);
     if (!m) {
       r.code = ''; r.full = ''; r.matched = null; r.codeManual = false;
-      if (v) toast('代码格式：6位数字，可带 sh/sz/bj 前缀（如 588200 或 sh588200）');
+      r.livePrice = null; r.liveWarn = null;
+      if (v) toast('代码格式：6位数字，可带 sh/sz/bj 前缀（如 588200 或 sh588200），或直接输入名称');
     } else {
       const pfx = m[1] ? m[1].toLowerCase() : '';
       const code6 = m[2];
       r.code = code6; r.codeManual = true;
+      let matchedName = '';
       if (pfx) {
         r.full = pfx + code6; r.matched = { code: code6, full: r.full, name: r.name };
       } else {
         let ok = false;
         try {
           const cands = await searchAll(code6);
+          if (Date.now() - (r.dropPickedAt || 0) < 1500) return; /* await期间用户已从下拉选择, 不覆盖 */
           const hit = cands.find(c => c.code === code6);
           if (hit) {
             r.full = hit.full; r.matched = hit; r.cands = cands;
-            if (!r.name) r.name = hit.name;
-            ok = true;
+            if (!r.name || r.name.length < 2) r.name = hit.name;
+            matchedName = hit.name; ok = true;
           }
         } catch (e) { /* 网络失败走本地推断 */ }
         if (!ok) { r.full = guessMkt(code6) + code6; r.matched = { code: code6, full: r.full, name: r.name }; }
       }
+      /* 名称输入框同步显示(输入代码自动匹配名称) */
+      const ni = tr.querySelector('input[data-f="name"]');
+      if (ni && matchedName && ni.value.trim() !== matchedName) ni.value = r.name;
+      r.liveDone = true; fillLive(r, tr);
     }
     const ci = tr.querySelector('input[data-f="code"]');
-    if (ci) ci.title = r.full ? r.full.toUpperCase() + '（已匹配）' : '未匹配：填6位代码或sh588200式前缀';
-  } else if (f === 'qty') { r.qty = v ? parseInt(v.replace(/[^\d]/g, ''), 10) || null : null; }
-  else if (f === 'cost') { r.cost = v ? parseFloat(v) || null : null; }
-  else if (f === 'price') { r.price = v ? parseFloat(v) || null : null; }
+    if (ci) ci.title = r.full ? r.full.toUpperCase() + '（已匹配）' : '输入名称或代码自动匹配';
+  } else if (f === 'qty') {
+    r.qty = v ? parseInt(v.replace(/[^\d]/g, ''), 10) || null : null;
+    refreshLiveCells(r, tr);
+  } else if (f === 'cost') {
+    r.cost = v ? parseFloat(v) || null : null;
+    refreshLiveCells(r, tr);
+  }
   const res = validateRow(r);
   r.status = res.status; r.issues = res.issues;
   tr.className = r.status === 'red' ? 'row-err' : r.status === 'yellow' ? 'row-warn' : '';
@@ -773,9 +940,9 @@ els.btnRun.addEventListener('click', async () => {
   /* 过滤有效行 */
   const valid = reviewRows.filter(r => r.full && r.qty > 0 && r.cost > 0 && r.name);
   if (!valid.length) { toast('至少需要一行完整数据（名称+代码+持仓+成本），红标行请先修正'); return; }
-  /* v1.4.0: 未匹配代码的行给出明确指引(代码列现可手动填写) */
+  /* v1.5.0: 未匹配代码的行给出明确指引(名称/代码列输入即自动匹配) */
   const noCode = reviewRows.filter(r => !r.full && r.name);
-  if (noCode.length) toast('「' + noCode.map(r => r.name).join('、') + '」未匹配代码已跳过 — 在其代码列手动填6位代码即可纳入分析');
+  if (noCode.length) toast('「' + noCode.map(r => r.name).join('、') + '」未匹配代码已跳过 — 在名称或代码列输入即可自动匹配');
   showSection('progress');
   setStep('engine', 'done'); setStepMeta('engine', '✓');
   setStep('ocr', 'done'); setStepMeta('ocr', '✓');
@@ -802,9 +969,8 @@ els.btnRun.addEventListener('click', async () => {
   }
 });
 
-/* 报告合成 */
+/* 报告合成 (v1.5.0: 全口径实时价 — 现价/市值/当日盈亏/浮动盈亏统一quote.price, 与确认表同源) */
 function buildReport(holdings, env, review) {
-  /* revMap: code → review row(补充截图口径) */
   const revMap = {};
   review.forEach(r => { revMap[r.code] = r; });
   const ok = [], errs = [];
@@ -815,20 +981,16 @@ function buildReport(holdings, env, review) {
     const mv = price * h.qty;
     h.mv = mv; totalMV += mv; totalCost += h.cost * h.qty;
     h.dayPnl = h.quote ? (h.quote.price - h.quote.prevClose) * h.qty : null;
+    h.dayPct = h.quote && h.quote.prevClose ? (h.quote.price / h.quote.prevClose - 1) * 100 : null;
     if (h.dayPnl != null) dayPnl += h.dayPnl;
     h.totalPnl = mv - h.cost * h.qty;
-    /* D校验: 截图当日盈亏 vs 计算 */
-    const rv = revMap[h.code];
-    if (rv && h.dayPnl != null && rv.scrDayPnl != null) {
-      const dev = Math.abs(rv.scrDayPnl - h.dayPnl);
-      if (dev > Math.max(Math.abs(h.dayPnl) * 0.03, 1)) h.dayPnlWarn = '截图当日盈亏与昨收推算偏差' + R2(dev) + '元';
-    }
   });
   const groups = { reduce: [], hold: [], lock: [] };
   ok.forEach(h => { if (groups[h.decision.group]) groups[h.decision.group].push(h); });
   const totalPnl = totalMV - totalCost;
   return {
     ok, errs, env, groups, revMap,
+    asOf: quoteAsOf(ok.map(h => h.quote).filter(Boolean)), /* v1.5.0: 数据时点 */
     kpi: {
       count: ok.length,
       totalMV: R2(totalMV), dayPnl: R2(dayPnl),
@@ -843,15 +1005,15 @@ function renderReport(rep) {
   const d = new Date(rep.ts);
   const cyc = rep.env.cycleLabel || '—';
   els.reportMeta.textContent = '生成于 ' + d.toLocaleString('zh-CN') + ' · ' + rep.ok.length + '只持仓 · 情绪相位「' + cyc + '」'
-    + (rep.errs.length ? ' · ' + rep.errs.length + '只数据获取失败' : '');
-  /* KPI四宫格 */
+    + (rep.asOf ? ' · ' + rep.asOf : '') + (rep.errs.length ? ' · ' + rep.errs.length + '只数据获取失败' : '');
+  /* KPI四宫格 (v1.5.0: 标注数据时点, 消除周末/盘后对照截图的口径困惑) */
   const k = rep.kpi;
   const pnlCls = k.totalPnl >= 0 ? 'k-up' : 'k-dn';
   const dayCls = k.dayPnl >= 0 ? 'k-up' : 'k-dn';
   els.kpiGrid.innerHTML =
-    kpi('总市值', fmtNum(k.totalMV, 2) + '元', k.count + '只持仓') +
-    kpi('当日盈亏', (k.dayPnl >= 0 ? '+' : '') + fmtNum(k.dayPnl, 2) + '元', '收盘价×昨收推算', dayCls) +
-    kpi('总浮动盈亏', (k.totalPnl >= 0 ? '+' : '') + fmtNum(k.totalPnl, 2) + '元', (k.totalPnlPct >= 0 ? '+' : '') + k.totalPnlPct + '%', pnlCls) +
+    kpi('总市值', fmtNum(k.totalMV, 2) + '元', (rep.asOf || '实时行情') + ' · ' + k.count + '只持仓') +
+    kpi('当日盈亏', (k.dayPnl >= 0 ? '+' : '') + fmtNum(k.dayPnl, 2) + '元', '现价vs昨收' + (rep.asOf ? ' · ' + rep.asOf : ''), dayCls) +
+    kpi('总浮动盈亏', (k.totalPnl >= 0 ? '+' : '') + fmtNum(k.totalPnl, 2) + '元', (k.totalPnlPct >= 0 ? '+' : '') + k.totalPnlPct + '% · 现价-成本', pnlCls) +
     kpi('减仓组占比', rep.groups.reduce.length + '/' + k.count, '持有' + rep.groups.hold.length + ' · 锁利' + rep.groups.lock.length, rep.groups.reduce.length > 0 ? 'k-up' : '');
   /* 大盘环境 */
   const env = rep.env;
@@ -881,15 +1043,18 @@ function renderReport(rep) {
         (h.decision.profitPct != null ? (h.decision.profitPct >= 0 ? '+' : '') + h.decision.profitPct + '%' : '—') + '</span></div>').join('')
       : '<div class="empty" style="padding:14px 0;">无</div>') + '</div></div>';
   }).join('');
-  /* 明细 */
+  /* 明细 (v1.5.0: 新增当日盈亏块, 现价优先实时quote) */
   els.holdDetail.innerHTML = rep.ok.map(h => {
     const d2 = h.decision, ind = h.ind, bb = ind && ind.bullBear;
     const pnlColor = d2.profitPct >= 0 ? ARED : AGREEN;
     const t = d2.triggers || {};
+    const livePx = h.quote ? h.quote.price : (ind ? ind.c : 0);
+    const dayColor = h.dayPnl >= 0 ? ARED : AGREEN;
     return '<div class="hold-row">' +
       '<div class="hr-main"><span class="hr-name">' + esc(h.name) + '</span><span class="hr-code">' + h.code + (h.degraded ? ' · 降级' : '') + '</span></div>' +
-      '<div class="hr-block"><span class="hr-label">现价/成本</span><span class="hr-val">' + fmtPx(ind ? ind.c : (h.quote ? h.quote.price : 0)) + ' / ' + fmtPx(h.cost) + '</span></div>' +
+      '<div class="hr-block"><span class="hr-label">现价/成本</span><span class="hr-val">' + fmtPx(livePx) + ' / ' + fmtPx(h.cost) + '</span></div>' +
       '<div class="hr-block"><span class="hr-label">持仓盈亏</span><span class="hr-val" style="color:' + pnlColor + '">' + (d2.profitPct >= 0 ? '+' : '') + d2.profitPct + '%</span></div>' +
+      (h.dayPnl != null ? '<div class="hr-block"><span class="hr-label">当日盈亏</span><span class="hr-val" style="color:' + dayColor + '">' + (h.dayPnl >= 0 ? '+' : '') + fmtNum(h.dayPnl, 0) + '元' + (h.dayPct != null ? ' · ' + (h.dayPct >= 0 ? '+' : '') + R2(h.dayPct) + '%' : '') + '</span></div>' : '') +
       '<div class="hr-block"><span class="hr-label">市值</span><span class="hr-val">' + fmtNum(h.mv, 0) + '元</span></div>' +
       (bb ? '<div class="hr-block"><span class="hr-label">多空档</span><span class="hr-val">' + bb.tier + ' ' + bb.label + '</span></div>' : '') +
       (ind && ind.range60 != null ? '<div class="hr-block"><span class="hr-label">60日位</span><span class="hr-val">' + R2(ind.range60 * 100) + '%</span></div>' : '') +
@@ -897,7 +1062,7 @@ function renderReport(rep) {
       (t.reduce ? '<div class="chip-row"><span class="tchip tc-reduce">减仓 ' + t.reduce + '</span>' : '<div class="chip-row">') +
       (t.halve ? '<span class="tchip tc-halve">再减 ' + t.halve + '</span>' : '') +
       (t.clear ? '<span class="tchip tc-clear">清仓红线 ' + t.clear + '</span>' : '') + '</div>' +
-      '<div class="hr-reasons">' + (d2.reasons || []).map(esc).join(' · ') + (h.dayPnlWarn ? ' · ⚠' + h.dayPnlWarn : '') + '</div>' +
+      '<div class="hr-reasons">' + (d2.reasons || []).map(esc).join(' · ') + '</div>' +
       /* v1.3.0: 操作指令 + 野人两板块建议行 (动作+均线具体数值, 对齐diag.js明确化标准) */
       (function () {
         const acts = [];

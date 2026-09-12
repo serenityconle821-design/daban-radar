@@ -4,8 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>持仓体检 · 晴雨气象台</title>
-<!-- port.html v1.3.0 持仓体检: 上传券商App截图 → 浏览器端OCR解析 → 六条算术自洽校验 → 晴雨气象台诊断引擎 → 三组分组体检报告
+<!-- port.html v1.4.0 持仓体检: 上传券商App截图 → 浏览器端OCR解析 → 六条算术自洽校验 → 晴雨气象台诊断引擎 → 三组分组体检报告
      设计: iOS Liquid Glass(与主看板/诊断中心同构); OCR: tesseract.js@5 自托管./ocr/(fast语言包, 打开即预热); 数据: 腾讯JSONP + SITE_DATA快照
+     v1.4.0: OCR只识别名称/数量/成本价, 现价一律实时行情自动匹配; 名称/代码双向智能下拉(输入≥2字符出候选);
+             确认表现价/市值/盈亏%列实时计算, 识别现价与实时偏差>2%黄标核对; KPI标注数据时点; 明细新增当日盈亏块
      v1.3.0: 成本/现价保留原始精度(≤3位小数, ETF如1.082); 代码列可手动编辑(6位代码或sh588200式, smartbox反查前缀); 分析严格按确认表持仓口径
      v1.2.0: 解析引擎v1.3.0(双粒度聚类+SEG名称锚定段+VP垂直价格对, 修复垂直布局8出2召回问题); 明细新增操作指令+野人建议行
      声明: 全站信号观察, 不构成投资建议; 引擎口径与diag.js逐字一致, 生产文件零改动 -->
@@ -186,7 +188,23 @@ section.card { -webkit-backdrop-filter:var(--blur-card); backdrop-filter:var(--b
 .inp.warn { box-shadow:inset 0 0 0 1.5px rgba(255,149,0,.55); }
 .cell-name { font-weight:700; min-width:110px; }
 .cell-code { font-variant-numeric:tabular-nums; color:var(--secondary); font-size:13px; min-width:80px; }
-.cell-mv, .cell-pnl { font-variant-numeric:tabular-nums; font-size:13px; color:var(--secondary); }
+.cell-px { font-variant-numeric:tabular-nums; font-size:13px; font-weight:700; color:var(--text); white-space:nowrap; }
+.cell-mv, .cell-pnl { font-variant-numeric:tabular-nums; font-size:13px; color:var(--secondary); white-space:nowrap; }
+/* v1.4.0: 名称/代码智能匹配下拉 (fixed挂body, 避免tbl-wrap overflow裁剪) */
+.ac-drop {
+  position:fixed; z-index:999; border-radius:13px; overflow:hidden auto; max-height:288px;
+  background:rgba(255,255,255,.88); -webkit-backdrop-filter:saturate(180%) blur(20px); backdrop-filter:saturate(180%) blur(20px);
+  box-shadow:inset 0 0 0 .5px var(--hairline), inset 0 1px 0 var(--specular-top),
+    0 4px 12px rgba(15,23,42,.10), 0 16px 40px -8px rgba(15,23,42,.22);
+}
+.ac-item {
+  display:flex; align-items:center; gap:10px; padding:10px 14px; min-height:42px;
+  font-size:14px; cursor:pointer; transition:background .15s;
+}
+.ac-item + .ac-item { box-shadow:inset 0 .5px 0 var(--hairline-soft); }
+.ac-item.hi, .ac-item:hover { background:var(--primary-soft); }
+.ac-item .ac-name { font-weight:700; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ac-item .ac-code { font-variant-numeric:tabular-nums; font-size:12px; font-weight:700; color:var(--primary); }
 .badge-mini {
   display:inline-flex; align-items:center; padding:2px 8px; border-radius:7px;
   font-size:11px; font-weight:700; min-height:20px;
@@ -363,11 +381,11 @@ section.card { -webkit-backdrop-filter:var(--blur-card); backdrop-filter:var(--b
       <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
       确认持仓数据
     </div>
-    <p class="sec-sub">系统已做六条算术自洽校验：<span class="badge-mini bm-green">绿</span>通过 · <span class="badge-mini bm-orange">黄</span>存疑（建议核对）· <span class="badge-mini bm-red">红</span>强冲突（必须修正）；点击黄/红字段行内编辑，代码可用下拉切换候选</p>
+    <p class="sec-sub">OCR只识别<b>名称 / 数量 / 成本价</b>三样，<b>现价与市值自动取实时行情</b>（带*为识别价仅作核对）；名称或代码列输入≥2字符出候选下拉，输入名称自动带出代码、输入代码自动带出名称；<span class="badge-mini bm-green">绿</span>通过 · <span class="badge-mini bm-orange">黄</span>存疑 · <span class="badge-mini bm-red">红</span>必须修正</p>
     <div class="tbl-wrap">
       <table id="editTable">
         <thead>
-          <tr><th>名称</th><th>代码</th><th>持仓(股)</th><th>成本价</th><th>现价</th><th>市值(元)</th><th>盈亏%</th><th>校验</th><th></th></tr>
+          <tr><th>名称</th><th>代码</th><th>数量(股/份)</th><th>成本价</th><th>现价(实时)</th><th>市值(实时)</th><th>盈亏%(实时)</th><th>校验</th><th></th></tr>
         </thead>
         <tbody id="editBody"></tbody>
       </table>

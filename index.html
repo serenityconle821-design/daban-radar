@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>晴雨气象台</title>
 <style>
+/* v1.13.1 全版块导航: 顶栏16入口补齐监控/影子/情绪/规则四版块(data-sec直达滚动, 顺序对齐页面section流);
+   .topnav改flex-wrap换行替代overflow-x横滑 — 桌面右对齐两行/移动端左对齐chip流铺满, 免左右滑动;
+   本页打板策略逻辑零改动, 不影响 v2.0 影子观察(MA20对照) */
 /* v1.13.0 持仓体检入口: topbar 新增"体检"链接 → port.html(上传持仓截图→浏览器OCR→算术校验→三组分组体检报告);
    本页打板策略逻辑零改动, 不影响 v2.0 影子观察(MA20对照) */
 /* v1.11.0 诊断中心入口: topbar 新增"诊断"链接 → stock.html(个股量价诊断/主力资金/大宗暗盘/大盘板块);
@@ -603,8 +606,8 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 @keyframes brandPulse { 0%,100%{ box-shadow:0 0 0 3px rgba(0,122,255,.14);} 50%{ box-shadow:0 0 0 7px rgba(0,122,255,.04);} }
 .brand-name { font-size:15.5px; font-weight:800; letter-spacing:-.3px; line-height:1.2; }
 .brand-meta { font-size:11px; color:var(--secondary); font-variant-numeric:tabular-nums; line-height:1.3; }
-.topnav { display:flex; align-items:center; gap:2px; margin-left:auto; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
-.topnav::-webkit-scrollbar{ display:none; }
+/* v1.13.1 全版块导航: flex-wrap换行展示全部入口, 取消横滑滚动 (桌面右对齐/移动左对齐铺满) */
+.topnav { display:flex; align-items:center; flex-wrap:wrap; justify-content:flex-end; gap:2px; row-gap:4px; margin-left:auto; }
 .tnav-item {
   display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:0 12px;
   border-radius:18px; border:none; background:transparent; font-family:inherit;
@@ -967,10 +970,13 @@ tr.pt-excluded-row td { opacity:.52; }
 
 /* ═══ v1.9 移动端适配 · 390px级窄屏零横向溢出 ═══ */
 @media (max-width:720px){
+  /* v1.13.1 全量chip导航(5行≈290px)过高: 改静态随页滚动 — 打开网站即见全部入口, 下滑后让位给内容 */
+  .topbar { position: static; }
   .topbar-inner { flex-wrap:wrap; padding:8px 16px 4px; gap:6px 12px; }
-  .topnav { order:2; width:100%; margin-left:0; padding-bottom:4px; }
+  /* v1.13.1 移动端导航: 换行铺满替代横滑, 左对齐chip流 (免左右滑动操作) */
+  .topnav { order:2; width:100%; margin-left:0; padding-bottom:4px; justify-content:flex-start; gap:4px 6px; }
   /* 触摸目标: 导航44px / 次级按钮40px (iOS HIG 最小触控标准) */
-  .tnav-item { min-height:44px; padding:0 14px; }
+  .tnav-item { min-height:44px; padding:0 13px; }
   .np-goto { min-height:40px; }
   .act-chip { min-height:40px; }
   .np-body { padding:2px 16px 16px; }
@@ -1109,6 +1115,7 @@ tr.pt-excluded-row td { opacity:.52; }
         <div class="brand-meta" id="brandMeta">加载中…</div>
       </div>
     </div>
+    <!-- v1.13.1 全版块导航: 16入口顺序对齐页面section流; 面板按钮(data-target展开) + 版块直达(data-sec滚动) + 页面链接 -->
     <div class="topnav">
       <button class="tnav-item" data-target="np-overview">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -1135,6 +1142,23 @@ tr.pt-excluded-row td { opacity:.52; }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6 M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
         龙回头<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
+      <!-- v1.13.1 版块直达(无面板): 滚动到对应section -->
+      <button class="tnav-item" data-sec="sec-watch">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        监控
+      </button>
+      <button class="tnav-item" data-target="np-advice">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        建议<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <button class="tnav-item" data-sec="sec-parallel">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5"/></svg>
+        影子
+      </button>
+      <button class="tnav-item" data-sec="sec-emotion">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 9l-5 5-3-3-4 4"/></svg>
+        情绪
+      </button>
       <button class="tnav-item" data-target="np-strategy">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6.01A9.99 9.99 0 0 0 4 18"/><path d="M15.52 15.52A6 6 0 0 0 12 6a6 6 0 0 0-3.52 9.52"/><circle cx="12" cy="12" r="1.6"/></svg>
         战法<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1143,9 +1167,9 @@ tr.pt-excluded-row td { opacity:.52; }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
         回测<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
-      <button class="tnav-item" data-target="np-advice">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-        建议<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      <button class="tnav-item" data-sec="sec-rules">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        规则
       </button>
       <!-- v1.11.0 诊断中心入口: 个股量价诊断 + 主力资金/暗盘 + 大盘板块 -->
       <a class="tnav-item tnav-link" href="./stock.html" style="text-decoration:none;">
@@ -3287,7 +3311,18 @@ function initTopnav(){
   document.querySelectorAll('.tnav-item').forEach(item => {
     item.addEventListener('click', () => {
       const target = $(item.dataset.target);
-      if (!target) return;
+      if (!target){
+        /* v1.13.1 版块直达按钮(监控/影子/情绪/规则, 无面板): 滚动到对应section
+           有面板展开时等收起动画(420ms)后再按最终布局滚动, 避免锚点偏移; 无面板直接滚 */
+        const sec = $(item.dataset.sec);
+        if (sec){
+          const hadOpen = !!document.querySelector('.np-wrap.open');
+          closePanels();
+          unfoldTarget(sec);
+          setTimeout(() => sec.scrollIntoView({ behavior:'smooth' }), hadOpen ? 470 : 0);
+        }
+        return;
+      }
       const willOpen = !item.classList.contains('on');
       closePanels();
       if (willOpen){ item.classList.add('on'); target.classList.add('open'); }

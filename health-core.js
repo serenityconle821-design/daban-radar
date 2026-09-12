@@ -1,6 +1,8 @@
-/* health-core.js v1.1.0 — 持仓体检引擎 (设计手册Problem 3落地)
+/* health-core.js v1.2.0 — 持仓体检引擎 (设计手册Problem 3落地)
    架构: Fetcher(并发≤4·指数退避) → Indicator(纯函数·与diag.js口径逐字一致) → Decider(三组分组+三档触发价) → MarketEnv(大盘联动)
    数据: 腾讯JSONP(K线/行情/搜索) + SITE_DATA快照(相位/市场分) + 上证K线实时(中轨判据)
+   v1.2.0: profitPct盈亏口径统一实时quote.price vs 用户成本(与市值/当日盈亏同源,
+           数据源已验证quote.price==qfq收盘价, 但保险起见趋势判断仍用前复权自洽序列)
    v1.1.0: decideHolding新增野人两板块明确建议(bbAction/pdAction, 附MA5/MA10具体数值);
            buildAction主操作指令(动作+价格锚点), applyMarketEnv环境降档后同步重算
    声明: 规则化条件概率诊断, 非预测, 不构成投资建议
@@ -173,8 +175,10 @@ function computeIndicators(k) {
    三档触发价: reduce=max(MA20,布林中轨) | halve=min(MA10,20日高)-0.5%缓冲 | clear=min(布林下轨,20日低) */
 function decideHolding(h) {
   const { ind, cost, qty } = h;
-  const c = ind.c;
-  const profitPct = cost > 0 ? (c / cost - 1) * 100 : 0;
+  const c = ind.c; /* 趋势判断用前复权收盘(与MA20/布林自洽) */
+  /* v1.2.0: 盈亏用实时quote.price vs 用户成本(与市值/当日盈亏同源口径) */
+  const livePx = (h.quote && h.quote.price) ? h.quote.price : c;
+  const profitPct = cost > 0 ? (livePx / cost - 1) * 100 : 0;
   const bb = ind.bullBear;
   const win20 = bb ? bb.win20 : 0.5;
   let group, groupColor, reasons = [];
@@ -373,7 +377,7 @@ async function runPortfolioHealth(rows, onProgress) {
 
 /* ═══════════ 暴露 window.Health (供 port.js / three.html 复用) ═══════════ */
 window.Health = {
-  version: '1.1.0',
+  version: '1.2.0',
   /* 数据层 */
   tencent, searchStock, fetchKline, fetchQuote, fetchWithRetry, runPool,
   /* 指标层 */
