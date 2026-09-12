@@ -861,6 +861,24 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 .chip-reg.mid { background:rgba(52,199,89,.12); color:var(--green); }
 .chip-reg.weak { background:rgba(142,142,147,.13); color:var(--secondary); }
 tr.pt-excluded-row td { opacity:.52; }
+/* [v1.3.0] 明日入场清单(影子验证) */
+.pt-tmr { margin-top:14px; border-radius:14px; padding:14px 16px 12px;
+  background:linear-gradient(135deg, rgba(0,122,255,.06) 0%, rgba(52,199,89,.05) 100%);
+  box-shadow:inset 0 0 0 .5px rgba(15,23,42,.08); }
+.pt-tmr-head { display:flex; align-items:center; gap:9px; font-size:14px; font-weight:800; letter-spacing:-.2px; flex-wrap:wrap; }
+.pt-tmr-head svg { width:17px; height:17px; color:var(--primary); flex:none; }
+.pt-tmr-head .tmr-badge { font-size:10.5px; font-weight:700; color:var(--primary);
+  background:rgba(0,122,255,.10); border-radius:7px; padding:2px 8px; }
+.pt-tmr-head .tmr-date { margin-left:auto; font-size:11px; color:var(--secondary); font-weight:600; }
+.pt-tmr-datechain { display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--secondary); margin-top:7px; font-variant-numeric:tabular-nums; }
+.pt-tmr-datechain b { color:var(--text); }
+.pt-tmr-datechain .arrow { color:var(--tertiary); }
+.pt-tmr-note { font-size:10.5px; color:var(--tertiary); margin-top:8px; line-height:1.6; }
+.pt-tmr .tbl th { font-size:11px; padding:7px 8px; }
+.pt-tmr .tbl td { padding:8px; font-size:12.5px; }
+.pt-tmr .pass-num { display:inline-flex; align-items:center; justify-content:center;
+  min-width:22px; height:22px; border-radius:11px; background:var(--green-soft, rgba(52,199,89,.12));
+  color:var(--green); font-size:12px; font-weight:800; margin-right:2px; }
 .pt-regimes { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px; }
 .pt-reg { border-radius:12px; padding:11px 13px 10px; background:var(--card2); }
 .pt-reg .r-lab { font-size:12.5px; font-weight:800; display:flex; align-items:center; gap:6px; }
@@ -898,6 +916,17 @@ tr.pt-excluded-row td { opacity:.52; }
 .sc-pd-toggle.on { background:var(--orange); color:#fff; box-shadow:0 3px 10px rgba(255,149,0,.28); }
 .sc-pd-info { font-size:11.5px; color:var(--secondary); line-height:1.5; }
 .sc-pd { display:inline-block; margin-left:6px; padding:1px 7px; border-radius:6px; font-size:10px; font-weight:800; background:rgba(255,149,0,.14); color:var(--orange); vertical-align:1px; cursor:help; white-space:nowrap; }
+.sc-bb { display:inline-block; margin-left:5px; padding:1px 6px; border-radius:6px; font-size:10px; font-weight:800; vertical-align:1px; cursor:help; white-space:nowrap; }
+.sc-bb.t8020 { background:rgba(255,59,48,.14); color:var(--red); }
+.sc-bb.t9010, .sc-bb.t8515 { background:rgba(52,199,89,.14); color:var(--green); }
+.sc-bb.t7030 { background:rgba(142,142,147,.14); color:var(--secondary); }
+.sc-arc { display:inline-block; margin-left:5px; padding:1px 6px; border-radius:6px; font-size:10px; font-weight:800; background:rgba(255,59,48,.14); color:var(--red); vertical-align:1px; cursor:help; white-space:nowrap; }
+.sc-acb { display:flex; align-items:center; gap:8px; margin:0 0 10px; padding:8px 12px; border-radius:10px; font-size:11.5px; line-height:1.5; }
+.sc-acb .ph { font-weight:800; white-space:nowrap; }
+.sc-acb.ferment, .sc-acb.ebb { background:rgba(255,59,48,.08); }
+.sc-acb.climax { background:rgba(255,149,0,.10); }
+.sc-acb.start { background:rgba(52,199,89,.10); }
+.sc-acb.na { background:rgba(120,120,128,.08); }
 .sc-sortable { cursor:pointer; user-select:none; }
 .sc-sortable:hover { color:var(--primary); }
 .sc-sub-row td { opacity:.72; }
@@ -1304,16 +1333,17 @@ tr.pt-excluded-row td { opacity:.52; }
     <div class="tl" id="timeline"></div>
   </section>
 
-  <!-- ═══ v1.13.0 高分标的榜 · 全市场诊断评分≥75 (观察名单定位) ═══ -->
+  <!-- ═══ v1.13.0 高分标的榜 · 全市场诊断评分≥75 (风险/拥挤观察池定位) ═══ -->
   <section id="sec-score" class="card fade">
     <div class="sec-title">
       <span class="ico" style="background:var(--primary-soft); color:var(--primary);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg></span>
       <span>高分标的榜 · 诊断评分 ≥75</span>
       <span class="sc-count" id="scCount"></span>
     </div>
-    <p class="sec-sub" id="scSub">全市场约3000只收盘诊断 · 趋势40+量能25+情绪20+风险15 · 定位: 客观诊断/复盘层</p>
+    <p class="sec-sub" id="scSub">全市场约3000只收盘诊断 · 趋势40+量能25+情绪20+风险15 · 定位: 风险/拥挤观察池（高分=情绪过热拥挤区·反向指标，非买入榜）</p>
     <div class="sc-warn" id="scWarn"></div>
     <div class="sc-head" id="scHead"></div>
+    <div class="sc-acb" id="scAcbBar" style="display:none;"></div>
     <div class="sc-pd-bar" id="scPdBar" style="display:none;"></div>
     <div class="tbl-scroll"><table class="tbl sc-tbl" id="scTbl"></table></div>
     <div id="scSubBox"></div>
@@ -2493,7 +2523,8 @@ function renderParallel(){
   const kd = k.v2_dual_pass || {};               // v1.2.0 MA20✓∧野✓ 双过滤组
   const kw = k.v2_wild_excluded || {};           // v1.2.0 MA20✓∧野✗ 剔除对照组
   const MF = PT.ma20_filter || {};               // v1.1.0 MA20过滤观察
-  const WF = PT.wild_filter || {};               // v1.2.0 野人哥联合过滤观察
+  const WF = PT.wild_filter || {};                // v1.2.0 野人哥联合过滤观察
+  const W2F = PT.wild2_filter || {};              // v1.3.0 野人哥第二过滤组观察
   const IRS = PT.index_regime_stats || [];        // v1.1.0 指数环境分层
   const c = PT.counts || {}, S2 = PT.strategy_v2 || {}, br = S2.backtest_ref || {};
 
@@ -2508,7 +2539,7 @@ function renderParallel(){
     : vd === 'yellow'
     ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="9" x2="12" y2="13.5"/><line x1="12" y1="17.5" x2="12.01" y2="17.5"/></svg>'
     : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 7 12 12 15.5 14"/></svg>';
-  $('ptSub').innerHTML = `影子运行 <b>${PT.days_elapsed != null ? PT.days_elapsed + ' 天' : '—'}</b> · 信号 <b>${c.signals || 0}</b> 条 · 已结算 <b>${c.closed || 0}</b> 笔${MF.enabled ? ` · MA20观察第 <b>${MF.week_elapsed || '—'}/${MF.observe_weeks || 4}</b> 周` : ''}${WF.enabled ? ` · 野人哥第 <b>${WF.week_elapsed || '—'}/${WF.observe_weeks || 4}</b> 周` : ''} · <b style="color:${PT_VERDICT_COLOR[vd]}">${PT_VERDICT_TXT[vd]}</b>`;
+  $('ptSub').innerHTML = `影子运行 <b>${PT.days_elapsed != null ? PT.days_elapsed + ' 天' : '—'}</b> · 信号 <b>${c.signals || 0}</b> 条 · 已结算 <b>${c.closed || 0}</b> 笔${MF.enabled ? ` · MA20观察第 <b>${MF.week_elapsed || '—'}/${MF.observe_weeks || 4}</b> 周` : ''}${WF.enabled ? ` · 野人哥第 <b>${WF.week_elapsed || '—'}/${WF.observe_weeks || 4}</b> 周` : ''}${W2F.enabled ? ` · 野2组第 <b>${W2F.week_elapsed || '—'}/${W2F.observe_weeks || 4}</b> 周` : ''} · <b style="color:${PT_VERDICT_COLOR[vd]}">${PT_VERDICT_TXT[vd]}</b>`;
   $('ptMini').innerHTML = `
     <span class="pt-chip">信号 <b>${c.signals || 0}</b></span>
     <span class="pt-chip">已结算 <b>${c.closed || 0}</b></span>
@@ -2601,6 +2632,78 @@ function renderParallel(){
       </div>
     </div>` : '';
 
+  // ③b3 [v1.3.0] 野人哥第二过滤组(高潮期∪次新股)·4周观察卡 — 对照组固定MA20✓∧野✓(单变量原则)
+  const w2k = k.v2_triple_pass || {};            // 三重组 MA20✓∧野✓∧野2✓
+  const w2x = k.v2_wild2_excluded || {};         // 剔除对照 MA20✓∧野✓∧野2✗
+  const wild2Pct = W2F.enabled ? Math.min(100, ((W2F.week_elapsed || 1) / (W2F.observe_weeks || 4)) * 100) : 0;
+  const wild2HTML = W2F.enabled ? `
+    <div class="pt-ma20">
+      <div class="pt-ma20-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>
+        野人哥第二组(高潮期∪次新股) · 4 周观察期
+        <span class="pt-ma20-week">第 ${W2F.week_elapsed || '—'} / ${W2F.observe_weeks || 4} 周 · 至 ${W2F.deadline ? fmtDate(W2F.deadline) : '—'}</span>
+      </div>
+      <div class="pt-ma20-bar"><i style="width:${wild2Pct.toFixed(0)}%;"></i></div>
+      <div class="pt-ma20-rule">规则 · <b>${W2F.rule || ''}</b><br>${W2F.backtest || ''}${W2F.n_unverified ? ' · 数据不足放行 ' + W2F.n_unverified + ' 条' : ''}</div>
+      <div class="pt-excl">
+        <div class="e-head">三重组(MA20✓∧野✓∧野2✓) ${w2k.n_signals || 0} 条 vs 剔除对照组 ${w2x.n_signals || 0} 条</div>
+        <div class="e-stats">
+          <span>三重组已结算 <b>${w2k.n || 0}</b> 笔</span>
+          <span>三重组胜率 <b>${w2k.win_rate != null ? w2k.win_rate.toFixed(2) + '%' : '—'}</b></span>
+          <span>对照已结算 <b>${w2x.n || 0}</b> 笔</span>
+          <span>对照胜率 <b>${w2x.win_rate != null ? w2x.win_rate.toFixed(2) + '%' : '—'}</b></span>
+          <span>对照期望 <b class="${w2x.avg_ret != null ? pctCls(w2x.avg_ret) : ''}">${ptNum(w2x.avg_ret)}</b></span>
+        </div>
+        <div class="e-note">回测显著性为5日持有口径(高潮期 p=0.00004 · 次新股 p=0.00002), T+2打板口径待影子独立验证 · 被剔除信号照常结算 → 期满按对照差值决策是否升级为硬过滤</div>
+      </div>
+    </div>` : '';
+
+  // ③b4 [v1.3.0] 明日入场清单 — 最新信号日 open/holding 按三重过滤分桶(B1四级漏斗绿灯·影子验证)
+  const recsAll = PT.records || [];
+  const latestSigDate = recsAll.length ? recsAll[0].advice_date : null;
+  const todaySigs = latestSigDate ? recsAll.filter(r => r.advice_date === latestSigDate
+    && (r.status === 'open' || r.status === 'holding')) : [];
+  const tmrPass = todaySigs.filter(r => !r.excluded_by_ma20 && !r.excluded_by_wild && !r.excluded_by_wild2);
+  const tmrExcl = todaySigs.filter(r => r.excluded_by_ma20 || r.excluded_by_wild || r.excluded_by_wild2);
+  const tmrTradeDate = todaySigs.length ? todaySigs[0].trade_date : null;
+  const tmrPassHTML = tmrPass.length ? `<div class="tbl-scroll"><table class="tbl"><tr>
+      <th>#</th><th>标的</th><th>档位</th><th>打板价</th><th>止损价</th><th>市值</th></tr>
+      ${tmrPass.map((r, i) => `<tr>
+        <td><span class="pass-num">${i + 1}</span></td>
+        <td><b>${r.name}</b><span class="code" style="margin-left:4px;">${r.code}</span></td>
+        <td style="font-size:12px;">${PT_LB_TXT[r.lb] || (r.lb + '板')}</td>
+        <td class="mono" style="font-weight:700;color:var(--red);">${r.entry_price != null ? r.entry_price.toFixed(2) : '—'}</td>
+        <td class="mono" style="color:var(--green);">${r.stop_loss != null ? r.stop_loss.toFixed(2) : '—'}</td>
+        <td class="mono" style="font-size:12px;">${r.mv != null ? r.mv.toFixed(0) + '亿' : '—'}</td>
+      </tr>`).join('')}
+    </table></div>` : '<div class="exit-calm" style="margin-top:8px;">最新信号日无三重过滤通过的标的 · 下一信号日盘后(15:10)自动更新</div>';
+  const tmrExclHTML = tmrExcl.length ? `<div class="tbl-scroll" style="margin-top:8px;"><table class="tbl"><tr>
+      <th>被过滤对照</th><th>档位</th><th>剔除原因</th></tr>
+      ${tmrExcl.map(r => {
+        const why = [];
+        if (r.excluded_by_ma20) why.push('MA20趋势');
+        if (r.excluded_by_wild) why.push('发酵期∪8020');
+        if (r.excluded_by_wild2) why.push((r.wild2 || {}).climax ? '高潮期' : '次新股');
+        return `<tr class="pt-excluded-row">
+        <td>${r.name}<span class="code" style="margin-left:4px;">${r.code}</span></td>
+        <td style="font-size:12px;">${PT_LB_TXT[r.lb] || (r.lb + '板')}</td>
+        <td style="font-size:11.5px;color:var(--secondary);">${why.join(' + ')}</td>
+      </tr>`; }).join('')}
+    </table></div>` : '';
+  const tmrHTML = `
+    <div class="pt-tmr">
+      <div class="pt-tmr-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        明日入场清单
+        <span class="tmr-badge">影子验证 · 非正式信号</span>
+        <span class="tmr-date">${tmrPass.length} 只通过三重过滤</span>
+      </div>
+      <div class="pt-tmr-datechain">信号日 <b>${latestSigDate ? fmtDate(latestSigDate) : '—'}</b><span class="arrow">→</span>入场日 <b>${tmrTradeDate ? fmtDate(tmrTradeDate) : '—'}</b><span class="arrow">·</span>出场 <b>T+2 开盘竞价</b></div>
+      ${tmrPassHTML}
+      ${tmrExclHTML}
+      <div class="pt-tmr-note">口径: 资格层(核心池1/2/3板×市值≥100亿) + MA20趋势✓ + 野人哥(非发酵期∧非8020) + 野2组(非高潮期∧非次新) · 回放验证: 四级漏斗留存组胜率63.54%(+16.35pp) Fisher p≈0 · 仍需T+1盘中资格终验(区间/高度/p12) · 高开0-5%死亡区间放弃 · 单票≤3%总敞口≤10%</div>
+    </div>`;
+
   // ③c [v1.1.0] 指数环境分布(观察维度·不做硬过滤)
   const regHTML = IRS.length ? `
     <div class="pt-regimes">${IRS.map(s => `
@@ -2658,10 +2761,15 @@ function renderParallel(){
         const wchip = r.excluded_by_wild ? `<span class="chip-ma20 no" title="${wTip}">野✕</span>`
           : w.unverified ? '<span class="chip-ma20 na" title="野人哥数据不足·放行">野?</span>'
           : `<span class="chip-ma20 ok" title="${wTip}">野✓</span>`;
+        const w2 = r.wild2 || {};
+        const w2Tip = '野人哥第二组 · ' + (w2.climax ? '高潮期(当日涨停≥100家·5日持有回测-5.29%)' : '非高潮期') + ' · ' + (w2.new_stock ? '次新股(K线<24根·回测-7.17%)' : '非次新股');
+        const w2chip = r.excluded_by_wild2 ? `<span class="chip-ma20 no" title="${w2Tip}">野2✕</span>`
+          : w2.unverified ? '<span class="chip-ma20 na" title="野2数据不足·放行">野2?</span>'
+          : `<span class="chip-ma20 ok" title="${w2Tip}">野2✓</span>`;
         const rchip = REG_CHIP[r.index_regime] || '';
         return `<tr class="${r.excluded_by_ma20 ? 'pt-excluded-row' : ''}">
           <td class="mono">${fmtDate(r.advice_date)}</td>
-          <td>${r.name}<span class="code" style="margin-left:4px;">${r.code}</span>${mchip}${rchip}${wchip}${r.p12_unverified ? '<span style="font-size:11px;color:var(--orange);margin-left:4px;">p12未验证</span>' : ''}</td>
+          <td>${r.name}<span class="code" style="margin-left:4px;">${r.code}</span>${mchip}${rchip}${wchip}${w2chip}${r.p12_unverified ? '<span style="font-size:11px;color:var(--orange);margin-left:4px;">p12未验证</span>' : ''}</td>
           <td style="font-size:12px;">${PT_LB_TXT[r.lb] || (r.lb + '板')}</td>
           <td class="mono" style="font-size:12px;">${r.mv != null ? r.mv.toFixed(0) + '亿' : '—'}</td>
           <td class="mono">${r.entry_price != null ? r.entry_price.toFixed(2) : '—'}</td>
@@ -2673,10 +2781,11 @@ function renderParallel(){
 
   // ⑦ 组装
   $('ptBody').innerHTML = `
+    ${tmrHTML}
     <div class="sec-sub" style="margin:14px 0 0;">影子期满判定标准(S1-S5) · 4周期满后按红黄绿灯客观决策: 全切换 / 部分采纳 / 延长 / 返工</div>
     <div class="pt-criteria">${critHTML}</div>
     <div class="pt-vs">${trackV2}${trackV1}</div>
-    ${ma20HTML}${wildHTML}
+    ${ma20HTML}${wildHTML}${wild2HTML}
     <div class="ec-title" style="margin-top:18px;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       周小结 · 双轨并览</div>${weeklyHTML ? `<div class="pt-weekly">${weeklyHTML}</div>` : ''}
@@ -2688,7 +2797,7 @@ function renderParallel(){
     ${pairHTML}
     <div class="ec-title" style="margin-top:18px;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-      影子信号明细 · 最近 ${recs.length} 条 <span style="font-weight:600;color:var(--tertiary);font-size:11.5px;">(MA20✓/✕=趋势过滤 · 野✓/✕=发酵期∪8020联合过滤 · 多头/震荡/弱势=指数环境)</span></div>
+      影子信号明细 · 最近 ${recs.length} 条 <span style="font-weight:600;color:var(--tertiary);font-size:11.5px;">(MA20✓/✕=趋势过滤 · 野✓/✕=发酵期∪8020联合过滤 · 野2✓/✕=高潮期∪次新股第二组 · 多头/震荡/弱势=指数环境)</span></div>
     ${recHTML}
     <div class="pt-rules">
       <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>v2.0.1 影子策略规则(与v1.9三处差异)</h4>
@@ -2738,9 +2847,12 @@ function scRowHtml(x, i, isSub){
   const fund = x.fund === 'in' ? '<span class="sc-fund in">主力流入</span>'
     : x.fund === 'out' ? '<span class="sc-fund out">大幅流出</span>' : '<span class="dim">中性</span>';
   const pdBadge = x.pd ? `<span class="sc-pd" title="野人哥·物理距离低系数: 近20日上涨收盘${x.pd_u}天(<3·无右侧结构) · 近5日/60日均量比${x.pd_v}(>1.5·底部堆积) — 抄底筹码型, 次日抛压重">抄底筹码型</span>` : '';
+  const BB_LBL = { '9010': '极强单边', '8515': '强趋势', '8020': '多空拉扯', '7030': '分歧显著' };
+  const bbBadge = x.bb ? `<span class="sc-bb t${x.bb}" title="野人哥·多空比值${x.bb.slice(0,2)}:${x.bb.slice(2)} · ${BB_LBL[x.bb] || ''} · 近20日上涨收盘${x.bb_win}%${x.bb === '8020' ? ' — 高分但多空拉扯结构弱, 2进3打板回测胜率仅18.92%, 剔除后+7.42pp' : x.bb === '9010' ? ' — 强单边结构, 趋势跟随' : x.bb === '8515' ? ' — 强趋势结构' : ' — 分歧显著, 观望为主'}">${x.bb}</span>` : '';
+  const arcBadge = x.arc ? `<span class="sc-arc" title="野人哥·外弧预警(日K近似): 价格创20日新高 ∧ 近5日空头量占比/前5日${x.arc_lift}倍(>1.2) — 表强实弱, 高分新高中空头暗增, 逢高减仓预警">外弧</span>` : '';
   return `<tr${isSub ? ' class="sc-sub-row"' : ''}>
     <td class="dim">${i + 1}</td>
-    <td class="sc-name"><b>${x.n}</b><span class="sc-code">${x.c}</span>${pdBadge}</td>
+    <td class="sc-name"><b>${x.n}</b><span class="sc-code">${x.c}</span>${pdBadge}${bbBadge}${arcBadge}</td>
     <td>${scRing(x.s)}</td>
     <td class="sc-dim-cell">${scDims(x)}<span class="sc-dim-num">${x.t}<em>/40</em> · ${x.v}<em>/25</em> · ${x.e}<em>/20</em> · ${x.r}<em>/15</em></span></td>
     <td class="${pctCls}">${scFmt(x.pct, '%', true)}</td>
@@ -2830,6 +2942,27 @@ function renderScore(){
     }
   }
   const mono = (bt.mono || []).map(w => w != null ? w.toFixed(2) + '%' : '—').join(' → ');
+  // [v1.3.0] ACB 市场情绪阶段横幅 (野人哥四阶段 · 榜单级统一标注)
+  const acbBar = $('scAcbBar');
+  if (acbBar){
+    const ACB_META = {
+      'ebb':     ['退潮期', 'var(--red)', '近20日峰值见顶后涨停家数回撤>40% — 高分标的逆势走强多为补涨尾声, 追高风险大'],
+      'climax':  ['高潮期', 'var(--orange)', '涨停家数≥100 — 情绪亢奋段, 高分拥挤度最高, 谨防盛极而衰'],
+      'ferment': ['发酵期', 'var(--red)', '涨停家数40-100 — 打板回测胜率仅31.58%显著负偏, 高分标的接力风险大'],
+      'start':   ['启动期', 'var(--green)', '涨停家数<40 — 情绪启动段, 结构性强标的信息噪音相对少'],
+    };
+    const acb = SC.acb;
+    if (acb && acb.phase){
+      const m = ACB_META[acb.phase] || ['', '', ''];
+      acbBar.style.display = '';
+      acbBar.className = 'sc-acb ' + acb.phase;
+      acbBar.innerHTML = `<span class="ph" style="color:${m[1]};">市场情绪 · ${m[0]}</span>` +
+        `<span>当日全口径涨停 <b>${acb.zt}</b> 家 · 近20日峰值 <b>${acb.peak20}</b> 家 — ${m[2]}</span>` +
+        `<span style="margin-left:auto;color:var(--secondary);font-size:10.5px;">野人哥·ACB四阶段</span>`;
+    } else {
+      acbBar.style.display = 'none';
+    }
+  }
   $('scWarn').innerHTML = `<div class="sc-warn-inner">
     <b>历史验证提示</b> · ≥75分组合持有5日净收益 <span class="sc-neg">${scFmt(bt.net5, '%', true)}</span>（${bt.n != null ? bt.n : '—'}笔 · 胜率${bt.win5 != null ? bt.win5.toFixed(2) : '—'}%），低于全样本基准 ${scFmt(bt.base_net, '%', true)} · 评分分层胜率（0-44 → 75-85分）: ${mono}
     <span class="sc-warn-tag">观察名单 · 不构成买入信号</span></div>`;

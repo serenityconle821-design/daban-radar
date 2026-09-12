@@ -213,6 +213,15 @@ div.card {
 .pd-dims { font-size:13px; margin-top:7px; color:var(--text); }
 .pd-dims b { font-weight:800; font-variant-numeric:tabular-nums; }
 .pd-note { font-size:12px; margin-top:8px; color:var(--secondary); line-height:1.6; }
+.pd-act {
+  margin-top:10px; padding:9px 12px; border-radius:10px;
+  background:rgba(0,122,255,.07); border:none;
+  font-size:12.5px; line-height:1.7; color:var(--text);
+}
+.pd-act .act-hd { font-weight:800; color:var(--primary); margin-right:6px; }
+.pd-box .pd-act.risk { background:rgba(255,59,48,.08); }
+.pd-box .pd-act.risk .act-hd { color:var(--red); }
+.pd-box .pd-act em { font-style:normal; font-weight:800; font-variant-numeric:tabular-nums; }
 
 /* 信号列表 */
 .sig-list { margin-top:14px; display:flex; flex-direction:column; gap:10px; }
@@ -444,6 +453,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
         <div class="pd-flag" id="pdFlag">—</div>
         <div class="pd-dims" id="pdDims">—</div>
         <div class="pd-note" id="pdNote">—</div>
+        <div class="pd-act" id="pdAct">—</div>
       </div>
     </section>
 
@@ -458,6 +468,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
         <div class="pd-flag" id="bbFlag">—</div>
         <div class="pd-dims" id="bbDims">—</div>
         <div class="pd-note" id="bbNote">—</div>
+        <div class="pd-act" id="bbAct">—</div>
       </div>
     </section>
 
