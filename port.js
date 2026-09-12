@@ -1,7 +1,12 @@
-/* port.js v1.5.0 — 持仓体检交互逻辑 (设计手册Problem 2/4/5落地)
+/* port.js v1.6.0 — 持仓体检交互逻辑 (设计手册Problem 2/4/5落地)
    模块: preprocess(canvas重采样/灰度/锐化) + ocr(自托管fast语言包/打开即预热/降级) +
          parser(双粒度聚类+三通道候选+区域竞争: L1单行/SEG名称锚定段/VP垂直价格对) +
-         match(smartbox反查/ETF多候选) + ui(五步状态机/确认表格/报告渲染/localStorage历史)
+         match(三级匹配: 本地全市场语料LCS模糊/在线多档前缀/smartbox反查) + ui(五步状态机/确认表格/报告渲染/localStorage历史)
+   v1.6.0: ① 成本价方向修复 — 用户确认布局: 持仓数量后紧邻两值, 前(上)为成本后(下)为现价;
+             数量紧邻规则+4, 移除P>C偏置(亏损持仓会翻转正确顺序), VP翻转需强证据(≥2反向%或显式负号单命中),
+             新增市值顺序复核(V≈上行×数量 且不匹配下行才翻转), vHit容差5%→1.5%;
+           ② 名称匹配三级化 — names.js全市场语料(A股+ETF)LCS字符模糊, 错字(龙蟒→龙鞭)/丢首字(→发龙蟒)/
+             粘连噪声均可离线命中; 在线档增至2字滑窗; extractName表头词剥离不再整段丢弃
    v1.5.0: 职责边界明确 — OCR只识别名称/数量/成本价, 现价一律实时行情自动匹配:
            ① 名称/代码双向智能匹配: 输入≥2字符实时下拉候选(名称·代码·市场, 点击/键盘选择),
              输入代码自动带出名称(修复原只改数据不刷新输入框的bug), 输入名称自动带出代码;
@@ -345,12 +350,18 @@ function clusterLines(lines, factor) {
   for (const r of rows) r.items.sort((a, b) => a.bbox.x0 - b.bbox.x0);
   return rows;
 }
-/* 中文姓名提取: 连续≥2个汉字(排除"持仓/可用/市值/盈亏/成本"等表头词) */
+/* 中文姓名提取: 连续≥2个汉字(排除"持仓/可用/市值/盈亏/成本"等表头词)
+   v1.6.0: run内含表头词时只剥离表头保留残余(原逻辑整段丢弃, "川发龙蟒 成本"粘连会连名称一起丢) */
 const HEADER_WORDS = /持仓|可用|市值|盈亏|成本|现价|证券|代码|名称|金额|数量|浮动|参考|总计|账户|资产|盈亏比|当日|参考成本|买入|均价/;
+function stripHeaders(s) {
+  let out = s, m;
+  while ((m = out.match(HEADER_WORDS))) out = out.replace(m[0], '');
+  return out;
+}
 function extractName(rowText) {
   const m = rowText.match(/[\u4e00-\u9fa5]{2,10}/g);
   if (!m) return null;
-  const cand = m.filter(x => !HEADER_WORDS.test(x));
+  const cand = m.map(stripHeaders).filter(x => x.length >= 2);
   return cand.length ? cand.sort((a, b) => b.length - a.length)[0] : null;
 }
 /* 数字token: 含数值/百分号/中文单位(万/亿); pos=文本内位置(价格方向启发用) */
@@ -398,18 +409,20 @@ function parseHoldingRow(rowText) {
         const Q = T.val * (T.unitWan ? 1e4 : T.unitYi ? 1e8 : 1);
         if (!(Q >= 100 && Q <= 5e7)) continue;
         const hun = T.isInt && Math.round(T.val) % 100 === 0 ? 2 : (Math.abs(Q / 100 - Math.round(Q / 100)) < 0.01 ? 1 : 0);
-        /* V匹配: 行内任一数值 ≈ P×Q (±5%) */
+        /* V匹配: 行内任一数值 ≈ P×Q (v1.6.0容差5%→1.5%: 成本/现价接近时仍可分辨两种解释) */
         let vHit = 0, vTok = null;
         const Vcalc = P * Q;
         for (const t of numToks) {
           if (t === numToks[i] || t === numToks[j] || t === T) continue;
           const V = t.val * (t.unitWan ? 1e4 : t.unitYi ? 1e8 : 1);
-          if (V > 1000 && Math.abs(V - Vcalc) / Vcalc < 0.05) { vHit = 1; vTok = t; break; }
+          if (V > 1000 && Math.abs(V - Vcalc) / Vcalc < 0.015) { vHit = 1; vTok = t; break; }
         }
-        /* v1.3.0价格方向启发: 无盈亏%佐证时, 文本靠后的价格判为现价
-           (垂直布局成本在上现价在下 → 合并文本中成本先出现) */
-        const score = hun * 3 + rHit * 4 + vHit * 6 + (P > C ? 0.1 : 0) +
-          (rHit === 0 && numToks[i].pos > numToks[j].pos ? 0.05 : 0);
+        /* v1.6.0价格方向: 用户确认布局 — 持仓数量后面紧邻两个数值, 前面(上面)是成本, 后面是现价
+           ① 数量紧邻规则: cost=数量后第1值 ∧ price=第2值 → +4
+           ② 文本位置: price在cost后 → +0.2 (垂直布局合并文本保留上行先出=成本顺序)
+           ③ 原P>C偏置已移除: 亏损持仓(现价<成本)会把正确顺序翻转, 是成本误识根源 */
+        const score = hun * 3 + rHit * 4 + vHit * 6 + (q + 1 === j && q + 2 === i ? 4 : 0) +
+          (numToks[i].pos > numToks[j].pos ? 0.2 : 0);
         /* v1.4.0: 价格/成本保留原始精度(≤3位小数, ETF如1.082), 不做R2截断
            — 盈亏与市值计算完全按截图持仓口径 */
         if (!best || score > best.score) {
@@ -443,9 +456,12 @@ function parseVerticalPair(info, i) {
   let cost = cTok.val, price = pTok.val;
   const pctAll = [...ta, ...tb].filter(t => t.isPct);
   const rOf = (P, C) => (P / C - 1) * 100;
-  let rHit = pctAll.filter(t => Math.abs(t.val - rOf(price, cost)) < 1.5).length;
-  const rRev = pctAll.filter(t => Math.abs(t.val - rOf(cost, price)) < 1.5).length;
-  if (rRev > rHit) { const t = cost; cost = price; price = t; rHit = rRev; } /* 个别App现价在上, 盈亏%纠偏 */
+  let rHit = pctAll.filter(t => Math.abs(t.val - rOf(price, cost)) < 1.2).length;
+  const rRev = pctAll.filter(t => Math.abs(t.val - rOf(cost, price)) < 1.2).length;
+  /* v1.6.0: 默认上行=成本(用户确认: 数量后两值上为成本下为现价), 翻转需强证据 —
+     ≥2个反向%命中, 或带显式负号的单命中(OCR丢负号会把正向%误配到反向, 单弱命中不再翻转) */
+  const rRevStrong = pctAll.filter(t => /-/.test(t.raw) && Math.abs(t.val - rOf(cost, price)) < 1.2).length;
+  if ((rRev >= 2 || rRevStrong >= 1) && rRev > rHit) { const t = cost; cost = price; price = t; rHit = rRev; } /* 个别App现价在上 */
   if (!(price > 0.1 && price < 100000 && cost > 0.1 && cost < 100000)) return null;
   if (!(price / cost > 0.05 && price / cost < 20)) return null;
   /* 名称: 左侧同高行 → 上方名称行 */
@@ -491,6 +507,19 @@ function parseVerticalPair(info, i) {
       const V = v.val * (v.unitWan ? 1e4 : v.unitYi ? 1e8 : 1);
       if (V > 1000 && V / price >= 100 && V / price <= 5e7) { qty = Math.round(V / price); bestSc = 1; break; }
     }
+  }
+  /* v1.6.0 市值顺序复核(最强证据, 免疫%符号/OCR噪声): 存在V≈上行×数量 且不匹配 V≈下行×数量
+     → 上行才是现价(个别App); 用户常规布局下V≈下行×数量, 维持上=成本 */
+  if (qty != null && qty >= 100) {
+    let hitTop = 0, hitBot = 0;
+    for (const v of all) {
+      if (priceToks.includes(v)) continue;
+      const V = v.val * (v.unitWan ? 1e4 : v.unitYi ? 1e8 : 1);
+      if (V <= 1000) continue;
+      if (Math.abs(V - cost * qty) / (cost * qty) < 0.08) hitTop++;
+      if (Math.abs(V - price * qty) / (price * qty) < 0.08) hitBot++;
+    }
+    if (hitTop && !hitBot) { const t = cost; cost = price; price = t; }
   }
   const codeM = (a.text + ' ' + b.text + ' ' + name).match(/[（(]?([0-9]{6})[）)]?/);
   return {
@@ -603,21 +632,105 @@ async function searchAll(q) {
     return { mkt, code, full: mkt + code, name: (p[2] || '').replace(/\s+/g, ''), type: p[4] || '' };
   }).filter(Boolean);
 }
-/* 名称→候选: 精确2字起步, 截图名去常见后缀 */
-async function matchCandidates(scrName) {
-  const clean = scrName.replace(/(SH|SZ|BJ|\*|ST|退|U|A)$/gi, '').trim();
-  const queries = [clean, clean.slice(0, 4), clean.slice(0, 2)];
-  for (const q of queries) {
-    if (!q || q.length < 2) continue;
-    try {
-      const cands = await searchAll(q);
-      /* 名称完全包含匹配优先 */
-      const exact = cands.filter(c => c.name.includes(clean) || clean.includes(c.name));
-      if (exact.length) return exact.slice(0, 6);
-      if (cands.length) return cands.slice(0, 6);
-    } catch (e) { /* 网络失败继续下一档 */ }
+/* ═══ v1.6.0 三级匹配 — 解决OCR丢字/错字/换字导致「川发龙蟒」类匹配失败 ═══
+   ① 本地全市场语料( names.js, A股+ETF, 每日管道刷新 ): 对名称变体做LCS字符模糊,
+     任意位置错1字(龙蟒→龙鞭)/丢首字(川发龙蟒→发龙蟒)/粘连噪声均可命中, 离线零网络;
+   ② 在线多档前缀: 全名→4字→3字→2字→全部2字滑窗(≤12档, 精确命中即早退);
+   ③ 合并池按LCS相似度重排, 现价消歧逻辑不变 */
+let namesCorpus = null;
+function parseNamesCorpus() {
+  if (namesCorpus) return namesCorpus;
+  const raw = typeof window !== 'undefined' ? window.STOCK_NAMES : null;
+  if (typeof raw !== 'string' || raw.length < 100) return null;
+  namesCorpus = [];
+  for (const seg of raw.split(';')) {
+    const i = seg.indexOf('~');
+    if (i < 4) continue;
+    namesCorpus.push({ full: seg.slice(0, i), name: seg.slice(i + 1) });
   }
-  return [];
+  return namesCorpus.length > 1000 ? namesCorpus : null;
+}
+/* 最长公共子序列(名称≤10字, O(n·m)轻量) */
+function lcsLen(a, b) {
+  const m = a.length, n = b.length;
+  if (!m || !n) return 0;
+  let prev = new Array(n + 1).fill(0), cur;
+  for (let i = 1; i <= m; i++) {
+    cur = new Array(n + 1).fill(0);
+    for (let j = 1; j <= n; j++) cur[j] = a[i - 1] === b[j - 1] ? prev[j - 1] + 1 : Math.max(prev[j], cur[j - 1]);
+    prev = cur;
+  }
+  return prev[n];
+}
+/* 名称相似度: 相等=1; LCS/短边为主, 包含关系按长度比加权 */
+function scoreNamePair(scr, candName) {
+  if (scr === candName) return 1;
+  const L = lcsLen(scr, candName);
+  if (L < 2) return 0;
+  const mn = Math.min(scr.length, candName.length);
+  let s = L / mn;
+  if (candName.includes(scr) || scr.includes(candName)) s = Math.max(s, 0.6 + 0.35 * mn / Math.max(scr.length, candName.length));
+  return s;
+}
+/* 名称变体: 主名(全权重) + raw文本内全部剥离表头后的中文run(0.75权重, 捕捉拆行/粘连噪声) */
+function nameVariants(primary, rawText) {
+  const out = [], seen = {};
+  const push = (x) => {
+    x = (x || '').replace(/\s+/g, '');
+    if (x.length >= 2 && !seen[x]) { seen[x] = 1; out.push(x); }
+  };
+  push(primary && String(primary).replace(/(SH|SZ|BJ|\*|ST|退|U|A)$/gi, '').trim());
+  if (rawText) (String(rawText).match(/[\u4e00-\u9fa5]{2,10}/g) || []).forEach(r => push(stripHeaders(r)));
+  return out;
+}
+async function matchCandidates(scrName, rawText) {
+  const variants = nameVariants(scrName, rawText);
+  const clean = variants[0] || (scrName || '').trim();
+  if (clean.length < 2) return [];
+  /* ① 本地语料LCS模糊 */
+  const corpus = parseNamesCorpus();
+  if (corpus) {
+    const scored = [];
+    for (const c of corpus) {
+      let best = 0;
+      for (let k = 0; k < variants.length; k++) {
+        const s = scoreNamePair(variants[k], c.name) * (k === 0 ? 1 : 0.75);
+        if (s > best) best = s;
+      }
+      if (best >= 0.55) scored.push({ c, s: best });
+    }
+    if (scored.length) {
+      scored.sort((x, y) => y.s - x.s || x.c.name.length - y.c.name.length);
+      return scored.slice(0, 6).map(x => ({ mkt: x.c.full.slice(0, 2), code: x.c.full.slice(2), full: x.c.full, name: x.c.name, type: 'corpus' }));
+    }
+  }
+  /* ② 在线多档前缀(全名→4→3→2→2字滑窗) */
+  const queries = [];
+  const addQ = (q) => { q = (q || '').trim(); if (q.length >= 2 && !queries.includes(q)) queries.push(q); };
+  for (const v of variants) {
+    addQ(v); addQ(v.slice(0, 4)); addQ(v.slice(0, 3)); addQ(v.slice(0, 2));
+    for (let k = 0; k + 2 <= v.length; k++) addQ(v.slice(k, k + 2));
+  }
+  const pool = [], seen = {};
+  for (const q of queries.slice(0, 12)) {
+    let cands = [];
+    try { cands = await searchAll(q); } catch (e) { continue; }
+    for (const c of cands) if (!seen[c.full]) { seen[c.full] = 1; pool.push(c); }
+    const exact = pool.filter(c => variants.some(v => v.length >= 2 && (c.name.includes(v) || v.includes(c.name))));
+    if (exact.length) return exact.slice(0, 6);
+  }
+  if (!pool.length) return [];
+  /* ③ 合并池LCS重排 */
+  const sim = (c) => {
+    let s = 0;
+    for (let k = 0; k < variants.length; k++) {
+      const v = scoreNamePair(variants[k], c.name) * (k === 0 ? 1 : 0.75);
+      if (v > s) s = v;
+    }
+    return s;
+  };
+  pool.sort((a, b) => sim(b) - sim(a) || a.name.length - b.name.length);
+  return pool.slice(0, 6);
 }
 /* 多候选消歧: 按现价最接近原则 argmin|P-P_i|/P_i (需先拉各候选行情) */
 async function disambiguate(cands, scrPrice) {
@@ -759,7 +872,7 @@ els.btnOcr.addEventListener('click', async () => {
     const total = holdings.length; let done = 0;
     await H.runPool(holdings.map(h => async () => {
       try {
-        const cands = await matchCandidates(h.name);
+        const cands = await matchCandidates(h.name, h.raw);
         h.cands = cands;
         if (h.code) { /* 优先用OCR的6位代码校验 */
           const m = cands.find(c => c.code === h.code);
@@ -1165,4 +1278,8 @@ document.addEventListener('DOMContentLoaded', () => {
   warmup();
 });
 if (document.readyState !== 'loading') { renderHist(); warmup(); }
+
+/* v1.6.0 调试接口(只读, 控制台验证OCR匹配链, 生产无副作用):
+   __PORT_DEBUG__.matchCandidates('川发蟒').then(c => console.log(c)) */
+window.__PORT_DEBUG__ = { extractName, nameVariants, parseNamesCorpus, scoreNamePair, matchCandidates };
 })();
