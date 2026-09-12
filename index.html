@@ -2490,7 +2490,10 @@ function renderParallel(){
   }
   const k = PT.kpi || {}, k2 = k.v2 || {}, k1 = k.v1_eligible || {}, k1a = k.v1_all || {};
   const kx = k.v2_ma20_excluded || {};           // v1.1.0 MA20被过滤对照组
+  const kd = k.v2_dual_pass || {};               // v1.2.0 MA20✓∧野✓ 双过滤组
+  const kw = k.v2_wild_excluded || {};           // v1.2.0 MA20✓∧野✗ 剔除对照组
   const MF = PT.ma20_filter || {};               // v1.1.0 MA20过滤观察
+  const WF = PT.wild_filter || {};               // v1.2.0 野人哥联合过滤观察
   const IRS = PT.index_regime_stats || [];        // v1.1.0 指数环境分层
   const c = PT.counts || {}, S2 = PT.strategy_v2 || {}, br = S2.backtest_ref || {};
 
@@ -2505,7 +2508,7 @@ function renderParallel(){
     : vd === 'yellow'
     ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="9" x2="12" y2="13.5"/><line x1="12" y1="17.5" x2="12.01" y2="17.5"/></svg>'
     : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 7 12 12 15.5 14"/></svg>';
-  $('ptSub').innerHTML = `影子运行 <b>${PT.days_elapsed != null ? PT.days_elapsed + ' 天' : '—'}</b> · 信号 <b>${c.signals || 0}</b> 条 · 已结算 <b>${c.closed || 0}</b> 笔${MF.enabled ? ` · MA20观察第 <b>${MF.week_elapsed || '—'}/${MF.observe_weeks || 4}</b> 周` : ''} · <b style="color:${PT_VERDICT_COLOR[vd]}">${PT_VERDICT_TXT[vd]}</b>`;
+  $('ptSub').innerHTML = `影子运行 <b>${PT.days_elapsed != null ? PT.days_elapsed + ' 天' : '—'}</b> · 信号 <b>${c.signals || 0}</b> 条 · 已结算 <b>${c.closed || 0}</b> 笔${MF.enabled ? ` · MA20观察第 <b>${MF.week_elapsed || '—'}/${MF.observe_weeks || 4}</b> 周` : ''}${WF.enabled ? ` · 野人哥第 <b>${WF.week_elapsed || '—'}/${WF.observe_weeks || 4}</b> 周` : ''} · <b style="color:${PT_VERDICT_COLOR[vd]}">${PT_VERDICT_TXT[vd]}</b>`;
   $('ptMini').innerHTML = `
     <span class="pt-chip">信号 <b>${c.signals || 0}</b></span>
     <span class="pt-chip">已结算 <b>${c.closed || 0}</b></span>
@@ -2535,7 +2538,7 @@ function renderParallel(){
         <div class="pt-kpi"><div class="v" style="color:var(--red)">${ptNum(k2.avg_loss)}</div><div class="l">均亏%</div></div>
         <div class="pt-kpi"><div class="v ${k2.max_loss != null ? pctCls(k2.max_loss) : ''}">${ptNum(k2.max_loss)}</div><div class="l">最差单笔%</div></div>
       </div>
-      <div class="pt-meta-line" style="margin-top:9px;">待结算 ${k2.n_open || 0} · 未成交 ${k2.n_unfilled || 0} · 资格未达标 ${k2.n_skipped || 0} · <span style="color:var(--secondary);">MA20排除·对照组 ${kx.n_signals || 0} 条(已结算 ${kx.n || 0} 笔)</span></div>
+      <div class="pt-meta-line" style="margin-top:9px;">待结算 ${k2.n_open || 0} · 未成交 ${k2.n_unfilled || 0} · 资格未达标 ${k2.n_skipped || 0} · <span style="color:var(--secondary);">MA20排除·对照组 ${kx.n_signals || 0} 条(已结算 ${kx.n || 0} 笔)</span> · <span style="color:var(--secondary);">野✗对照 ${kw.n_signals || 0} 条(已结算 ${kw.n || 0} 笔)</span></div>
     </div>`;
   const trackV1 = `
     <div class="pt-track v1">
@@ -2571,6 +2574,30 @@ function renderParallel(){
           <span>最差 <b class="${kx.max_loss != null ? pctCls(kx.max_loss) : ''}">${ptNum(kx.max_loss)}</b></span>
         </div>
         <div class="e-note">对照组 = MA20 不达标被排除的信号, 照常登记与模拟结算 → 期满直接对比「过滤组 vs 排除组」实盘表现, 验证过滤器有效性</div>
+      </div>
+    </div>` : '';
+
+  // ③b2 [v1.2.0] 野人哥联合过滤(发酵期∪8020档)·4周观察卡 — 对照组固定MA20✓(单变量原则)
+  const wildPct = WF.enabled ? Math.min(100, ((WF.week_elapsed || 1) / (WF.observe_weeks || 4)) * 100) : 0;
+  const wildHTML = WF.enabled ? `
+    <div class="pt-ma20">
+      <div class="pt-ma20-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+        野人哥联合过滤(发酵期∪8020档) · 4 周观察期
+        <span class="pt-ma20-week">第 ${WF.week_elapsed || '—'} / ${WF.observe_weeks || 4} 周 · 至 ${WF.deadline ? fmtDate(WF.deadline) : '—'}</span>
+      </div>
+      <div class="pt-ma20-bar"><i style="width:${wildPct.toFixed(0)}%;"></i></div>
+      <div class="pt-ma20-rule">规则 · <b>${WF.rule || ''}</b><br>${WF.backtest || ''}${WF.n_unverified ? ' · 数据不足放行 ' + WF.n_unverified + ' 条' : ''}</div>
+      <div class="pt-excl">
+        <div class="e-head">双过滤组(MA20✓∧野✓) ${kd.n_signals || 0} 条 vs 剔除对照组(MA20✓∧野✗) ${kw.n_signals || 0} 条</div>
+        <div class="e-stats">
+          <span>双过滤已结算 <b>${kd.n || 0}</b> 笔</span>
+          <span>双过滤胜率 <b>${kd.win_rate != null ? kd.win_rate.toFixed(2) + '%' : '—'}</b></span>
+          <span>对照已结算 <b>${kw.n || 0}</b> 笔</span>
+          <span>对照胜率 <b>${kw.win_rate != null ? kw.win_rate.toFixed(2) + '%' : '—'}</b></span>
+          <span>对照期望 <b class="${kw.avg_ret != null ? pctCls(kw.avg_ret) : ''}">${ptNum(kw.avg_ret)}</b></span>
+        </div>
+        <div class="e-note">对照组固定MA20✓条件(单变量原则) · 被「发酵期∪8020」剔除的信号照常登记与模拟结算 → 差值即野人哥过滤器的边际效果 · 主口径S1-S5不受影响</div>
       </div>
     </div>` : '';
 
@@ -2616,6 +2643,7 @@ function renderParallel(){
   // ⑥ 影子明细表(最近40条) [v1.1.0: MA20/指数环境徽章 + 对照组淡化]
   const recs = PT.records || [];
   const REG_CHIP = { strong:'<span class="chip-reg strong">多头</span>', mid:'<span class="chip-reg mid">震荡</span>', weak:'<span class="chip-reg weak">弱势</span>' };
+  const PH_TXT = { start:'启动', ferment:'发酵', climax:'高潮', ebb:'退潮' };
   const recHTML = recs.length ? `<div class="tbl-scroll"><table class="tbl"><tr>
       <th>建议日</th><th>标的</th><th>档位</th><th>市值</th><th>打板价</th><th>状态</th><th>收益</th><th>出场原因</th></tr>
       ${recs.map(r => {
@@ -2625,10 +2653,15 @@ function renderParallel(){
         const mchip = r.excluded_by_ma20 ? '<span class="chip-ma20 no">MA20✕</span>'
           : m.unverified ? '<span class="chip-ma20 na">MA20?</span>'
           : (m.pass != null ? '<span class="chip-ma20 ok">MA20✓</span>' : '');
+        const w = r.wild || {};
+        const wTip = '野人哥联合过滤 · ACB阶段:' + (PH_TXT[w.phase] || (w.phase || '未知')) + (w.zt != null ? '(当日涨停' + w.zt + '家)' : '') + ' · 多空档位:' + (w.bb_tier || '—');
+        const wchip = r.excluded_by_wild ? `<span class="chip-ma20 no" title="${wTip}">野✕</span>`
+          : w.unverified ? '<span class="chip-ma20 na" title="野人哥数据不足·放行">野?</span>'
+          : `<span class="chip-ma20 ok" title="${wTip}">野✓</span>`;
         const rchip = REG_CHIP[r.index_regime] || '';
         return `<tr class="${r.excluded_by_ma20 ? 'pt-excluded-row' : ''}">
           <td class="mono">${fmtDate(r.advice_date)}</td>
-          <td>${r.name}<span class="code" style="margin-left:4px;">${r.code}</span>${mchip}${rchip}${r.p12_unverified ? '<span style="font-size:11px;color:var(--orange);margin-left:4px;">p12未验证</span>' : ''}</td>
+          <td>${r.name}<span class="code" style="margin-left:4px;">${r.code}</span>${mchip}${rchip}${wchip}${r.p12_unverified ? '<span style="font-size:11px;color:var(--orange);margin-left:4px;">p12未验证</span>' : ''}</td>
           <td style="font-size:12px;">${PT_LB_TXT[r.lb] || (r.lb + '板')}</td>
           <td class="mono" style="font-size:12px;">${r.mv != null ? r.mv.toFixed(0) + '亿' : '—'}</td>
           <td class="mono">${r.entry_price != null ? r.entry_price.toFixed(2) : '—'}</td>
@@ -2643,7 +2676,7 @@ function renderParallel(){
     <div class="sec-sub" style="margin:14px 0 0;">影子期满判定标准(S1-S5) · 4周期满后按红黄绿灯客观决策: 全切换 / 部分采纳 / 延长 / 返工</div>
     <div class="pt-criteria">${critHTML}</div>
     <div class="pt-vs">${trackV2}${trackV1}</div>
-    ${ma20HTML}
+    ${ma20HTML}${wildHTML}
     <div class="ec-title" style="margin-top:18px;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       周小结 · 双轨并览</div>${weeklyHTML ? `<div class="pt-weekly">${weeklyHTML}</div>` : ''}
@@ -2655,7 +2688,7 @@ function renderParallel(){
     ${pairHTML}
     <div class="ec-title" style="margin-top:18px;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-      影子信号明细 · 最近 ${recs.length} 条 <span style="font-weight:600;color:var(--tertiary);font-size:11.5px;">(MA20✓通过 · MA20✕对照组 · 多头/震荡/弱势=指数环境)</span></div>
+      影子信号明细 · 最近 ${recs.length} 条 <span style="font-weight:600;color:var(--tertiary);font-size:11.5px;">(MA20✓/✕=趋势过滤 · 野✓/✕=发酵期∪8020联合过滤 · 多头/震荡/弱势=指数环境)</span></div>
     ${recHTML}
     <div class="pt-rules">
       <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>v2.0.1 影子策略规则(与v1.9三处差异)</h4>
