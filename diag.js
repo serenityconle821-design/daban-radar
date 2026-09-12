@@ -102,11 +102,10 @@ async function fetchQuote(full) {
   };
 }
 
-/* 东财资金流: v1.3.0 快照优先四级降级链
-   1) FUND_DATA.hist[code] — 后端15:10管道逐日累积的完整历史(候选池个股, 万→元)
-   2) 新浪 MoneyFlow JSONP — 任意股票 60 日完整历史(非候选池主力来源; 变量赋值形式, 轮询读取)
-   3) push2delay JSONP — 新浪失败时任意股票当日(浏览器实测可用; push2his/push2 被Sec-Fetch-Site拦截已移除)
-   4) FUND_DATA.stocks[code] — 候选池个股当日兜底(万→元) */
+/* 东财资金流: v1.3.1 快照优先四级降级链, 返回 {primary, sina} 双口径
+   primary: 1) FUND_DATA.hist[code] 后端15:10管道逐日累积(候选池, 万→元) → 2) 新浪60日 →
+            3) push2delay 当日(push2his/push2 被Sec-Fetch-Site拦截已移除) → 4) FUND_DATA.stocks 当日兜底
+   sina:    候选池快照命中时额外拉取新浪60日作切换视图(口径不同不可混拼, 由用户切换查看) */
 function sinaFflow(daima, timeout) {
   return new Promise((resolve, reject) => {
     const varName = '_snff' + (++cbSeq);
@@ -123,30 +122,36 @@ function sinaFflow(daima, timeout) {
     document.head.appendChild(s);
   });
 }
-async function fetchFundFlow(mkt, code) {
-  /* 1. 后端快照: 候选池个股累积历史 (m主力/u超大/b大/n中/s小/r净率%, 万→元) */
-  const sh = (window.FUND_DATA && window.FUND_DATA.hist && window.FUND_DATA.hist[code]) || null;
-  if (sh && sh.length) {
-    const rows = sh.map(x => ({
-      d: x.d, main: x.m * 1e4, small: x.s * 1e4, mid: x.n * 1e4,
-      big: x.b * 1e4, sup: x.u * 1e4, rate: x.r, close: 0, pct: 0,
-    }));
-    return { rows, full: true, src: 'snap' };
-  }
-  /* 2. 新浪 60 日: 任意股票完整历史 (r0特大/r1大/r2中/r3小净额, 元; 降序→升序) */
+/* 新浪 60 日 rows 映射 (r0特大/r1大/r2中/r3小净额, 元; 接口降序→升序) */
+async function fetchSinaRows(mkt, code) {
   try {
     const arr = await sinaFflow((mkt === '1' ? 'sh' : 'sz') + code);
     if (Array.isArray(arr) && arr.length) {
-      const rows = arr.slice(0, 60).reverse().map(x => ({
+      return arr.slice(0, 60).reverse().map(x => ({
         d: x.opendate,
         main: (+x.r0_net || 0) + (+x.r1_net || 0),
         sup: +x.r0_net || 0, big: +x.r1_net || 0, mid: +x.r2_net || 0, small: +x.r3_net || 0,
         rate: (+x.ratioamount || 0) * 100, close: +x.trade || 0, pct: (+x.changeratio || 0) * 100,
       }));
-      if (rows.length) return { rows, full: true, src: 'sina' };
     }
   } catch (e) { /* 降级 */ }
-  /* 3. push2delay: 任意股票当日 */
+  return null;
+}
+async function fetchFundFlow(mkt, code) {
+  /* 1. 候选池东财快照 (m主力/u超大/b大/n中/s小/r净率%, 万→元) */
+  const sh = (window.FUND_DATA && window.FUND_DATA.hist && window.FUND_DATA.hist[code]) || null;
+  const snapRows = sh && sh.length ? sh.map(x => ({
+    d: x.d, main: x.m * 1e4, small: x.s * 1e4, mid: x.n * 1e4,
+    big: x.b * 1e4, sup: x.u * 1e4, rate: x.r, close: 0, pct: 0,
+  })) : null;
+  /* 新浪 60 日: 快照命中时作切换视图, 未命中时作为 primary */
+  const sinaRows = await fetchSinaRows(mkt, code);
+  if (snapRows) return {
+    primary: { rows: snapRows, full: true, src: 'snap' },
+    sina: sinaRows ? { rows: sinaRows, full: true, src: 'sina' } : null,
+  };
+  if (sinaRows) return { primary: { rows: sinaRows, full: true, src: 'sina' }, sina: null };
+  /* 2. push2delay: 任意股票当日 */
   const path = '/api/qt/stock/fflow/daykline/get?lmt=0&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63,f64,f65&secid=' + mkt + '.' + code + '&ut=b2884a393a59ad64002292a3e90d46a5';
   try {
     const d = await em('https://push2delay.eastmoney.com' + path);
@@ -155,15 +160,15 @@ async function fetchFundFlow(mkt, code) {
       const p = line.split(',');
       return { d: p[0], main: +p[1], small: +p[2], mid: +p[3], big: +p[4], sup: +p[5], rate: +p[6], close: +p[11], pct: +p[12] };
     });
-    if (rows.length) return { rows, full: false, src: 'live' };
+    if (rows.length) return { primary: { rows, full: false, src: 'live' }, sina: null };
   } catch (e) { /* 降级 */ }
   /* 4. 快照兜底: 候选池个股当日(单位万→元); 中/小单不可拆分, 合并归入小单保持代数闭合 */
   const st = (window.FUND_DATA && window.FUND_DATA.stocks && window.FUND_DATA.stocks[code]) || null;
   if (st) {
     const sup = st.super * 1e4, big = st.big * 1e4, main = st.main * 1e4;
-    return { rows: [{ d: st.d, main, small: -main, mid: 0, big, sup, rate: st.rate, close: 0, pct: st.pct }], full: false, src: 'snapshot' };
+    return { primary: { rows: [{ d: st.d, main, small: -main, mid: 0, big, sup, rate: st.rate, close: 0, pct: st.pct }], full: false, src: 'snapshot' }, sina: null };
   }
-  return null;
+  return { primary: null, sina: null };
 }
 
 /* DC 大宗交易(个股近60日) — v1.1.0: datacenter-web 只支持 callback= 参数(cb=会返回裸JSON被ORB拦截)
@@ -490,6 +495,81 @@ function renderKchart(el, k, ind, marks, levels) {
   return chart;
 }
 
+/* ═══════════ 资金流卡片渲染 (v1.3.1 双口径切换) ═══════════
+   候选池个股: primary=东财快照(逐日累积), sina=新浪60日 → chip 切换, 默认数据天数多的一方
+   非候选池:   primary=新浪60日(单一口径无切换) */
+let fundPair = null, fundView = 'primary';
+function renderFundCard(pair) {
+  fundPair = pair;
+  if (!pair || !pair.primary || !pair.primary.rows || !pair.primary.rows.length) {
+    $('fundMain').textContent = '—';
+    $('fundDate').textContent = '获取失败';
+    $('fundBars').innerHTML = '<div class="fund-note">资金流接口暂不可用，稍后重试</div>';
+    $('fundSwitch').innerHTML = '';
+    $('fundHistNote').textContent = '';
+    return;
+  }
+  fundView = (pair.sina && pair.sina.rows.length > pair.primary.rows.length) ? 'sina' : 'primary';
+  drawFundView();
+}
+function drawFundView() {
+  const f = fundView === 'sina' ? fundPair.sina : fundPair.primary;
+  if (!f || !f.rows || !f.rows.length) return;
+  const fl = f.rows[f.rows.length - 1];
+  const amtYi = Math.abs(fl.main) / 1e8;
+  const mainEl = $('fundMain');
+  mainEl.textContent = (fl.main >= 0 ? '+' : '-') + fmtNum(amtYi, 2) + '亿';
+  mainEl.className = 'v ' + (fl.main >= 0 ? 'up' : 'down');
+  $('fundDate').textContent = fl.d + (f.src === 'snap' ? ' · 每日快照' : f.src === 'sina' ? ' · 新浪口径 · 60日' : f.full ? '' : (f.src === 'snapshot' ? ' · 快照兜底 · 仅当日' : ' · 仅当日'));
+  const isSina = f.src === 'sina';
+  const mx = Math.max(Math.abs(fl.sup), Math.abs(fl.big), Math.abs(fl.mid), Math.abs(fl.small), 1);
+  const rows = isSina
+    ? [['特大单', fl.sup, ARED], ['大单', fl.big, '#FF6B5E'], ['中单', fl.mid, '#8E8E93'], ['小单', fl.small, AGREEN]]
+    : [['超大单', fl.sup, ARED], ['大单', fl.big, '#FF6B5E'], ['中单', fl.mid, '#8E8E93'], ['小单', fl.small, AGREEN]];
+  $('fundBars').innerHTML = rows.map(([n, v, c]) => {
+    const w = Math.abs(v) / mx * 50;
+    return '<div class="fb-row"><span class="fb-lab">' + n + '</span><div class="fb-track">' +
+      '<i class="fb-fill" style="' + (v >= 0 ? 'left:50%;' : 'right:50%;') + 'width:' + w + '%;background:' + c + '"></i>' +
+      '<i style="position:absolute;left:50%;top:0;bottom:0;width:.5px;background:rgba(60,60,67,.18)"></i></div>' +
+      '<span class="fb-val ' + (v >= 0 ? 'up' : 'down') + '">' + (v >= 0 ? '+' : '') + fmtNum(v / 1e8, 2) + '亿</span></div>';
+  }).join('');
+  /* 切换 chip: 双口径可用且 primary 非新浪时展示 */
+  const sw = $('fundSwitch');
+  if (fundPair.sina && fundPair.primary && fundPair.primary.src !== 'sina') {
+    const emLab = '东财 · ' + (fundPair.primary.full ? fundPair.primary.rows.length + '日' : '当日');
+    sw.innerHTML = '<button type="button" class="fs-chip' + (fundView === 'primary' ? ' on' : '') + '" data-v="primary">' + emLab + '</button>' +
+      '<button type="button" class="fs-chip' + (fundView === 'sina' ? ' on' : '') + '" data-v="sina">新浪 · ' + fundPair.sina.rows.length + '日</button>';
+    sw.querySelectorAll('.fs-chip').forEach(btn => btn.addEventListener('click', () => {
+      if (fundView === btn.dataset.v) return;
+      fundView = btn.dataset.v;
+      const old = echarts.getInstanceByDom($('fundHist'));
+      if (old) old.dispose();
+      drawFundView();
+    }));
+  } else { sw.innerHTML = ''; }
+  /* 历史柱状 */
+  const oldCh = echarts.getInstanceByDom($('fundHist'));
+  if (oldCh) oldCh.dispose();
+  const hist = f.rows.slice(-30);
+  const ch = echarts.init($('fundHist'), null, { renderer: 'canvas' });
+  const opt = baseOpt();
+  opt.grid = { left: 56, right: 14, top: 18, bottom: 24 };
+  opt.tooltip = { trigger: 'axis', backgroundColor: 'rgba(255,255,255,.94)', borderColor: 'rgba(15,23,42,.08)', textStyle: { color: '#1D1D1F', fontSize: 12 }, extraCssText: 'border-radius:10px;' };
+  opt.xAxis = { type: 'category', data: hist.map(r => r.d.slice(5)), ...axisStyle };
+  opt.yAxis = { type: 'value', ...axisStyle, axisLabel: { ...axisStyle.axisLabel, formatter: v => v + '亿' } };
+  opt.series = [{
+    name: '主力净流入', type: 'bar', data: hist.map(r => R2(r.main / 1e8)),
+    itemStyle: { color: p => p.value >= 0 ? 'rgba(255,59,48,.75)' : 'rgba(52,199,89,.75)', borderRadius: [3, 3, 0, 0] }, barMaxWidth: 14,
+  }];
+  ch.setOption(opt); currentCharts.push(ch);
+  $('fundHistNote').textContent = (isSina
+    ? '主力 = 特大单 + 大单，新浪口径 · 数据源为新浪60日历史(划分标准与东财不同，绝对值不可直接对比，同源趋势参考)'
+    : '主力 = 超大单(单笔≥100万) + 大单(20~100万)，东财口径')
+    + ' · 净流入率 ' + R2(fl.rate) + '% · 近' + hist.length + '日累计 ' + fmtNum(hist.reduce((a, r) => a + r.main / 1e8, 0), 2) + '亿'
+    + (f.src === 'snap' ? '（东财历史自 2026-09-12 起逐日累积，可切换「新浪」查看60日完整趋势）' : f.full ? '' : '（历史接口受限，当前仅当日，趋势将随每日快照累积）')
+    + (f.src === 'snapshot' ? ' · 快照兜底：中/小单合并计入小单' : isSina ? '' : ' · 与同花顺划分标准不同(≥20万即计大单)，数值差异属正常');
+}
+
 /* ═══════════ 个股诊断主流程 ═══════════ */
 let currentCharts = [];
 function disposeCharts() { currentCharts.forEach(c => { try { c.dispose(); } catch (e) {} }); currentCharts = []; }
@@ -508,7 +588,8 @@ async function diagnose(full) {
   ]);
   const k = kRes.status === 'fulfilled' ? kRes.value : [];
   const q = qRes.status === 'fulfilled' ? qRes.value : null;
-  const fund = fRes.status === 'fulfilled' ? fRes.value : null;
+  const fundPair = fRes.status === 'fulfilled' ? fRes.value : null;
+  const fund = fundPair && fundPair.primary ? fundPair.primary : null;   // 信号/评分/建议: 主口径(东财优先)
   const bts = btRes.status === 'fulfilled' ? btRes.value : [];
   if (k.length < 70 || !q) {
     $('stockResult').style.opacity = '1';
@@ -599,50 +680,8 @@ async function diagnose(full) {
     '<tr><td style="color:' + lv.color + '">' + lv.tag + '</td><td>' + fmtNum(lv.p, 2) + '</td><td class="' + (lv.dist >= 0 ? 'up' : 'down') + '">' + (lv.dist >= 0 ? '+' : '') + fmtNum(lv.dist, 2) + '%</td><td style="font-size:12px;color:var(--secondary)">' + lv.srcs.slice(0, 3).join(' / ') + '</td><td><div class="lvl-bar"><i style="width:' + Math.max(12, lv.score) + '%;background:' + lv.color + '"></i></div></td></tr>'
   ).join('') || '<tr><td colspan="5" style="color:var(--secondary)">数据不足</td></tr>';
 
-  /* 资金流 */
-  if (fund && fund.rows && fund.rows.length) {
-    const fl = fund.rows[fund.rows.length - 1];
-    const amtYi = Math.abs(fl.main) / 1e8;
-    const mainEl = $('fundMain');
-    mainEl.textContent = (fl.main >= 0 ? '+' : '-') + fmtNum(amtYi, 2) + '亿';
-    mainEl.className = 'v ' + (fl.main >= 0 ? 'up' : 'down');
-    $('fundDate').textContent = fl.d + (fund.src === 'snap' ? ' · 每日快照' : fund.src === 'sina' ? ' · 新浪口径 · 60日' : fund.full ? '' : (fund.src === 'snapshot' ? ' · 快照兜底 · 仅当日' : ' · 仅当日'));
-    const isSina = fund.src === 'sina';
-    const mx = Math.max(Math.abs(fl.sup), Math.abs(fl.big), Math.abs(fl.mid), Math.abs(fl.small), 1);
-    const rows = isSina
-      ? [['特大单', fl.sup, ARED], ['大单', fl.big, '#FF6B5E'], ['中单', fl.mid, '#8E8E93'], ['小单', fl.small, AGREEN]]
-      : [['超大单', fl.sup, ARED], ['大单', fl.big, '#FF6B5E'], ['中单', fl.mid, '#8E8E93'], ['小单', fl.small, AGREEN]];
-    $('fundBars').innerHTML = rows.map(([n, v, c]) => {
-      const w = Math.abs(v) / mx * 50;
-      return '<div class="fb-row"><span class="fb-lab">' + n + '</span><div class="fb-track">' +
-        '<i class="fb-fill" style="' + (v >= 0 ? 'left:50%;' : 'right:50%;') + 'width:' + w + '%;background:' + c + '"></i>' +
-        '<i style="position:absolute;left:50%;top:0;bottom:0;width:.5px;background:rgba(60,60,67,.18)"></i></div>' +
-        '<span class="fb-val ' + (v >= 0 ? 'up' : 'down') + '">' + (v >= 0 ? '+' : '') + fmtNum(v / 1e8, 2) + '亿</span></div>';
-    }).join('');
-    // 历史柱状
-    const hist = fund.rows.slice(-30);
-    const ch = echarts.init($('fundHist'), null, { renderer: 'canvas' });
-    const opt = baseOpt();
-    opt.grid = { left: 56, right: 14, top: 18, bottom: 24 };
-    opt.tooltip = { trigger: 'axis', backgroundColor: 'rgba(255,255,255,.94)', borderColor: 'rgba(15,23,42,.08)', textStyle: { color: '#1D1D1F', fontSize: 12 }, extraCssText: 'border-radius:10px;' };
-    opt.xAxis = { type: 'category', data: hist.map(r => r.d.slice(5)), ...axisStyle };
-    opt.yAxis = { type: 'value', ...axisStyle, axisLabel: { ...axisStyle.axisLabel, formatter: v => v + '亿' } };
-    opt.series = [{
-      name: '主力净流入', type: 'bar', data: hist.map(r => R2(r.main / 1e8)),
-      itemStyle: { color: p => p.value >= 0 ? 'rgba(255,59,48,.75)' : 'rgba(52,199,89,.75)', borderRadius: [3, 3, 0, 0] }, barMaxWidth: 14,
-    }];
-    ch.setOption(opt); currentCharts.push(ch);
-    $('fundHistNote').textContent = (isSina
-      ? '主力 = 特大单 + 大单，新浪口径 · 数据源为新浪60日历史(划分标准与东财不同，绝对值不可直接对比，同源趋势参考)'
-      : '主力 = 超大单(单笔≥100万) + 大单(20~100万)，东财口径')
-      + ' · 净流入率 ' + R2(fl.rate) + '% · 近30日累计 ' + fmtNum(hist.reduce((a, r) => a + r.main / 1e8, 0), 2) + '亿'
-      + (fund.src === 'snap' ? '（完整历史自 2026-09-12 起逐日累积）' : fund.full ? '' : '（历史接口受限，当前仅当日，趋势将随每日快照累积）')
-      + (fund.src === 'snapshot' ? ' · 快照兜底：中/小单合并计入小单' : isSina ? '' : ' · 与同花顺划分标准不同(≥20万即计大单)，数值差异属正常');
-  } else {
-    $('fundMain').textContent = '—';
-    $('fundDate').textContent = '获取失败';
-    $('fundBars').innerHTML = '<div class="fund-note">资金流接口暂不可用，稍后重试</div>';
-  }
+  /* 资金流 (v1.3.1 双口径切换渲染) */
+  renderFundCard(fundPair);
 
   /* 大宗(暗盘) */
   $('btCount').textContent = bts.length + ' 笔 · 近60日';
