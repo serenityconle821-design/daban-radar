@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>晴雨气象台</title>
 <style>
+/* v1.13.0 持仓体检入口: topbar 新增"体检"链接 → port.html(上传持仓截图→浏览器OCR→算术校验→三组分组体检报告);
+   本页打板策略逻辑零改动, 不影响 v2.0 影子观察(MA20对照) */
 /* v1.11.0 诊断中心入口: topbar 新增"诊断"链接 → stock.html(个股量价诊断/主力资金/大宗暗盘/大盘板块);
    本页打板策略逻辑零改动, 不影响 v2.0 影子观察(MA20对照) */
 /* v1.9.10 Liquid Glass 透明增强: 玻璃卡片不透明度 .62→.45(更通透), 背景折射光斑加浓
@@ -1154,6 +1156,11 @@ tr.pt-excluded-row td { opacity:.52; }
       <a class="tnav-item tnav-link" href="./three.html" style="text-decoration:none;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         三时段<span style="font-size:10px;color:var(--primary);font-weight:800;">NEW</span>
+      </a>
+      <!-- v1.13.0 持仓体检入口: 上传持仓截图→OCR解析→六条算术校验→三组分组体检报告(port.html) -->
+      <a class="tnav-item tnav-link" href="./port.html" style="text-decoration:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        体检<span style="font-size:10px;color:var(--primary);font-weight:800;">NEW</span>
       </a>
     </div>
   </div>
