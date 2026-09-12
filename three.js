@@ -464,16 +464,19 @@ function boot() {
   renderPost();
   setPhase(currentPhase());
 
-  $('phPre').onclick = () => setPhase('pre');
-  $('phMid').onclick = () => setPhase('mid');
-  $('phPost').onclick = () => setPhase('post');
+  /* 手动切换 → 锁定用户选择, 不再被自动迁移覆盖 */
+  $('phPre').onclick = () => { phaseLocked = true; setPhase('pre'); };
+  $('phMid').onclick = () => { phaseLocked = true; setPhase('mid'); };
+  $('phPost').onclick = () => { phaseLocked = true; setPhase('post'); };
 
-  /* 时钟 + 时段自动迁移 */
+  /* 时钟每秒走; 时段自动迁移仅在未锁定时执行 */
   setInterval(() => {
     const now = new Date();
     $('pbClock').textContent = now.toLocaleTimeString('zh-CN', { hour12: false });
-    const want = currentPhase();
-    if (want !== phase) setPhase(want);
+    if (!phaseLocked) {
+      const want = currentPhase();
+      if (want !== phase) setPhase(want);
+    }
   }, 1000);
 
   window.addEventListener('resize', () => Object.values(charts).forEach(c => c && c.resize()));
