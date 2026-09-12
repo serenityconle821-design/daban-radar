@@ -1,7 +1,10 @@
-/* port.js v1.3.0 — 持仓体检交互逻辑 (设计手册Problem 2/4/5落地)
+/* port.js v1.4.0 — 持仓体检交互逻辑 (设计手册Problem 2/4/5落地)
    模块: preprocess(canvas重采样/灰度/锐化) + ocr(自托管fast语言包/打开即预热/降级) +
          parser(双粒度聚类+三通道候选+区域竞争: L1单行/SEG名称锚定段/VP垂直价格对) +
          match(smartbox反查/ETF多候选) + ui(五步状态机/确认表格/报告渲染/localStorage历史)
+   v1.4.0: 成本/现价保留原始精度(≤3位小数, ETF如1.082不再被R2截断, 盈亏计算完全按用户持仓);
+           代码列改为可编辑(支持6位代码或sh588200式带前缀, smartbox反查市场前缀, 失败本地推断);
+           名称编辑总是重新匹配(修正OCR错名后代码联动)
    v1.3.0: 修复垂直布局(成本上/现价下)识别率低 — 滑窗兜底改为始终启用+竞争去重;
            报告新增「操作指令+野人两板块建议」行(动作+均线具体数值, 对齐diag.js)
    引擎: window.Health (health-core.js, 与diag.js口径逐字一致)
@@ -13,6 +16,14 @@ const $ = (id) => document.getElementById(id);
 const H = window.Health;
 const R2 = H.R2, fmtNum = H.fmtNum, fmtWan = H.fmtWan;
 const ARED = '#FF3B30', AGREEN = '#34C759', BLUE = '#007AFF', ORANGE = '#FF9500';
+
+/* v1.4.0: 价格智能显示 — 最多3位小数去尾零 (A股2位如17.25, ETF3位如1.082, 整数33) */
+function fmtPx(x) {
+  if (x == null || !isFinite(x)) return '';
+  let s = Number(x).toFixed(3);
+  if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, '');
+  return s === '-0' ? '0' : s;
+}
 
 /* ═══════════════════ 模块1: 预处理 ═══════════════════
    canvas等比缩放 width≤1600px + 灰度 + 对比度1.2× + 锐化(3×3卷积)
@@ -256,8 +267,10 @@ function parseHoldingRow(rowText) {
            (垂直布局成本在上现价在下 → 合并文本中成本先出现) */
         const score = hun * 3 + rHit * 4 + vHit * 6 + (P > C ? 0.1 : 0) +
           (rHit === 0 && numToks[i].pos > numToks[j].pos ? 0.05 : 0);
+        /* v1.4.0: 价格/成本保留原始精度(≤3位小数, ETF如1.082), 不做R2截断
+           — 盈亏与市值计算完全按截图持仓口径 */
         if (!best || score > best.score) {
-          best = { score, name, code: codeM ? codeM[1] : null, price: R2(P), cost: R2(C), qty: Math.round(Q), rHit, vHit, hun, raw: rowText };
+          best = { score, name, code: codeM ? codeM[1] : null, price: P, cost: C, qty: Math.round(Q), rHit, vHit, hun, raw: rowText };
         }
       }
     }
@@ -339,7 +352,8 @@ function parseVerticalPair(info, i) {
   const codeM = (a.text + ' ' + b.text + ' ' + name).match(/[（(]?([0-9]{6})[）)]?/);
   return {
     name, code: codeM ? codeM[1] : null,
-    price: R2(price), cost: R2(cost), qty: qty != null ? Math.round(qty) : null,
+    /* v1.4.0: 原始精度(≤3位小数), 不R2截断 — ETF成本1.082完整保留 */
+    price: price, cost: cost, qty: qty != null ? Math.round(qty) : null,
     score: 4 + rHit * 4 + Math.max(bestSc, 0), rHit, vHit: bestSc >= 6 ? 1 : 0, hun: bestSc >= 3 ? 2 : 0,
     conf: rHit ? 'mid' : 'low', raw: a.text + ' / ' + b.text,
   };
@@ -407,6 +421,8 @@ function validateRow(row) {
   /* 5 字段完整性 */
   if (!row.qty || !row.cost || !row.price || !row.name) up('red', '关键字段缺失（名称/数量/成本/现价不全）');
   if (row.qty <= 0 || row.cost <= 0 || row.price <= 0) up('red', '数值非法（数量/成本/现价必须为正）');
+  /* v1.4.0: 无市场前缀 → 未匹配代码, 提示手动补录(分析阶段必需) */
+  if (!row.full) up('red', '未匹配代码 — 请在代码列手动填6位代码（如 588200 或 sh588200）');
   if (status === 'red') return { status, issues };
   /* 1 市值一致性 V ≈ P×Q ±2% */
   if (row.mv != null && row.mv > 0) {
@@ -645,12 +661,13 @@ function renderConfirmTable() {
   reviewRows.forEach((r, i) => {
     const tr = document.createElement('tr');
     tr.className = r.status === 'red' ? 'row-err' : r.status === 'yellow' ? 'row-warn' : '';
+    /* v1.4.0: 代码列改为可编辑(6位代码或带sh/sz/bj前缀), 匹配失败可手动补录 */
     tr.innerHTML =
       '<td class="cell-name"><input class="inp" data-f="name" value="' + esc(r.name) + '" placeholder="名称/代码"></td>' +
-      '<td class="cell-code">' + (r.full ? r.full.toUpperCase() : (r.code || '—')) + '</td>' +
+      '<td class="cell-code"><input class="inp' + fldCls(r, 'code') + '" data-f="code" value="' + esc(r.code || '') + '" placeholder="6位代码" inputmode="text" style="min-width:86px;" title="' + esc(r.full ? r.full.toUpperCase() + '（已匹配）' : '未匹配：填6位代码或sh588200式前缀') + '"></td>' +
       '<td><input class="inp' + fldCls(r, 'qty') + '" data-f="qty" inputmode="numeric" value="' + (r.qty != null ? r.qty : '') + '"></td>' +
-      '<td><input class="inp' + fldCls(r, 'cost') + '" data-f="cost" inputmode="decimal" value="' + (r.cost != null ? r.cost : '') + '"></td>' +
-      '<td><input class="inp" data-f="price" inputmode="decimal" value="' + (r.price != null ? r.price : '') + '" placeholder="留空自动取实时"></td>' +
+      '<td><input class="inp' + fldCls(r, 'cost') + '" data-f="cost" inputmode="decimal" value="' + fmtPx(r.cost) + '"></td>' +
+      '<td><input class="inp' + fldCls(r, 'price') + '" data-f="price" inputmode="decimal" value="' + fmtPx(r.price) + '" placeholder="留空自动取实时"></td>' +
       '<td class="cell-mv" data-td="mv">' + (r.mv != null ? fmtNum(r.mv, 2) : '—') + '</td>' +
       '<td class="cell-pnl" data-td="pnl">' + (r.pnlPct != null ? R2(r.pnlPct) + '%' : '—') + '</td>' +
       '<td>' + statusBadge(r) + '</td>' +
@@ -667,7 +684,7 @@ function renderConfirmTable() {
   });
 }
 function fldCls(r, f) {
-  if (r.status === 'red' && ['name', 'qty', 'cost'].includes(f)) return ' err';
+  if (r.status === 'red' && ['name', 'qty', 'cost', 'code'].includes(f)) return ' err';
   if (r.status === 'yellow' && ['cost', 'price', 'qty'].includes(f)) return ' warn';
   return '';
 }
@@ -685,14 +702,47 @@ async function onFieldEdit(inp) {
   const v = inp.value.trim();
   if (f === 'name') {
     r.name = v;
-    if (v.length >= 2 && (r.manual || !r.full)) {
+    /* v1.4.0: 名称编辑总是重新匹配 — 修正OCR错名后代码联动更新 */
+    if (v.length >= 2) {
       try {
         const cands = await matchCandidates(v);
-        if (cands.length) { r.cands = cands; r.matched = cands[0]; r.code = cands[0].code; r.full = cands[0].full; }
+        if (cands.length) {
+          r.cands = cands; r.matched = cands[0]; r.code = cands[0].code; r.full = cands[0].full;
+          if (!r.name) r.name = cands[0].name;
+        }
       } catch (e) { /* 网络失败静默 */ }
-      const cd = tr.querySelector('.cell-code');
-      if (cd) cd.textContent = r.full ? r.full.toUpperCase() : (r.code || '—');
+      const ci = tr.querySelector('input[data-f="code"]');
+      if (ci && r.code) { ci.value = r.code; ci.title = r.full ? r.full.toUpperCase() + '（已匹配）' : ''; }
     }
+  } else if (f === 'code') {
+    /* v1.4.0: 代码手动补录 — 支持「588200」或「sh588200」式输入
+       解析6位代码后: ①smartbox反查(确定市场前缀+校验真实存在) ②失败本地前缀推断 */
+    const m = v.replace(/\s+/g, '').match(/^(sh|sz|bj)?(\d{6})$/i);
+    if (!m) {
+      r.code = ''; r.full = ''; r.matched = null;
+      if (v) toast('代码格式：6位数字，可带 sh/sz/bj 前缀（如 588200 或 sh588200）');
+    } else {
+      const pfx = m[1] ? m[1].toLowerCase() : '';
+      const code6 = m[2];
+      r.code = code6;
+      if (pfx) {
+        r.full = pfx + code6; r.matched = { code: code6, full: r.full, name: r.name };
+      } else {
+        let ok = false;
+        try {
+          const cands = await searchAll(code6);
+          const hit = cands.find(c => c.code === code6);
+          if (hit) {
+            r.full = hit.full; r.matched = hit; r.cands = cands;
+            if (!r.name) r.name = hit.name;
+            ok = true;
+          }
+        } catch (e) { /* 网络失败走本地推断 */ }
+        if (!ok) { r.full = guessMkt(code6) + code6; r.matched = { code: code6, full: r.full, name: r.name }; }
+      }
+    }
+    const ci = tr.querySelector('input[data-f="code"]');
+    if (ci) ci.title = r.full ? r.full.toUpperCase() + '（已匹配）' : '未匹配：填6位代码或sh588200式前缀';
   } else if (f === 'qty') { r.qty = v ? parseInt(v.replace(/[^\d]/g, ''), 10) || null : null; }
   else if (f === 'cost') { r.cost = v ? parseFloat(v) || null : null; }
   else if (f === 'price') { r.price = v ? parseFloat(v) || null : null; }
@@ -703,13 +753,23 @@ async function onFieldEdit(inp) {
   if (badgeTd) badgeTd.innerHTML = statusBadge(r);
   inp.className = 'inp' + fldCls(r, f);
 }
+/* v1.4.0: 6位代码 → 市场前缀本地推断(smartbox不可达时的兜底)
+   6/9开头→sh(沪A/B股), 5开头→sh(ETF/债), 0/2/3开头→sz(深主板/ETF/创业板), 4/8开头→bj(北交所) */
+function guessMkt(code6) {
+  const c = code6[0];
+  if (c === '6' || c === '9' || c === '5') return 'sh';
+  if (c === '0' || c === '2' || c === '3') return 'sz';
+  return 'bj';
+}
 
 /* ── 生成报告 ── */
 els.btnRun.addEventListener('click', async () => {
   /* 过滤有效行 */
   const valid = reviewRows.filter(r => r.full && r.qty > 0 && r.cost > 0 && r.name);
-  if (!valid.length) { toast('至少需要一行完整数据（名称已匹配代码 + 持仓 + 成本），黄/红标行请先修正'); return; }
-  if (reviewRows.some(r => !r.full && r.name)) toast('存在未匹配代码的行已跳过');
+  if (!valid.length) { toast('至少需要一行完整数据（名称+代码+持仓+成本），红标行请先修正'); return; }
+  /* v1.4.0: 未匹配代码的行给出明确指引(代码列现可手动填写) */
+  const noCode = reviewRows.filter(r => !r.full && r.name);
+  if (noCode.length) toast('「' + noCode.map(r => r.name).join('、') + '」未匹配代码已跳过 — 在其代码列手动填6位代码即可纳入分析');
   showSection('progress');
   setStep('engine', 'done'); setStepMeta('engine', '✓');
   setStep('ocr', 'done'); setStepMeta('ocr', '✓');
@@ -822,7 +882,7 @@ function renderReport(rep) {
     const t = d2.triggers || {};
     return '<div class="hold-row">' +
       '<div class="hr-main"><span class="hr-name">' + esc(h.name) + '</span><span class="hr-code">' + h.code + (h.degraded ? ' · 降级' : '') + '</span></div>' +
-      '<div class="hr-block"><span class="hr-label">现价/成本</span><span class="hr-val">' + fmtNum(ind ? ind.c : (h.quote ? h.quote.price : 0), 2) + ' / ' + fmtNum(h.cost, 2) + '</span></div>' +
+      '<div class="hr-block"><span class="hr-label">现价/成本</span><span class="hr-val">' + fmtPx(ind ? ind.c : (h.quote ? h.quote.price : 0)) + ' / ' + fmtPx(h.cost) + '</span></div>' +
       '<div class="hr-block"><span class="hr-label">持仓盈亏</span><span class="hr-val" style="color:' + pnlColor + '">' + (d2.profitPct >= 0 ? '+' : '') + d2.profitPct + '%</span></div>' +
       '<div class="hr-block"><span class="hr-label">市值</span><span class="hr-val">' + fmtNum(h.mv, 0) + '元</span></div>' +
       (bb ? '<div class="hr-block"><span class="hr-label">多空档</span><span class="hr-val">' + bb.tier + ' ' + bb.label + '</span></div>' : '') +

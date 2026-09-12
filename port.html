@@ -4,8 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>持仓体检 · 晴雨气象台</title>
-<!-- port.html v1.2.0 持仓体检: 上传券商App截图 → 浏览器端OCR解析 → 六条算术自洽校验 → 晴雨气象台诊断引擎 → 三组分组体检报告
+<!-- port.html v1.3.0 持仓体检: 上传券商App截图 → 浏览器端OCR解析 → 六条算术自洽校验 → 晴雨气象台诊断引擎 → 三组分组体检报告
      设计: iOS Liquid Glass(与主看板/诊断中心同构); OCR: tesseract.js@5 自托管./ocr/(fast语言包, 打开即预热); 数据: 腾讯JSONP + SITE_DATA快照
+     v1.3.0: 成本/现价保留原始精度(≤3位小数, ETF如1.082); 代码列可手动编辑(6位代码或sh588200式, smartbox反查前缀); 分析严格按确认表持仓口径
      v1.2.0: 解析引擎v1.3.0(双粒度聚类+SEG名称锚定段+VP垂直价格对, 修复垂直布局8出2召回问题); 明细新增操作指令+野人建议行
      声明: 全站信号观察, 不构成投资建议; 引擎口径与diag.js逐字一致, 生产文件零改动 -->
 <style>
