@@ -893,6 +893,11 @@ tr.pt-excluded-row td { opacity:.52; }
 .sc-fund { display:inline-block; padding:2px 8px; border-radius:8px; font-size:11px; font-weight:700; white-space:nowrap; }
 .sc-fund.in { color:var(--red); background:var(--red-soft); }
 .sc-fund.out { color:var(--green); background:var(--green-soft); }
+.sc-pd-bar { display:flex; align-items:center; flex-wrap:wrap; gap:8px 10px; margin:10px 0 4px; }
+.sc-pd-toggle { border:none; border-radius:999px; padding:6px 13px; min-height:30px; font-size:11.5px; font-weight:700; font-family:inherit; cursor:pointer; background:rgba(255,149,0,.12); color:var(--orange); transition:all .18s ease; }
+.sc-pd-toggle.on { background:var(--orange); color:#fff; box-shadow:0 3px 10px rgba(255,149,0,.28); }
+.sc-pd-info { font-size:11.5px; color:var(--secondary); line-height:1.5; }
+.sc-pd { display:inline-block; margin-left:6px; padding:1px 7px; border-radius:6px; font-size:10px; font-weight:800; background:rgba(255,149,0,.14); color:var(--orange); vertical-align:1px; cursor:help; white-space:nowrap; }
 .sc-sortable { cursor:pointer; user-select:none; }
 .sc-sortable:hover { color:var(--primary); }
 .sc-sub-row td { opacity:.72; }
@@ -1309,6 +1314,7 @@ tr.pt-excluded-row td { opacity:.52; }
     <p class="sec-sub" id="scSub">全市场约3000只收盘诊断 · 趋势40+量能25+情绪20+风险15 · 定位: 客观诊断/复盘层</p>
     <div class="sc-warn" id="scWarn"></div>
     <div class="sc-head" id="scHead"></div>
+    <div class="sc-pd-bar" id="scPdBar" style="display:none;"></div>
     <div class="tbl-scroll"><table class="tbl sc-tbl" id="scTbl"></table></div>
     <div id="scSubBox"></div>
     <div class="sc-foot-wrap">
@@ -1402,7 +1408,7 @@ tr.pt-excluded-row td { opacity:.52; }
     <div class="card" id="emoCard" style="margin-top:12px;">
       <div class="emo-grid" id="emoGrid"></div>
       <div class="charts">
-        <div class="chart-box"><h3>涨停家数趋势 <span class="hint" id="cycleLegend">近120交易日</span></h3><div id="chTrend" class="chart"></div><div class="nochart" id="ncTrend">图表库离线 · 数据仍可读</div></div>
+        <div class="chart-box"><h3>涨停家数趋势 <span class="hint" id="cycleLegend">近120交易日</span> <span class="hint" id="acbLegend"></span></h3><div id="chTrend" class="chart"></div><div class="nochart" id="ncTrend">图表库离线 · 数据仍可读</div></div>
         <div class="chart-box"><h3>连板梯队结构 <span class="hint">当日</span></h3><div id="chLadder" class="chart"></div><div class="nochart" id="ncLadder">图表库离线 · 数据仍可读</div></div>
         <div class="chart-box"><h3>1进2 / 2进3 晋级率 <span class="hint">阈值 20% / 50%</span></h3><div id="chPromo" class="chart"></div><div class="nochart" id="ncPromo">图表库离线 · 数据仍可读</div></div>
         <div class="chart-box"><h3>涨停 vs 炸板 <span class="hint">晋级率观察窗口</span></h3><div id="chZb" class="chart"></div><div class="nochart" id="ncZb">图表库离线 · 数据仍可读</div></div>
@@ -2198,6 +2204,20 @@ function renderCharts(){
     $('cycleLegend').innerHTML = `${lg} <span style="color:${curMeta.color};font-weight:700;">当前「${curMeta.label}」</span>`;
   }
 
+  // 野人哥ACB四阶段叠加徽章 (v1.9.11): 与原四态并行展示, 不影响信号引擎
+  const acbNow = D.history.acb_now, AM = D.history.acb_meta || {};
+  const acbEl = $('acbLegend');
+  if (acbEl){
+    if (acbNow && AM[acbNow.phase]){
+      const am = AM[acbNow.phase];
+      acbEl.innerHTML = `· ACB「<b style="color:${am.color};font-weight:800;">${am.label}</b>」`;
+      acbEl.title = `野人哥《情绪量化ACB》四阶段叠加视角(与看板原四态并行)\n判定: ${acbNow.reason}\n当前: ${acbNow.dims}\n级联规则: 退潮=峰值回撤>40% → 高潮=涨停≥100 → 发酵=40≤涨停<100 → 启动=涨停<40`;
+      acbEl.style.cursor = 'help';
+    } else {
+      acbEl.innerHTML = '';
+    }
+  }
+
   // 1) 涨停趋势 (近120日 · 情绪周期色带铺底)
   const H = D.history, n = Math.min(120, H.dates.length);
   const hd = H.dates.slice(-n).map(shortD), hz = H.zt.slice(-n), hm = H.max_lb.slice(-n);
@@ -2684,9 +2704,10 @@ function scRowHtml(x, i, isSub){
   const pctCls = x.pct == null ? '' : (x.pct >= 9.9 ? 'zt' : x.pct > 0 ? 'up' : x.pct < 0 ? 'dn' : '');
   const fund = x.fund === 'in' ? '<span class="sc-fund in">主力流入</span>'
     : x.fund === 'out' ? '<span class="sc-fund out">大幅流出</span>' : '<span class="dim">中性</span>';
+  const pdBadge = x.pd ? `<span class="sc-pd" title="野人哥·物理距离低系数: 近20日上涨收盘${x.pd_u}天(<3·无右侧结构) · 近5日/60日均量比${x.pd_v}(>1.5·底部堆积) — 抄底筹码型, 次日抛压重">抄底筹码型</span>` : '';
   return `<tr${isSub ? ' class="sc-sub-row"' : ''}>
     <td class="dim">${i + 1}</td>
-    <td class="sc-name"><b>${x.n}</b><span class="sc-code">${x.c}</span></td>
+    <td class="sc-name"><b>${x.n}</b><span class="sc-code">${x.c}</span>${pdBadge}</td>
     <td>${scRing(x.s)}</td>
     <td class="sc-dim-cell">${scDims(x)}<span class="sc-dim-num">${x.t}<em>/40</em> · ${x.v}<em>/25</em> · ${x.e}<em>/20</em> · ${x.r}<em>/15</em></span></td>
     <td class="${pctCls}">${scFmt(x.pct, '%', true)}</td>
@@ -2696,9 +2717,11 @@ function scRowHtml(x, i, isSub){
     <td>${fund}</td>
   </tr>`;
 }
+let scHidePd = true;   // 抄底筹码型默认隐藏 (v1.9.11 野人哥P0-3)
 function renderScoreTable(){
   const box = $('scTbl'); if (!box) return;
-  const list = (SC.main || []).slice();
+  const all = (SC.main || []).slice();
+  const list = scHidePd ? all.filter(x => !x.pd) : all;
   const k = scSort.key, dir = scSort.dir;
   list.sort((a, b) => {
     const va = a[k] ?? -1e9, vb = b[k] ?? -1e9;
@@ -2712,7 +2735,8 @@ function renderScoreTable(){
     <th class="sc-sortable" data-k="amt">成交额${scSort.key === 'amt' ? (scSort.dir < 0 ? '▾' : '▴') : ''}</th>
     <th class="sc-sortable" data-k="vr">量比${scSort.key === 'vr' ? (scSort.dir < 0 ? '▾' : '▴') : ''}</th>
     <th>资金</th>
-  </tr></thead><tbody>${list.map((x, i) => scRowHtml(x, i, false)).join('')}</tbody>`;
+  </tr></thead><tbody>${list.length ? list.map((x, i) => scRowHtml(x, i, false)).join('')
+    : (all.length ? '<tr><td colspan="9" class="sc-void">— 已过滤全部抄底筹码型 · 点上方开关可显示 —</td></tr>' : '')}</tbody>`;
   box.querySelectorAll('.sc-sortable').forEach(th => th.addEventListener('click', () => {
     const key = th.dataset.k;
     if (scSort.key === key) scSort.dir *= -1; else { scSort.key = key; scSort.dir = -1; }
@@ -2757,6 +2781,21 @@ function renderScore(){
   const dl = (SC.date || '').replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3');
   $('scCount').textContent = `≥75分 ${SC.n_main} 只 · 候补 ${SC.n_sub} 只`;
   $('scSub').textContent = `数据日 ${dl} · 全市场收盘诊断 · 趋势40+量能25+情绪20+风险15+资金分 · 定位: 客观诊断/复盘层（与「次日候选」前瞻筛选层互不替代）`;
+  // 抄底筹码型过滤条 (v1.9.11 野人哥P0-3): 仅新格式数据(pd字段)时显示
+  const pdBar = $('scPdBar');
+  if (pdBar){
+    const nPd = main.filter(x => x.pd).length;
+    const hasPdField = main.length > 0 && main.some(x => x.pd !== undefined);
+    if (hasPdField && main.length){
+      pdBar.style.display = '';
+      pdBar.innerHTML = `<button type="button" class="sc-pd-toggle${scHidePd ? ' on' : ''}" id="scPdToggle">${scHidePd ? '已隐藏' : '显示中'}抄底筹码型 ${nPd} 只</button>` +
+        `<span class="sc-pd-info">${nPd ? '野人哥·物理距离低系数: 近20日上涨收盘&lt;3天 且 近5日/60日均量&gt;1.5 → 低位无右侧结构+底部抄底量堆积, 获利盘抛压物理距离近, 次日冲高回落风险大' : '今日无抄底筹码型标的 · 抛压物理距离健康'}</span>`;
+      const tg = $('scPdToggle');
+      if (tg) tg.addEventListener('click', () => { scHidePd = !scHidePd; renderScore(); });
+    } else {
+      pdBar.style.display = 'none';
+    }
+  }
   const mono = (bt.mono || []).map(w => w != null ? w.toFixed(2) + '%' : '—').join(' → ');
   $('scWarn').innerHTML = `<div class="sc-warn-inner">
     <b>历史验证提示</b> · ≥75分组合持有5日净收益 <span class="sc-neg">${scFmt(bt.net5, '%', true)}</span>（${bt.n != null ? bt.n : '—'}笔 · 胜率${bt.win5 != null ? bt.win5.toFixed(2) : '—'}%），低于全样本基准 ${scFmt(bt.base_net, '%', true)} · 评分分层胜率（0-44 → 75-85分）: ${mono}
@@ -2948,12 +2987,12 @@ function renderPanels(){
       </div>
       ${scTop ? `<div class="np-rows">${npRow(
         `${scTop.n}<span class="code">${scTop.c}</span>`,
-        `总分 ${scTop.s} · ${scTop.t}/40+${scTop.v}/25+${scTop.e}/20+${scTop.r}/15`,
+        `总分 ${scTop.s} · ${scTop.t}/40+${scTop.v}/25+${scTop.e}/20+${scTop.r}/15${scTop.pd ? ' · <span style="color:var(--orange);font-weight:700;">抄底筹码型</span>' : ''}`,
         scTop.pct != null ? ((scTop.pct>=0?'+':'') + scTop.pct.toFixed(2) + '%') : '—',
         scTop.fund === 'in' ? '主力净流入' : (scTop.fund === 'out' ? '大幅流出' : '资金中性'),
         scTop.fund === 'in' ? 'var(--green)' : (scTop.fund === 'out' ? 'var(--red)' : 'var(--secondary)')
       )}</div>` : ''}
-      <div class="np-note">⚠ 观察名单定位: 评分越高未来5日表现反而越差(分层胜率${(scBt.mono||[]).map(w => w != null ? w.toFixed(2) : '—').join(' → ')}) — 不构成买入信号 · 完整榜单与候补见详情。</div>`;
+      <div class="np-note">⚠ 观察名单定位: 评分越高未来5日表现反而越差(分层胜率${(scBt.mono||[]).map(w => w != null ? w.toFixed(2) : '—').join(' → ')}) — 不构成买入信号 · 完整榜单与候补见详情${(SCD.main||[]).some(x => x.pd) ? ' · 抄底筹码型已默认过滤' : ''}。</div>`;
   } else {
     $('npScBadge').textContent = '数据未生成';
     $('npScBadge').className = 'np-badge gray';

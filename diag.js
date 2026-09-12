@@ -455,6 +455,28 @@ function calcScore(k, ind, fund) {
   return { total, trend, vol, emo, risk, notes: notes.slice(0, 6) };
 }
 
+/* ═══════════ 野人哥·物理距离低系数检查 (v1.2.0) ═══════════
+   《野人哥交易实战笔记》: 启动前缺乏右侧上涨趋势 + 底部堆积抄底筹码的标的,
+   获利盘抛压的物理距离近, 次日冲高回落风险大 — 与综合评分独立, 只作风险预警不改分。
+   判定: 近20日上涨收盘<3天(无右侧结构) 且 近5日均量/60日均量>1.5(底部量堆积) */
+function calcPdLow(k) {
+  if (!k || k.length < 65) return null;
+  let upDays = 0;
+  for (let j = Math.max(1, k.length - 20); j < k.length; j++) {
+    if (k[j].c > k[j - 1].c) upDays++;
+  }
+  const v5 = k.slice(-5).reduce((a, r) => a + r.v, 0) / 5;
+  const v60 = k.slice(-60).reduce((a, r) => a + r.v, 0) / 60;
+  const vr560 = v60 > 0 ? v5 / v60 : 0;
+  return {
+    upDays: upDays,
+    vr560: R2(vr560),
+    noRight: upDays < 3,
+    pileUp: vr560 > 1.5,
+    hit: upDays < 3 && vr560 > 1.5,
+  };
+}
+
 /* ═══════════ 操作建议合成 (v1.1.0 新增) ═══════════
    信号多空力量 + 综合评分 + 资金方向 + 量价关系 + 位阶位置 → 五档动作 + 入场/止损/目标/盈亏比 */
 function calcAdvice(sigs, score, lvl, fund, k, ind) {
@@ -702,6 +724,33 @@ async function diagnose(full) {
   const sigs = calcSignals(k, ind, fund);
   const lvl = calcLevels(k, ind);
   const score = calcScore(k, ind, fund);
+  const pd = calcPdLow(k);
+
+  /* 物理距离低系数卡片 (v1.2.0): 三态 — 双条件命中/单维度预警/通过 */
+  const pdCard = $('pdCard');
+  if (pdCard){
+    if (pd){
+      pdCard.style.display = '';
+      const box = $('pdBox');
+      const pdFlag = $('pdFlag'), pdDims = $('pdDims'), pdNote = $('pdNote');
+      pdDims.innerHTML = '近20日上涨收盘 <b>' + pd.upDays + ' 天</b>（阈值&lt;3 判无右侧结构） · 近5日/60日均量比 <b>' + pd.vr560 + ' 倍</b>（阈值&gt;1.5 判底部堆积）';
+      if (pd.hit){
+        box.className = 'pd-box';
+        pdFlag.textContent = '物理距离低系数 · 抄底筹码型';
+        pdNote.textContent = '该标的近20日缺乏右侧上涨结构且底部堆积抄底量，获利盘距现价物理距离近，次日冲高抛压大；即使评分高也应降低参与预期，等右侧结构确立后再评估。';
+      } else if (pd.noRight || pd.pileUp){
+        box.className = 'pd-box half';
+        pdFlag.textContent = '单维度预警' + (pd.noRight ? ' · 无右侧结构' : '') + (pd.pileUp ? ' · 底部量堆积' : '');
+        pdNote.textContent = '仅触发单一条件，未构成完整抄底筹码型结构，按常规流程观察即可，但需留意' + (pd.noRight ? '趋势尚未确立' : '近期量能异常放大') + '。';
+      } else {
+        box.className = 'pd-box pass';
+        pdFlag.textContent = '物理距离检查通过';
+        pdNote.textContent = '近20日右侧上涨结构正常且无明显底部抄底量堆积，抛压物理距离健康。';
+      }
+    } else {
+      pdCard.style.display = 'none';
+    }
+  }
 
   /* Header */
   const up = q.pct >= 0;

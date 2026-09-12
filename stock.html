@@ -203,6 +203,17 @@ div.card {
 .b-red { color:var(--red); background:var(--red-soft); } .b-orange { color:var(--orange); background:var(--orange-soft); }
 .b-gray { color:var(--secondary); }
 
+/* 物理距离检查卡片 (v1.5.0 野人哥) */
+.pd-box { border-radius:14px; padding:14px 16px; background:rgba(255,149,0,.10); }
+.pd-box.pass { background:var(--green-soft); }
+.pd-box.half { background:rgba(255,204,0,.08); }
+.pd-flag { font-size:15px; font-weight:800; color:var(--orange); letter-spacing:.2px; }
+.pd-box.pass .pd-flag { color:var(--green); }
+.pd-box.half .pd-flag { color:#E0A800; }
+.pd-dims { font-size:13px; margin-top:7px; color:var(--text); }
+.pd-dims b { font-weight:800; font-variant-numeric:tabular-nums; }
+.pd-note { font-size:12px; margin-top:8px; color:var(--secondary); line-height:1.6; }
+
 /* 信号列表 */
 .sig-list { margin-top:14px; display:flex; flex-direction:column; gap:10px; }
 .sig-row {
@@ -422,6 +433,20 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
       <div class="fund-note" id="klineNote"></div>
     </section>
 
+    <!-- 物理距离检查 (v1.5.0 野人哥: 无右侧结构+底部量堆积 → 抄底筹码型预警, 独立于100分评分) -->
+    <section class="card fade vis" id="pdCard" style="display:none;">
+      <div class="sec-title">
+        <span class="ico" style="background:var(--orange-soft); color:var(--orange);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg></span>
+        <span>物理距离检查 · 抄底筹码型</span>
+        <span class="badge2 b-orange" style="margin-left:auto;">野人哥笔记</span>
+      </div>
+      <div class="pd-box pass" id="pdBox">
+        <div class="pd-flag" id="pdFlag">—</div>
+        <div class="pd-dims" id="pdDims">—</div>
+        <div class="pd-note" id="pdNote">—</div>
+      </div>
+    </section>
+
     <!-- 信号 -->
     <section class="card fade vis">
       <div class="sec-title">
@@ -579,7 +604,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 </div>
 
 <footer>
-  晴雨气象台 · 诊断中心 v1.4.0 · 数据源: 腾讯行情(日线+60分钟) / 东财资金流(快照+push2delay) / 新浪60日资金流(非候选池) / 东财数据中心<br>
+  晴雨气象台 · 诊断中心 v1.5.0 · 数据源: 腾讯行情(日线+60分钟) / 东财资金流(快照+push2delay) / 新浪60日资金流(非候选池) / 东财数据中心<br>
   每日 15:10 自动快照 · 页面数据实时直连 · Liquid Glass UI
 </footer>
 
