@@ -1,12 +1,15 @@
-/* diag.js v1.2.0 — 诊断中心逻辑
-   数据: 腾讯JSONP(GBK, K线/行情/搜索) + fund_data.js快照(个股累积历史) + push2delay(资金流当日) + DC(大宗)
+/* diag.js v1.3.0 — 诊断中心逻辑
+   数据: 腾讯JSONP(GBK, K线/行情/搜索) + fund_data.js快照(个股累积历史) + 新浪60日(非候选池历史) + push2delay(资金流当日) + DC(大宗)
    计算: MA/MACD/RSI/KDJ/BOLL/量比 → 六类信号 → 五档位阶聚类 → 综合评分
    声明: 全部为条件概率诊断, 非预测, 不构成投资建议
    v1.1.2: em()加时间戳防CDN缓存; 资金流/大宗接口全挂时从 fund_data.js 快照兜底; 标注主力口径与同花顺差异
    v1.1.3: em()加 referrerPolicy=no-referrer 尝试绕过东财 Referer 拦截
    v1.2.0: 资金流改为「后端快照优先」三级降级链: FUND_DATA.hist(候选池累积历史) → push2delay(任意股票当日) →
            FUND_DATA.stocks(当日兜底)。移除浏览器直连 push2his/push2 — 实测被 Sec-Fetch-Site 跨站拦截且
-           JSONP 9s超时严重拖慢首屏; 后端直连亦被IP封禁, 完整历史改由 15:10 管道逐日累积(每股75日) */
+           JSONP 9s超时严重拖慢首屏; 后端直连亦被IP封禁, 完整历史改由 15:10 管道逐日累积(每股75日)
+   v1.3.0: 新增新浪 MoneyFlow 接口补全非候选池 60 日历史(实测后端直连+浏览器跨站 JSONP 均放行):
+           降级链变四级 FUND_DATA.hist → 新浪60日 → push2delay → FUND_DATA.stocks。新浪口径主力=特大单+大单,
+           与东财划分标准不同(同股同日差可达5-10倍), 图表与KPI同源自洽, 绝对值不与东财直接对比 */
 (function () {
 'use strict';
 
@@ -99,10 +102,27 @@ async function fetchQuote(full) {
   };
 }
 
-/* 东财资金流: v1.2.0 快照优先三级降级链
+/* 东财资金流: v1.3.0 快照优先四级降级链
    1) FUND_DATA.hist[code] — 后端15:10管道逐日累积的完整历史(候选池个股, 万→元)
-   2) push2delay JSONP — 任意股票当日(浏览器实测可用; push2his/push2 被Sec-Fetch-Site拦截已移除)
-   3) FUND_DATA.stocks[code] — 候选池个股当日兜底(万→元) */
+   2) 新浪 MoneyFlow JSONP — 任意股票 60 日完整历史(非候选池主力来源; 变量赋值形式, 轮询读取)
+   3) push2delay JSONP — 新浪失败时任意股票当日(浏览器实测可用; push2his/push2 被Sec-Fetch-Site拦截已移除)
+   4) FUND_DATA.stocks[code] — 候选池个股当日兜底(万→元) */
+function sinaFflow(daima, timeout) {
+  return new Promise((resolve, reject) => {
+    const varName = '_snff' + (++cbSeq);
+    const s = document.createElement('script');
+    let iv = null, tm = null;
+    const cleanup = () => { clearInterval(iv); clearTimeout(tm); delete window[varName]; s.remove(); };
+    tm = setTimeout(() => { cleanup(); reject(new Error('timeout')); }, timeout || 7000);
+    iv = setInterval(() => {
+      if (window[varName] !== undefined) { const v = window[varName]; cleanup(); resolve(v); }
+    }, 40);
+    s.onerror = () => { cleanup(); reject(new Error('network')); };
+    s.src = 'https://vip.stock.finance.sina.com.cn/quotes_service/api/jsonp_v2.php/' + varName +
+            '=/MoneyFlow.ssl_qsfx_lscjfb?page=1&num=60&sort=opendate&asc=0&daima=' + daima + '&_=' + Date.now();
+    document.head.appendChild(s);
+  });
+}
 async function fetchFundFlow(mkt, code) {
   /* 1. 后端快照: 候选池个股累积历史 (m主力/u超大/b大/n中/s小/r净率%, 万→元) */
   const sh = (window.FUND_DATA && window.FUND_DATA.hist && window.FUND_DATA.hist[code]) || null;
@@ -113,7 +133,20 @@ async function fetchFundFlow(mkt, code) {
     }));
     return { rows, full: true, src: 'snap' };
   }
-  /* 2. push2delay: 任意股票当日 */
+  /* 2. 新浪 60 日: 任意股票完整历史 (r0特大/r1大/r2中/r3小净额, 元; 降序→升序) */
+  try {
+    const arr = await sinaFflow((mkt === '1' ? 'sh' : 'sz') + code);
+    if (Array.isArray(arr) && arr.length) {
+      const rows = arr.slice(0, 60).reverse().map(x => ({
+        d: x.opendate,
+        main: (+x.r0_net || 0) + (+x.r1_net || 0),
+        sup: +x.r0_net || 0, big: +x.r1_net || 0, mid: +x.r2_net || 0, small: +x.r3_net || 0,
+        rate: (+x.ratioamount || 0) * 100, close: +x.trade || 0, pct: (+x.changeratio || 0) * 100,
+      }));
+      if (rows.length) return { rows, full: true, src: 'sina' };
+    }
+  } catch (e) { /* 降级 */ }
+  /* 3. push2delay: 任意股票当日 */
   const path = '/api/qt/stock/fflow/daykline/get?lmt=0&klt=101&fields1=f1,f2,f3,f7&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61,f62,f63,f64,f65&secid=' + mkt + '.' + code + '&ut=b2884a393a59ad64002292a3e90d46a5';
   try {
     const d = await em('https://push2delay.eastmoney.com' + path);
@@ -124,7 +157,7 @@ async function fetchFundFlow(mkt, code) {
     });
     if (rows.length) return { rows, full: false, src: 'live' };
   } catch (e) { /* 降级 */ }
-  /* 3. 快照兜底: 候选池个股当日(单位万→元); 中/小单不可拆分, 合并归入小单保持代数闭合 */
+  /* 4. 快照兜底: 候选池个股当日(单位万→元); 中/小单不可拆分, 合并归入小单保持代数闭合 */
   const st = (window.FUND_DATA && window.FUND_DATA.stocks && window.FUND_DATA.stocks[code]) || null;
   if (st) {
     const sup = st.super * 1e4, big = st.big * 1e4, main = st.main * 1e4;
@@ -573,11 +606,12 @@ async function diagnose(full) {
     const mainEl = $('fundMain');
     mainEl.textContent = (fl.main >= 0 ? '+' : '-') + fmtNum(amtYi, 2) + '亿';
     mainEl.className = 'v ' + (fl.main >= 0 ? 'up' : 'down');
-    $('fundDate').textContent = fl.d + (fund.src === 'snap' ? ' · 每日快照' : fund.full ? '' : (fund.src === 'snapshot' ? ' · 快照兜底 · 仅当日' : ' · 仅当日'));
+    $('fundDate').textContent = fl.d + (fund.src === 'snap' ? ' · 每日快照' : fund.src === 'sina' ? ' · 新浪口径 · 60日' : fund.full ? '' : (fund.src === 'snapshot' ? ' · 快照兜底 · 仅当日' : ' · 仅当日'));
+    const isSina = fund.src === 'sina';
     const mx = Math.max(Math.abs(fl.sup), Math.abs(fl.big), Math.abs(fl.mid), Math.abs(fl.small), 1);
-    const rows = [
-      ['超大单', fl.sup, ARED], ['大单', fl.big, '#FF6B5E'], ['中单', fl.mid, '#8E8E93'], ['小单', fl.small, AGREEN],
-    ];
+    const rows = isSina
+      ? [['特大单', fl.sup, ARED], ['大单', fl.big, '#FF6B5E'], ['中单', fl.mid, '#8E8E93'], ['小单', fl.small, AGREEN]]
+      : [['超大单', fl.sup, ARED], ['大单', fl.big, '#FF6B5E'], ['中单', fl.mid, '#8E8E93'], ['小单', fl.small, AGREEN]];
     $('fundBars').innerHTML = rows.map(([n, v, c]) => {
       const w = Math.abs(v) / mx * 50;
       return '<div class="fb-row"><span class="fb-lab">' + n + '</span><div class="fb-track">' +
@@ -598,9 +632,12 @@ async function diagnose(full) {
       itemStyle: { color: p => p.value >= 0 ? 'rgba(255,59,48,.75)' : 'rgba(52,199,89,.75)', borderRadius: [3, 3, 0, 0] }, barMaxWidth: 14,
     }];
     ch.setOption(opt); currentCharts.push(ch);
-    $('fundHistNote').textContent = '主力 = 超大单(单笔≥100万) + 大单(20~100万)，东财口径 · 净流入率 ' + R2(fl.rate) + '% · 近30日累计 ' + fmtNum(hist.reduce((a, r) => a + r.main / 1e8, 0), 2) + '亿'
+    $('fundHistNote').textContent = (isSina
+      ? '主力 = 特大单 + 大单，新浪口径 · 数据源为新浪60日历史(划分标准与东财不同，绝对值不可直接对比，同源趋势参考)'
+      : '主力 = 超大单(单笔≥100万) + 大单(20~100万)，东财口径')
+      + ' · 净流入率 ' + R2(fl.rate) + '% · 近30日累计 ' + fmtNum(hist.reduce((a, r) => a + r.main / 1e8, 0), 2) + '亿'
       + (fund.src === 'snap' ? '（完整历史自 2026-09-12 起逐日累积）' : fund.full ? '' : '（历史接口受限，当前仅当日，趋势将随每日快照累积）')
-      + (fund.src === 'snapshot' ? ' · 快照兜底：中/小单合并计入小单' : ' · 与同花顺划分标准不同(≥20万即计大单)，数值差异属正常');
+      + (fund.src === 'snapshot' ? ' · 快照兜底：中/小单合并计入小单' : isSina ? '' : ' · 与同花顺划分标准不同(≥20万即计大单)，数值差异属正常');
   } else {
     $('fundMain').textContent = '—';
     $('fundDate').textContent = '获取失败';

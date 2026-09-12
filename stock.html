@@ -489,7 +489,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
       <div class="fund-note">大宗交易为盘后协议转让（A股语境的"暗盘"）；折价成交常代表股东减持变现意愿，溢价接盘与机构专用席位连续买入值得跟踪。本表展示该股近 60 日全部记录。</div>
     </section>
 
-    <div class="disclaimer">⚠ 本页为量化信号展示，所有内容（评分 / 信号 / 位阶 / 资金流向）均为历史规则的条件概率诊断，不构成投资建议，不预测未来价格；据此操作风险自担。样本与口径：前复权日线 · 指标固定窗口 · 资金流为东财单级别口径。</div>
+    <div class="disclaimer">⚠ 本页为量化信号展示，所有内容（评分 / 信号 / 位阶 / 资金流向）均为历史规则的条件概率诊断，不构成投资建议，不预测未来价格；据此操作风险自担。样本与口径：前复权日线 · 指标固定窗口 · 资金流为东财/新浪单级别口径（两家划分标准不同，绝对值不可直接对比）。</div>
   </div>
 </div>
 
@@ -555,14 +555,14 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 </div>
 
 <footer>
-  打板策略看板 · 诊断中心 v1.1.0 · 数据源: 腾讯行情 / 东财资金流(push2delay) / 东财数据中心<br>
+  打板策略看板 · 诊断中心 v1.3.0 · 数据源: 腾讯行情 / 东财资金流(快照+push2delay) / 新浪60日资金流(非候选池) / 东财数据中心<br>
   每日 15:10 自动快照 · 页面数据实时直连 · Liquid Glass UI
 </footer>
 
 </div>
 
 <script src="./echarts.min.js"></script>
-<script src="./fund_data.js?v=114"></script>
-<script src="./diag.js?v=114"></script>
+<script src="./fund_data.js?v=115"></script>
+<script src="./diag.js?v=115"></script>
 </body>
 </html>
