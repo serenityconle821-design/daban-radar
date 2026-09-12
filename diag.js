@@ -1,4 +1,6 @@
-/* diag.js v1.4.0 — 诊断中心逻辑 (v1.4.0 P2: 野人哥卡片决策映射·操作建议可直接执行)
+/* diag.js v1.4.1 — 诊断中心逻辑 (v1.4.0 P2: 野人哥卡片决策映射·操作建议可直接执行)
+   v1.4.1: 野人两板块操作建议注入均线具体数值(MA5/MA10/MA20/止损价); calcAdvice五档plan改为
+           目标位动作映射(不同价位→加仓/减仓/离场, 全部锚定具体价格)
    数据: 腾讯JSONP(GBK, K线/行情/搜索) + fund_data.js快照(个股累积历史) + 新浪60日(非候选池历史) + push2delay(资金流当日) + DC(大宗)
    计算: MA/MACD/RSI/KDJ/BOLL/量比 → 六类信号 → 五档位阶聚类 → 综合评分
    声明: 全部为条件概率诊断, 非预测, 不构成投资建议
@@ -553,23 +555,23 @@ function calcAdvice(sigs, score, lvl, fund, k, ind) {
   const res2 = lvl.levels.find(x => x.tag === '强压力');
   const nearRes = res1 && (res1.p / c - 1) < 0.03;   // 距压力① 3%以内
 
-  /* 决策矩阵: 五档动作 */
-  let action, cls, plan;
+  /* 决策矩阵: 五档动作 (v1.4.1: plan延后到交易计划算完组装, 以引用具体价格) */
+  let action, cls, basis;
   if (net >= 3 && score.total >= 60 && fundDir >= 1) {
     action = '积极关注'; cls = 'adv-strong';
-    plan = '多头信号占优、资金配合、结构评分 ' + score.total + '，回踩支撑不破可分批参与';
+    basis = '多头信号占优、资金配合、结构评分 ' + score.total;
   } else if (net >= 2 && score.total >= 45) {
     action = '轻仓试错'; cls = 'adv-mid';
-    plan = '偏多信号存在但未全面共振（评分 ' + score.total + (fundDir < 0 ? '，资金未配合' : '') + '），轻仓验证、破位即止损';
+    basis = '偏多信号存在但未全面共振（评分 ' + score.total + (fundDir < 0 ? '，资金未配合' : '') + '）';
   } else if (net <= -3 || (bear >= 3 && score.total < 45)) {
     action = '减仓避险'; cls = 'adv-weak';
-    plan = '空头信号占优（净力量 ' + net + '），逢反弹降低仓位，暂不抄底';
+    basis = '空头信号占优（净力量 ' + net + '）';
   } else if (score.total < 35) {
     action = '空仓等待'; cls = 'adv-weak';
-    plan = '结构评分仅 ' + score.total + '，量价结构偏弱，等待右侧放量信号再介入';
+    basis = '结构评分仅 ' + score.total + '，量价结构偏弱';
   } else {
     action = '持有观望'; cls = 'adv-hold';
-    plan = '多空信号均衡（净力量 ' + net + '），维持既有仓位，按位阶区间高抛低吸';
+    basis = '多空信号均衡（净力量 ' + net + '）';
   }
 
   /* 交易计划: 入场/止损/目标/盈亏比 (全部锚定位阶聚类, 不预测)
@@ -589,6 +591,22 @@ function calcAdvice(sigs, score, lvl, fund, k, ind) {
   const t1 = nearRes ? (res2 ? res2.p : R2(c * 1.06)) : (res1 ? res1.p : R2(c * 1.08));
   const t2 = nearRes ? (res2 ? R2(res2.p * 1.05) : R2(c * 1.12)) : (res2 ? res2.p : R2(c * 1.15));
   const rrRaw = (t1 - entryNum) / Math.max(entryNum - stopNum, 1e-9);
+  /* 目标位动作映射 (v1.4.1): 达到不同价位 → 加仓/减仓/离场, 全部锚定具体价格 */
+  const sf = (x) => fmtNum(x, 2);
+  const supP = sup ? sup.p : null;
+  const resP = res1 ? res1.p : null;
+  let plan;
+  if (action === '积极关注') {
+    plan = basis + '。持有者：回踩' + (supP ? sf(supP) : '支撑位') + '不破可持有，冲高至' + sf(t1) + '减仓1/3，收盘跌破' + stop + '离场；空仓者：回踩' + (supP ? sf(supP) : '支撑位') + '企稳可分批介入 ≤2.5%，冲高不追。';
+  } else if (action === '轻仓试错') {
+    plan = basis + '。持有者：不追加，冲高至' + sf(t1) + '减仓1/3，跌破' + stop + '止损；空仓者：仅回踩' + (supP ? sf(supP) : '支撑位') + '企稳时轻仓 ≤1%验证，浮盈不加仓，破位即走。';
+  } else if (action === '减仓避险') {
+    plan = basis + '。持有者：逢反弹降仓，冲高至' + (resP ? sf(resP) : sf(t1)) + '附近减半，收盘跌破' + stop + '清仓观望；空仓者：不抄底，等空头信号衰减。';
+  } else if (action === '空仓等待') {
+    plan = basis + '。空仓者：等待放量阳线站上' + (resP ? sf(resP) : '压力位') + '再评估；持有者：反弹至' + (resP ? sf(resP) : sf(t1)) + '减仓，收盘跌破' + stop + '清仓。';
+  } else {
+    plan = basis + '。持有者：维持仓位，区间[' + (supP ? sf(supP) : '—') + ', ' + (resP ? sf(resP) : sf(t1)) + ']内高抛低吸，收盘跌破' + stop + '离场；空仓者：放量突破' + (resP ? sf(resP) : '压力位') + '再介入。';
+  }
   return { action, cls, plan, bull, bear, net, pv, fundTxt, fundDir, nearRes: !!(nearRes && res1), entry, entryTxt, stop, stopTxt, t1, t2, rr: rrRaw > 0 ? R2(rrRaw) : 0, rrOk: rrRaw > 0 };
 }
 
@@ -762,8 +780,10 @@ async function diagnose(full) {
   const pd = calcPdLow(k);
 
   /* 物理距离低系数卡片 (v1.2.0): 三态 — 双条件命中/单维度预警/通过
-     [v1.4.0 P2] 附带决策映射: 触发→按空仓/持有两态给出可直接执行的动作 */
+     [v1.4.0 P2] 附带决策映射: 触发→按空仓/持有两态给出可直接执行的动作
+     [v1.4.1] 止损价/持有红线注入具体数值 */
   const pdCard = $('pdCard');
+  const pdC = k[k.length - 1].c; /* 现价(收盘) */
   if (pdCard){
     if (pd){
       pdCard.style.display = '';
@@ -775,13 +795,13 @@ async function diagnose(full) {
         pdFlag.textContent = '物理距离低系数 · 抄底筹码型';
         pdNote.textContent = '该标的近20日缺乏右侧上涨结构且底部堆积抄底量，获利盘距现价物理距离近，次日冲高抛压大；即使评分高也应降低参与预期，等右侧结构确立后再评估。';
         pdAct.className = 'pd-act risk';
-        pdAct.innerHTML = '<span class="act-hd">操作建议</span>空仓者<b>禁入</b>不抄底；持有者<b>减至 1% 或清仓</b>，反弹不补仓，止损可放宽至 <em>-5%</em>（该结构波动大）。回测：触发后3日下跌概率 <em>75%</em>（近1年 8 次，均 <em>-0.94%</em>）。';
+        pdAct.innerHTML = '<span class="act-hd">操作建议</span>空仓者<b>禁入</b>不抄底；持有者<b>减至 1% 或清仓</b>，反弹不补仓，止损可放宽至 <em>-5%</em>（' + fmtNum(pdC * 0.95, 2) + '，现价 ' + fmtNum(pdC, 2) + '）。回测：触发后3日下跌概率 <em>75%</em>（近1年 8 次，均 <em>-0.94%</em>）。';
       } else if (pd.noRight || pd.pileUp){
         box.className = 'pd-box half';
         pdFlag.textContent = '单维度预警' + (pd.noRight ? ' · 无右侧结构' : '') + (pd.pileUp ? ' · 底部量堆积' : '');
         pdNote.textContent = '仅触发单一条件，未构成完整抄底筹码型结构，按常规流程观察即可，但需留意' + (pd.noRight ? '趋势尚未确立' : '近期量能异常放大') + '。';
         pdAct.className = 'pd-act';
-        pdAct.innerHTML = '<span class="act-hd">操作建议</span>按五档决策正常执行；重点跟踪' + (pd.noRight ? '右侧上涨结构是否确立（近20日上涨收盘是否达 3 天）' : '量能是否持续堆积演化为完整抄底筹码型') + '，达触发条件即按上表降级。';
+        pdAct.innerHTML = '<span class="act-hd">操作建议</span>按五档决策正常执行；持有者现价 ' + fmtNum(pdC, 2) + '，重点跟踪' + (pd.noRight ? '右侧上涨结构是否确立（近20日上涨收盘是否达 3 天）' : '量能是否持续堆积演化为完整抄底筹码型') + '，达触发条件即降级为：反弹减至1%或清仓。';
       } else {
         box.className = 'pd-box pass';
         pdFlag.textContent = '物理距离检查通过';
@@ -795,7 +815,8 @@ async function diagnose(full) {
   }
 
   /* 多空比值卡片 (P1-1, v1.3.0): 独立结构标签 — 8020档警示 / 强结构 / 分歧三态
-     [v1.4.0 P2] 四档决策映射: 每档按空仓/持有两态给出动作+仓位+红线 */
+     [v1.4.0 P2] 四档决策映射: 每档按空仓/持有两态给出动作+仓位+红线
+     [v1.4.1] 红线均线/止损价注入具体数值(MA5/MA10/MA20按当前K线计算) */
   const bb = calcBullBear(k);
   const bbCard = $('bbCard');
   if (bbCard) {
@@ -805,12 +826,15 @@ async function diagnose(full) {
       const bbFlag = $('bbFlag'), bbDims = $('bbDims'), bbNote = $('bbNote'), bbAct = $('bbAct');
       const ratioTxt = bb.tier.slice(0, 2) + ':' + bb.tier.slice(2);
       bbDims.innerHTML = '近20日上涨收盘 <b>' + bb.ups + ' 天</b>（占比 ' + R2(bb.win20 * 100) + '%） · 阳/阴日均量比 <b>' + R2(bb.vp) + ' 倍</b> · 收盘' + (bb.above ? '<b>MA20 上方</b>' : 'MA20 下方');
-      /* 四档决策映射 (仓位上限遵守单票2-3%·冰点期降级1%硬约束) */
+      /* 四档决策映射 (仓位上限遵守单票2-3%·冰点期降级1%硬约束; 红线附均线具体数值) */
+      const bbi = k.length - 1;
+      const bbMa5 = ind.ma5[bbi], bbMa10 = ind.ma10[bbi], bbMa20 = ind.ma20[bbi];
+      const bf = (x) => (x != null ? fmtNum(x, 2) : '—');
       const BB_ACT = {
-        '9010': '<span class="act-hd">操作建议</span>空仓者可入 ≤<em>3%</em> 追强势；持有者<b>趋势跟随</b>不逆势做T；红线：首次<b>跌破 MA5 减半</b>。',
-        '8515': '<span class="act-hd">操作建议</span>空仓者可入 ≤<em>2.5%</em> 或回撤 MA10 低吸；持有者<b>回撤做T</b>降成本；红线：<b>跌破 MA10 减半</b>。',
-        '8020': '<span class="act-hd">操作建议</span>空仓者<b>禁打板接力</b>，低吸需等下沿企稳；持有者<b>不追加</b>，反弹至压力位减仓；红线：单日 <em>-3%</em> 强制执行。',
-        '7030': '<span class="act-hd">操作建议</span>空仓者<b>观望</b>；持有者<b>减至 1% 以下</b>；红线：分歧未收敛前<b>无条件减仓</b>。',
+        '9010': '<span class="act-hd">操作建议</span>空仓者可入 ≤<em>3%</em> 追强势；持有者<b>趋势跟随</b>不逆势做T；红线：收盘首次<b>跌破 MA5（' + bf(bbMa5) + '）减半</b>，跌破 MA10（' + bf(bbMa10) + '）再减半。',
+        '8515': '<span class="act-hd">操作建议</span>空仓者可入 ≤<em>2.5%</em> 或回撤 MA10（' + bf(bbMa10) + '）低吸；持有者<b>回撤做T</b>降成本；红线：收盘<b>跌破 MA10（' + bf(bbMa10) + '）减半</b>，跌破 MA20（' + bf(bbMa20) + '）清仓。',
+        '8020': '<span class="act-hd">操作建议</span>空仓者<b>禁打板接力</b>，低吸需等下沿企稳；持有者<b>不追加</b>，反弹至压力位减仓；红线：单日 <em>-3%</em>（收盘&lt;' + fmtNum(q.price * 0.97, 2) + '）强制执行。',
+        '7030': '<span class="act-hd">操作建议</span>空仓者<b>观望</b>；持有者<b>减至 1% 以下</b>；红线：收盘<b>跌破 MA20（' + bf(bbMa20) + '）无条件减仓</b>。',
       };
       if (bb.tier === '8020') {
         box.className = 'pd-box';

@@ -1,6 +1,8 @@
-/* health-core.js v1.0.0 — 持仓体检引擎 (设计手册Problem 3落地)
+/* health-core.js v1.1.0 — 持仓体检引擎 (设计手册Problem 3落地)
    架构: Fetcher(并发≤4·指数退避) → Indicator(纯函数·与diag.js口径逐字一致) → Decider(三组分组+三档触发价) → MarketEnv(大盘联动)
    数据: 腾讯JSONP(K线/行情/搜索) + SITE_DATA快照(相位/市场分) + 上证K线实时(中轨判据)
+   v1.1.0: decideHolding新增野人两板块明确建议(bbAction/pdAction, 附MA5/MA10具体数值);
+           buildAction主操作指令(动作+价格锚点), applyMarketEnv环境降档后同步重算
    声明: 规则化条件概率诊断, 非预测, 不构成投资建议
    注: 引擎函数为 diag.js 独立副本(零改动生产文件), 供 port.js / three.html 复用 */
 (function () {
@@ -200,7 +202,30 @@ function decideHolding(h) {
   return {
     group, groupColor, profitPct: R2(profitPct), reasons,
     triggers: { reduce: reduce != null ? R2(reduce) : null, halve: halve != null ? R2(halve) : null, clear: R2(clear) },
+    /* v1.1.0: 野人两板块明确建议 (与diag.js BB_ACT/PD_ACT同口径, 附均线具体数值) */
+    bbAction: bbHoldAdvice(bb, ind), pdAction: pdHoldAdvice(ind.pdLow, ind),
   };
+}
+
+/* 野人哥·多空四档持有建议 (与diag.js BB_ACT同口径, 附MA5/MA10具体数值)
+   lvl: ok=强结构(绿) / warn=弱结构(橙) */
+function bbHoldAdvice(bb, ind) {
+  if (!bb) return null;
+  const f = (x) => (x != null ? R2(x) : '—');
+  const M = {
+    '9010': '强结构：趋势跟随不逆势做T；红线：收盘首次跌破MA5(' + f(ind.ma5) + ')减半，跌破MA10(' + f(ind.ma10) + ')再减半',
+    '8515': '回撤MA10(' + f(ind.ma10) + ')附近可做T降成本；红线：收盘跌破MA10(' + f(ind.ma10) + ')减半，跌破MA20(' + f(ind.ma20) + ')清仓',
+    '8020': '不追加仓位，反弹至压力位减仓；红线：单日-3%(收盘<' + R2(ind.c * 0.97) + ')强制减半（该档打板回测胜率18.92%）',
+    '7030': '减至底仓；红线：收盘跌破MA20(' + f(ind.ma20) + ')无条件清仓',
+  };
+  const txt = M[bb.tier];
+  return txt ? { tier: bb.tier, lvl: (bb.tier === '9010' || bb.tier === '8515') ? 'ok' : 'warn', txt } : null;
+}
+
+/* 野人哥·物理距离低系数持有建议 (与diag.js pdAct hit态同口径) */
+function pdHoldAdvice(pd, ind) {
+  if (!pd || !pd.hit) return null;
+  return { lvl: 'warn', txt: '抄底筹码型（近20日上涨收盘仅' + pd.upDays + '天且5/60量比' + pd.vr560 + '倍堆积）：次日冲高抛压大，反弹减至轻仓或清仓不补仓；止损可放宽至' + R2(ind.c * 0.95) + '(-5%)' };
 }
 
 /* ═══════════ MarketEnv: 大盘联动 ═══════════
@@ -271,6 +296,23 @@ function applyMarketEnv(h, env) {
       h.decision.reasons.push('冰冷期减仓触发价上移至现价×0.99（' + floor + '）');
     }
   }
+  buildAction(h); /* v1.1.0: 环境注入后(含降档/触发价上移)重算主操作指令 */
+}
+
+/* 主操作指令合成 (v1.1.0): 每组明确动作+价格锚点, 持有者视角
+   lock: 移动止盈三档 | reduce: 反弹减半+清仓红线 | hold: 破MA20降档 */
+function buildAction(h) {
+  const d = h.decision, ind = h.ind;
+  if (!ind || !d) return;
+  const f = (x) => (x != null ? R2(x) : '—');
+  const t = d.triggers || {};
+  if (d.group === 'lock') {
+    d.action = '锁利：MA5(' + f(ind.ma5) + ')上方持有，跌破「再减」' + f(t.halve) + '减半，跌破「清仓红线」' + f(t.clear) + '离场';
+  } else if (d.group === 'reduce') {
+    d.action = '减仓：反弹至' + f(t.reduce) + '附近减半仓，收盘跌破' + f(t.clear) + '清仓；不加仓不补仓';
+  } else {
+    d.action = '持有：收盘跌破MA20(' + f(ind.ma20) + ')即降档减仓，跌破' + f(t.clear) + '清仓；MA10(' + f(ind.ma10) + ')上方结构完好';
+  }
 }
 
 /* ═══════════ Fetcher: 并发拉取(≤4, 指数退避重试2次) ═══════════ */
@@ -331,13 +373,14 @@ async function runPortfolioHealth(rows, onProgress) {
 
 /* ═══════════ 暴露 window.Health (供 port.js / three.html 复用) ═══════════ */
 window.Health = {
-  version: '1.0.0',
+  version: '1.1.0',
   /* 数据层 */
   tencent, searchStock, fetchKline, fetchQuote, fetchWithRetry, runPool,
   /* 指标层 */
   maSeries, bollSeries, computeIndicators, calcBullBear, calcPdLow,
   /* 决策层 */
   decideHolding, fetchMarketEnv, applyMarketEnv, runPortfolioHealth,
+  bbHoldAdvice, pdHoldAdvice, buildAction,
   /* 工具 */
   R2, fmtNum, fmtWan, fmtYi, ARED, AGREEN, BLUE, ORANGE,
 };

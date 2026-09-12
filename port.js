@@ -1,7 +1,9 @@
-/* port.js v1.1.0 — 持仓体检交互逻辑 (设计手册Problem 2/4/5落地)
+/* port.js v1.3.0 — 持仓体检交互逻辑 (设计手册Problem 2/4/5落地)
    模块: preprocess(canvas重采样/灰度/锐化) + ocr(自托管fast语言包/打开即预热/降级) +
-         parser(行Y聚类/约束搜索解析/六条算术自洽校验) + match(smartbox反查/ETF多候选) +
-         ui(五步状态机/确认表格/报告渲染/localStorage历史)
+         parser(双粒度聚类+三通道候选+区域竞争: L1单行/SEG名称锚定段/VP垂直价格对) +
+         match(smartbox反查/ETF多候选) + ui(五步状态机/确认表格/报告渲染/localStorage历史)
+   v1.3.0: 修复垂直布局(成本上/现价下)识别率低 — 滑窗兜底改为始终启用+竞争去重;
+           报告新增「操作指令+野人两板块建议」行(动作+均线具体数值, 对齐diag.js)
    引擎: window.Health (health-core.js, 与diag.js口径逐字一致)
    声明: 条件概率诊断, 非预测, 不构成投资建议 */
 (function () {
@@ -162,16 +164,25 @@ function extractLines(result) {
   return out;
 }
 
-/* ═══════════════════ 模块3: 解析(行Y聚类 + 约束搜索) ═══════════════════ */
-/* 视觉行聚类: y中心差 < 中位行高×0.6 归同组 */
-function clusterLines(lines) {
+/* ═══════════════════ 模块3: 解析(双粒度聚类 + 三通道候选 + 区域竞争) ═══════════════════
+   v1.3.0 重构 — 解决「8只只识别出2只」与「成本/现价混淆」:
+   垂直布局(成本在上/现价在下)时, 名称行与数据行分离, 单行解析必然失败;
+   滑窗兜底仅在0识别时启用是召回率低的直接根源, 改为多通道全量竞争
+   - 双粒度聚类(0.45细/0.65粗): 不同App行距差异大, 两套行划分并行竞争
+   - L1 单行解析: 横排布局(名称+全部数据同一行)
+   - SEG 名称锚定段: 名称行起至下一名称行(≤5行)合并, 解决名称与数据分行
+   - VP 垂直价格对: 纯数字两行(成本上/现价下), 名称从左侧/上方找
+   - 区域竞争: 同一标的区域多候选取约束评分最高者, 不同布局自动择优 */
+/* 视觉行聚类: y中心差 < 中位行高×factor 归同组 */
+function clusterLines(lines, factor) {
+  factor = factor || 0.62;
   const sorted = lines.slice().sort((a, b) => (a.bbox.y0 + a.bbox.y1) - (b.bbox.y0 + b.bbox.y1));
   const rows = [];
   for (const l of sorted) {
     const yc = (l.bbox.y0 + l.bbox.y1) / 2;
     const hh = l.bbox.y1 - l.bbox.y0;
     const last = rows[rows.length - 1];
-    if (last && Math.abs(yc - last.yc) < Math.max(last.hh, hh) * 0.62) {
+    if (last && Math.abs(yc - last.yc) < Math.max(last.hh, hh) * factor) {
       last.items.push(l); last.yc = (last.yc + yc) / 2; last.hh = Math.max(last.hh, hh);
     } else {
       rows.push({ yc, hh, items: [l] });
@@ -188,7 +199,7 @@ function extractName(rowText) {
   const cand = m.filter(x => !HEADER_WORDS.test(x));
   return cand.length ? cand.sort((a, b) => b.length - a.length)[0] : null;
 }
-/* 数字token: 含数值/百分号/中文单位(万/亿) */
+/* 数字token: 含数值/百分号/中文单位(万/亿); pos=文本内位置(价格方向启发用) */
 function extractTokens(rowText) {
   const toks = [];
   const re = /(-?\d[\d,]*\.?\d*)(%|万|亿)?/g;
@@ -196,7 +207,7 @@ function extractTokens(rowText) {
   while ((m = re.exec(rowText)) !== null) {
     const val = parseFloat(m[1].replace(/,/g, ''));
     if (!isFinite(val)) continue;
-    toks.push({ val, raw: m[0], isPct: m[2] === '%', unitWan: m[2] === '万', unitYi: m[2] === '亿', isInt: !m[1].includes('.') && !m[1].includes(',') || /^\d+$/.test(m[1].replace(/,/g, '')) });
+    toks.push({ val, raw: m[0], pos: m.index, isPct: m[2] === '%', unitWan: m[2] === '万', unitYi: m[2] === '亿', isInt: !m[1].includes('.') && !m[1].includes(',') || /^\d+$/.test(m[1].replace(/,/g, '')) });
   }
   return toks;
 }
@@ -241,7 +252,10 @@ function parseHoldingRow(rowText) {
           const V = t.val * (t.unitWan ? 1e4 : t.unitYi ? 1e8 : 1);
           if (V > 1000 && Math.abs(V - Vcalc) / Vcalc < 0.05) { vHit = 1; vTok = t; break; }
         }
-        const score = hun * 3 + rHit * 4 + vHit * 6 + (P > C ? 0.1 : 0);
+        /* v1.3.0价格方向启发: 无盈亏%佐证时, 文本靠后的价格判为现价
+           (垂直布局成本在上现价在下 → 合并文本中成本先出现) */
+        const score = hun * 3 + rHit * 4 + vHit * 6 + (P > C ? 0.1 : 0) +
+          (rHit === 0 && numToks[i].pos > numToks[j].pos ? 0.05 : 0);
         if (!best || score > best.score) {
           best = { score, name, code: codeM ? codeM[1] : null, price: R2(P), cost: R2(C), qty: Math.round(Q), rHit, vHit, hun, raw: rowText };
         }
@@ -252,27 +266,135 @@ function parseHoldingRow(rowText) {
   best.conf = best.vHit && best.hun >= 1 ? 'high' : (best.rHit ? 'mid' : 'low');
   return best;
 }
-/* 全图解析: 聚类→行文本→逐行约束搜索, 相邻行合并(名称行与数字行分离的布局) */
-function parseScreenshot(lines) {
-  const rows = clusterLines(lines);
-  const rowTexts = rows.map(r => r.items.map(it => it.text).join(' ').replace(/\s+/g, ' ').trim());
-  const out = [];
-  for (const t of rowTexts) {
-    const p = parseHoldingRow(t);
-    if (p) out.push(p);
+/* 垂直价格对解析: 券商App「成本在上/现价在下」两行布局 (v1.3.0)
+   判据: 两行均无中文名称且含数字, x区间重叠≥40%, y紧邻(中心差≤2.2×行高);
+         上行首个小数价格=成本, 下行首个小数价格=现价, 有盈亏%时按校验自动纠偏
+   名称: 左侧同高行优先(y覆盖价格对且x在价格列左), 其次上方≤3行高内的名称行
+   数量: %100==0整数优先, 市值≈现价×数量佐证; 全缺失时按市值/现价反推 */
+function parseVerticalPair(info, i) {
+  const a = info[i], b = info[i + 1];
+  if (extractName(a.text) || extractName(b.text)) return null; /* 行内有名称交给L1/SEG */
+  const ta = extractTokens(a.text), tb = extractTokens(b.text);
+  const na = ta.filter(t => !t.isPct), nb = tb.filter(t => !t.isPct);
+  if (!na.length || !nb.length) return null;
+  const ow = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0);
+  const minW = Math.min(a.x1 - a.x0, b.x1 - b.x0);
+  if (minW > 0 && ow < 0.4 * minW) return null;       /* x区间不重叠, 非同列价格对 */
+  if (b.yc - a.yc > 2.2 * Math.max(a.hh, b.hh)) return null; /* y不相邻 */
+  const pick = (toks) => toks.find(t => t.raw.includes('.') && t.val > 0.1 && t.val < 10000) || toks.find(t => t.val > 0.1 && t.val < 10000);
+  const cTok = pick(na), pTok = pick(nb);
+  if (!cTok || !pTok) return null;
+  let cost = cTok.val, price = pTok.val;
+  const pctAll = [...ta, ...tb].filter(t => t.isPct);
+  const rOf = (P, C) => (P / C - 1) * 100;
+  let rHit = pctAll.filter(t => Math.abs(t.val - rOf(price, cost)) < 1.5).length;
+  const rRev = pctAll.filter(t => Math.abs(t.val - rOf(cost, price)) < 1.5).length;
+  if (rRev > rHit) { const t = cost; cost = price; price = t; rHit = rRev; } /* 个别App现价在上, 盈亏%纠偏 */
+  if (!(price > 0.1 && price < 100000 && cost > 0.1 && cost < 100000)) return null;
+  if (!(price / cost > 0.05 && price / cost < 20)) return null;
+  /* 名称: 左侧同高行 → 上方名称行 */
+  let name = null;
+  const py0 = a.yc - a.hh, py1 = b.yc + b.hh;
+  for (let j = 0; j < info.length; j++) {
+    if (j === i || j === i + 1) continue;
+    const r = info[j];
+    if (r.yc + r.hh / 2 < py0 || r.yc - r.hh / 2 > py1) continue; /* y不覆盖价格对 */
+    if (r.x1 > Math.min(a.x0, b.x0) - 4) continue;                 /* 需在价格列左侧 */
+    const nm = extractName(r.text);
+    if (nm) { name = nm; break; }
   }
-  /* 兜底: 名称行(只有中文)与下一行(只有数字)的两行布局 */
-  if (out.length === 0) {
-    for (let i = 0; i < rowTexts.length - 1; i++) {
-      const merged = rowTexts[i] + ' ' + rowTexts[i + 1];
-      const p = parseHoldingRow(merged);
-      if (p) out.push(p);
+  if (!name) {
+    for (let j = i - 1; j >= 0; j--) {
+      const r = info[j];
+      if (a.yc - r.yc > 3 * a.hh) break;
+      const nm = extractName(r.text);
+      if (nm) { name = nm; break; }
     }
   }
-  /* 去重(按名称) */
-  const seen = new Set(); const uniq = [];
-  for (const p of out) { if (!seen.has(p.name)) { seen.add(p.name); uniq.push(p); } }
-  return uniq;
+  if (!name) return null;
+  /* 数量: %100==0整数加分 + 市值佐证; 缺失时市值/现价反推 */
+  const all = [...na, ...nb], priceToks = [cTok, pTok];
+  let qty = null, bestSc = -1;
+  for (const t of all) {
+    if (priceToks.includes(t)) continue;
+    const Q = t.val * (t.unitWan ? 1e4 : t.unitYi ? 1e8 : 1);
+    if (!(Q >= 100 && Q <= 5e7)) continue;
+    let vHit = 0;
+    for (const v of all) {
+      if (v === t || priceToks.includes(v)) continue;
+      const V = v.val * (v.unitWan ? 1e4 : v.unitYi ? 1e8 : 1);
+      if (V > 1000 && Math.abs(V - price * Q) / (price * Q) < 0.08) { vHit = 6; break; }
+    }
+    const hun = t.isInt && Math.round(t.val) % 100 === 0 ? 3 : 1;
+    const sc = hun + vHit + (t.isInt ? 0.5 : 0);
+    if (sc > bestSc) { bestSc = sc; qty = Q; }
+  }
+  if (qty == null) {
+    for (const v of all) {
+      if (priceToks.includes(v)) continue;
+      const V = v.val * (v.unitWan ? 1e4 : v.unitYi ? 1e8 : 1);
+      if (V > 1000 && V / price >= 100 && V / price <= 5e7) { qty = Math.round(V / price); bestSc = 1; break; }
+    }
+  }
+  const codeM = (a.text + ' ' + b.text + ' ' + name).match(/[（(]?([0-9]{6})[）)]?/);
+  return {
+    name, code: codeM ? codeM[1] : null,
+    price: R2(price), cost: R2(cost), qty: qty != null ? Math.round(qty) : null,
+    score: 4 + rHit * 4 + Math.max(bestSc, 0), rHit, vHit: bestSc >= 6 ? 1 : 0, hun: bestSc >= 3 ? 2 : 0,
+    conf: rHit ? 'mid' : 'low', raw: a.text + ' / ' + b.text,
+  };
+}
+/* 全图解析 v1.3.0: 双粒度×三通道候选 + 区域竞争去重
+   每通道独立产出候选(含y区域), 评分降序挑选, 同名或y重叠>55%视为同标的只留最高分 */
+function parseScreenshot(lines) {
+  const cands = [];
+  const addParse = (text, yTop, yBot, src) => {
+    const p = parseHoldingRow(text);
+    if (p) cands.push({ p, yTop, yBot, src });
+  };
+  for (const factor of [0.45, 0.65]) {
+    const rows = clusterLines(lines, factor);
+    const info = rows.map(r => {
+      const text = r.items.map(it => it.text).join(' ').replace(/\s+/g, ' ').trim();
+      let x0 = Infinity, x1 = -Infinity;
+      r.items.forEach(it => { x0 = Math.min(x0, it.bbox.x0); x1 = Math.max(x1, it.bbox.x1); });
+      return { yc: r.yc, hh: r.hh, x0, x1, text };
+    });
+    const span = (i) => ({ top: info[i].yc - info[i].hh / 2, bot: info[i].yc + info[i].hh / 2 });
+    /* 通道L1: 单行解析(横排布局) */
+    info.forEach((r, i) => { const g = span(i); addParse(r.text, g.top, g.bot, 'L1'); });
+    /* 通道SEG: 名称锚定段(名称行起至下一名称行, ≤5行) — 解决名称与数据分行 */
+    const nameIdx = [];
+    info.forEach((r, i) => { if (extractName(r.text)) nameIdx.push(i); });
+    for (let s = 0; s < nameIdx.length; s++) {
+      const head = nameIdx[s];
+      const tail = Math.min(s + 1 < nameIdx.length ? nameIdx[s + 1] : info.length, head + 5);
+      if (tail - head < 2) continue; /* 单行段L1已覆盖 */
+      const merged = info.slice(head, tail).map(r => r.text).join(' ');
+      const g0 = span(head), g1 = span(tail - 1);
+      addParse(merged, g0.top, g1.bot, 'SEG');
+    }
+    /* 通道VP: 垂直价格对(成本上/现价下) */
+    for (let i = 0; i < info.length - 1; i++) {
+      const vp = parseVerticalPair(info, i);
+      if (vp) { const g0 = span(i), g1 = span(i + 1); cands.push({ p: vp, yTop: g0.top, yBot: g1.bot, src: 'VP' }); }
+    }
+  }
+  /* 区域竞争: 评分降序, 同名或y区间重叠率>55%(按较短候选)视为同标的, 只留最高分 */
+  cands.sort((a, b) => b.p.score - a.p.score);
+  const picked = [];
+  for (const c of cands) {
+    if (picked.some(x => x.p.name === c.p.name)) continue;
+    const ch = c.yBot - c.yTop;
+    const clash = picked.some(x => {
+      const ov = Math.min(x.yBot, c.yBot) - Math.max(x.yTop, c.yTop);
+      return ov > 0 && ov / Math.min(x.yBot - x.yTop, ch) > 0.55;
+    });
+    if (clash) continue;
+    picked.push(c);
+  }
+  picked.sort((a, b) => a.yTop - b.yTop);
+  return picked.map(x => Object.assign({ src: x.src }, x.p));
 }
 
 /* ═══════════════════ 模块4: 六条算术自洽校验 ═══════════════════ */
@@ -677,11 +799,11 @@ function renderReport(rep) {
     cyc + (env.ebb ? ' — 退潮期纪律已注入' : '') + '</div><span class="env-val" style="color:var(--orange);">' +
     (env.breakMid ? '⚠ 上证破中轨' : '') + '</span></div>';
   els.envWrap.innerHTML = envHtml;
-  /* 三组卡 */
+  /* 三组卡 (v1.3.0: desc为明确动作指令) */
   const grpDef = [
-    { key: 'reduce', title: '反弹减仓', color: ORANGE, desc: '反弹视作减仓窗口，而非加仓窗口' },
-    { key: 'hold', title: '持有观察', color: BLUE, desc: '结构未破坏，破触发价再降档' },
-    { key: 'lock', title: '锁定利润', color: AGREEN, desc: '浮盈+趋势健康，移动止盈锁利' },
+    { key: 'reduce', title: '反弹减仓', color: ORANGE, desc: '冲高至触发价减半仓，破清仓红线离场；不加仓不补仓' },
+    { key: 'hold', title: '持有观察', color: BLUE, desc: '结构完好持有，收盘破MA20即降档减仓，破红线清仓' },
+    { key: 'lock', title: '锁定利润', color: AGREEN, desc: '移动止盈：跌破「再减」触发价减半，跌破红线离场' },
   ];
   els.grpGrid.innerHTML = grpDef.map(g => {
     const list = rep.groups[g.key] || [];
@@ -710,12 +832,26 @@ function renderReport(rep) {
       (t.halve ? '<span class="tchip tc-halve">再减 ' + t.halve + '</span>' : '') +
       (t.clear ? '<span class="tchip tc-clear">清仓红线 ' + t.clear + '</span>' : '') + '</div>' +
       '<div class="hr-reasons">' + (d2.reasons || []).map(esc).join(' · ') + (h.dayPnlWarn ? ' · ⚠' + h.dayPnlWarn : '') + '</div>' +
+      /* v1.3.0: 操作指令 + 野人两板块建议行 (动作+均线具体数值, 对齐diag.js明确化标准) */
+      (function () {
+        const acts = [];
+        if (d2.action) acts.push({ tag: '指令', cls: 'main', txt: d2.action });
+        if (bb && d2.bbAction) acts.push({ tag: '野·多空' + d2.bbAction.tier, cls: d2.bbAction.lvl === 'ok' ? 'ok' : 'warn', txt: d2.bbAction.txt });
+        if (ind && d2.pdAction) acts.push({ tag: '野·物理距离', cls: 'warn', txt: d2.pdAction.txt });
+        if (!acts.length) return '';
+        return '<div class="hr-actions">' + acts.map(a =>
+          '<div class="hr-act"><span class="ha-tag ' + a.cls + '">' + esc(a.tag) + '</span><span class="ha-txt">' + esc(a.txt) + '</span></div>').join('') + '</div>';
+      })() +
       '</div>';
   }).join('') + (rep.errs.length ? '<div class="empty" style="color:var(--red);">' + rep.errs.map(e => esc(e.name) + ': ' + e.error).join(' · ') + '</div>' : '');
-  /* 纪律 */
+  /* 纪律 (v1.3.0: 新增多空弱档纪律行) */
   const disc = env.discipline.slice();
   if (rep.groups.reduce.length) disc.push('反弹减仓组' + rep.groups.reduce.length + '只：冲高至触发价分批减，不追涨停不加仓');
   if (rep.groups.lock.length) disc.push('锁定利润组：跌破「再减」触发价减半，跌破「清仓红线」离场，让利润奔跑');
+  const bbWeak = rep.ok.filter(h => h.ind && h.ind.bullBear && (h.ind.bullBear.tier === '8020' || h.ind.bullBear.tier === '7030'));
+  if (bbWeak.length) disc.push('多空拉扯/分歧档' + bbWeak.length + '只（' + bbWeak.map(x => x.name).join('、') + '）：反弹不加仓，单日-3%强制减半（8020档打板回测胜率18.92%）');
+  const pdHit = rep.ok.filter(h => h.ind && h.ind.pdLow && h.ind.pdLow.hit);
+  if (pdHit.length) disc.push('物理距离低系数' + pdHit.length + '只（' + pdHit.map(x => x.name).join('、') + '）：次日冲高抛压大，反弹减至轻仓不补仓');
   disc.push('单票异常（放量长阴/破MA20超1%）优先处理，与市场相位共振时执行力度加倍');
   els.discList.innerHTML = disc.map(x => '<li><span class="d-dot"></span>' + esc(x) + '</li>').join('');
   /* 仓位分布 */

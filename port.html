@@ -4,8 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>持仓体检 · 晴雨气象台</title>
-<!-- port.html v1.1.0 持仓体检: 上传券商App截图 → 浏览器端OCR解析 → 六条算术自洽校验 → 晴雨气象台诊断引擎 → 三组分组体检报告
+<!-- port.html v1.2.0 持仓体检: 上传券商App截图 → 浏览器端OCR解析 → 六条算术自洽校验 → 晴雨气象台诊断引擎 → 三组分组体检报告
      设计: iOS Liquid Glass(与主看板/诊断中心同构); OCR: tesseract.js@5 自托管./ocr/(fast语言包, 打开即预热); 数据: 腾讯JSONP + SITE_DATA快照
+     v1.2.0: 解析引擎v1.3.0(双粒度聚类+SEG名称锚定段+VP垂直价格对, 修复垂直布局8出2召回问题); 明细新增操作指令+野人建议行
      声明: 全站信号观察, 不构成投资建议; 引擎口径与diag.js逐字一致, 生产文件零改动 -->
 <style>
 :root {
@@ -249,6 +250,14 @@ section.card { -webkit-backdrop-filter:var(--blur-card); backdrop-filter:var(--b
 .tc-halve { background:rgba(255,159,10,.14); color:#E58600; }
 .tc-clear { background:var(--red-soft); color:var(--red); }
 .hr-reasons { flex-basis:100%; font-size:12px; color:var(--secondary); line-height:1.65; }
+/* v1.3.0: 操作指令+野人建议行 */
+.hr-actions { flex-basis:100%; display:flex; flex-direction:column; gap:6px; padding-top:4px; border-top:.5px solid var(--hairline-soft); }
+.hr-act { display:flex; align-items:flex-start; gap:8px; font-size:12.5px; line-height:1.55; color:var(--text); font-weight:600; }
+.hr-act .ha-tag { flex:none; display:inline-flex; align-items:center; padding:2px 8px; border-radius:7px; font-size:10.5px; font-weight:800; min-height:20px; margin-top:1px; }
+.hr-act .ha-txt { flex:1; }
+.ha-tag.main { background:var(--primary-soft); color:var(--primary); }
+.ha-tag.ok { background:var(--green-soft); color:var(--green); }
+.ha-tag.warn { background:var(--orange-soft); color:var(--orange); }
 
 .disc-list { margin-top:12px; list-style:none; display:flex; flex-direction:column; gap:9px; }
 .disc-list li { display:flex; gap:10px; align-items:flex-start; font-size:13.5px; color:var(--secondary); line-height:1.6; }
