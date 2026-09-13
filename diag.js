@@ -792,20 +792,20 @@ async function diagnose(full) {
       pdDims.innerHTML = '近20日上涨收盘 <b>' + pd.upDays + ' 天</b>（阈值&lt;3 判无右侧结构） · 近5日/60日均量比 <b>' + pd.vr560 + ' 倍</b>（阈值&gt;1.5 判底部堆积）';
       if (pd.hit){
         box.className = 'pd-box';
-        pdFlag.textContent = '物理距离低系数 · 抄底筹码型';
-        pdNote.textContent = '该标的近20日缺乏右侧上涨结构且底部堆积抄底量，获利盘距现价物理距离近，次日冲高抛压大；即使评分高也应降低参与预期，等右侧结构确立后再评估。';
+        pdFlag.textContent = '抄底筹码型 · 次日冲高易被砸';
+        pdNote.textContent = '大白话: 这只票近20天几乎没涨，但底部成交量突然放大 — 说明有人在低位悄悄买入。这批低成本筹码离现价很近，明天一旦冲高，他们容易急着卖出锁定利润 → 冲高回落概率大，即使评分高也别追。';
         pdAct.className = 'pd-act risk';
         pdAct.innerHTML = '<span class="act-hd">操作建议</span>空仓者<b>禁入</b>不抄底；持有者<b>减至 1% 或清仓</b>，反弹不补仓，止损可放宽至 <em>-5%</em>（' + fmtNum(pdC * 0.95, 2) + '，现价 ' + fmtNum(pdC, 2) + '）。回测：触发后3日下跌概率 <em>75%</em>（近1年 8 次，均 <em>-0.94%</em>）。';
       } else if (pd.noRight || pd.pileUp){
         box.className = 'pd-box half';
         pdFlag.textContent = '单维度预警' + (pd.noRight ? ' · 无右侧结构' : '') + (pd.pileUp ? ' · 底部量堆积' : '');
-        pdNote.textContent = '仅触发单一条件，未构成完整抄底筹码型结构，按常规流程观察即可，但需留意' + (pd.noRight ? '趋势尚未确立' : '近期量能异常放大') + '。';
+        pdNote.textContent = '大白话: 只踩中一个预警条件（' + (pd.noRight ? '近20天上涨节奏偏弱' : '近期量能异常放大') + '），还不构成完整的「抄底盘」结构，按常规流程观察即可，重点盯防它会不会演变成完整预警。';
         pdAct.className = 'pd-act';
         pdAct.innerHTML = '<span class="act-hd">操作建议</span>按五档决策正常执行；持有者现价 ' + fmtNum(pdC, 2) + '，重点跟踪' + (pd.noRight ? '右侧上涨结构是否确立（近20日上涨收盘是否达 3 天）' : '量能是否持续堆积演化为完整抄底筹码型') + '，达触发条件即降级为：反弹减至1%或清仓。';
       } else {
         box.className = 'pd-box pass';
-        pdFlag.textContent = '物理距离检查通过';
-        pdNote.textContent = '近20日右侧上涨结构正常且无明显底部抄底量堆积，抛压物理距离健康。';
+        pdFlag.textContent = '抛压健康 · 检查通过';
+        pdNote.textContent = '大白话: 走势结构正常（近20天有健康的上涨节奏），也没有低位偷摸放量的迹象 → 大家的持仓成本普遍离现价较远，短期不会有集中砸盘的压力，这个维度健康。';
         pdAct.className = 'pd-act';
         pdAct.innerHTML = '<span class="act-hd">操作建议</span>按五档决策正常执行，本维度无额外限制。';
       }
@@ -1019,6 +1019,35 @@ function renderChips() {
   }));
 }
 renderChips();
+
+/* ═══════════ [v1.14.2] 高分榜跳转: ?code=XXXXXX 自动诊断 ═══════════
+   支持纯6位代码（按首位推断市场: 6/5/9→sh, 4/8→bj, 其余→sz）或带 sh/sz/bj 前缀。
+   失败兜底: 显示错误提示不白屏, 用户可回搜索框手动诊断。 */
+(function autoDiagFromUrl(){
+  const raw = new URLSearchParams(location.search).get('code');
+  if (!raw) return;
+  const s = String(raw).trim().toLowerCase();
+  let full = null;
+  const mPref = s.match(/^(sh|sz|bj)(\d{6})$/), m6 = s.match(/^(\d{6})$/);
+  if (mPref) full = s;
+  else if (m6){
+    const c = m6[1];
+    full = (c[0] === '6' || c[0] === '5' || c[0] === '9') ? 'sh' + c : (c[0] === '4' || c[0] === '8') ? 'bj' + c : 'sz' + c;
+  }
+  if (!full) return;
+  const se = $('stockEmpty');
+  if (se) se.innerHTML = '<div class="sk-ring"></div>正在加载 <b>' + full.slice(2) + '</b> 的诊断数据 — 60日量价 · 信号 · 五档位阶 · 资金流<br><span style="font-size:12px; color:var(--tertiary);">数据实时获取: 腾讯行情 + 东财资金流 · 浏览器直连</span>';
+  diagnose(full)
+    .then(() => { window.scrollTo({ top: 260, behavior: 'smooth' }); })
+    .catch(() => {
+      const sr = $('stockResult'), se2 = $('stockEmpty');
+      if (sr) sr.classList.add('hidden');
+      if (se2){
+        se2.classList.remove('hidden');
+        se2.innerHTML = '诊断数据加载失败 · 请检查网络后刷新重试<br><span style="font-size:12px; color:var(--tertiary);">也可以在上方搜索框直接输入代码 / 名称重新诊断</span>';
+      }
+    });
+})();
 
 /* ═══════════ TAB 2: 大盘板块 ═══════════ */
 /* v1.4.0 多周期轨道·海拔体系: 蒸馏自公开博主@Keep方法论, 按回测证据校准信号权重

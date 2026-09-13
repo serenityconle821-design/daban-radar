@@ -67,6 +67,16 @@ body::before {
 .brand-name { font-size:15.5px; font-weight:800; letter-spacing:-.3px; line-height:1.2; }
 .brand-meta { font-size:11px; color:var(--secondary); line-height:1.3; }
 
+/* [v1.14.2] 顶栏返回按钮 (高分榜跳转回位) — iOS 液态玻璃 44×44 触摸目标 */
+.back-btn {
+  display:inline-flex; align-items:center; justify-content:center; flex:none;
+  width:44px; height:44px; border-radius:14px; text-decoration:none; color:var(--primary);
+  background:rgba(120,120,128,.12); cursor:pointer;
+  box-shadow:inset 0 1px 0 var(--specular-top), 0 0 0 .5px var(--hairline-soft);
+  transition:transform .18s var(--ease-glass), background .18s ease;
+}
+.back-btn:active { transform:scale(.90); background:rgba(120,120,128,.22); }
+
 /* iOS 分段控制器 tab */
 .segment {
   margin-left:auto; display:flex; background:rgba(120,120,128,.14); border-radius:12px; padding:2px;
@@ -367,6 +377,9 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 
 <div class="topbar">
   <div class="topbar-inner">
+    <a class="back-btn" id="backBtn" href="./index.html" aria-label="返回上一页" title="返回">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </a>
     <a class="brand" href="./index.html">
       <span class="brand-dot"></span>
       <span>
@@ -637,7 +650,20 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 
 <script src="./echarts.min.js"></script>
 <script src="./fund_data.js?v=115"></script>
-<script src="./diag.js?v=116"></script>
+<script src="./diag.js?v=117"></script>
 <script src="./totop.js" defer></script>
+<script>
+/* [v1.14.2] 返回逻辑: 从高分榜点入 → history.back() 保留列表页滚动/筛选状态;
+   直接打开(书签/新标签) → 回首页。href 属性作为无 JS 降级出口 */
+(function(){
+  const b = document.getElementById('backBtn');
+  if (!b) return;
+  b.addEventListener('click', e => {
+    e.preventDefault();
+    if (history.length > 1 && document.referrer) history.back();
+    else location.href = './index.html';
+  });
+})();
+</script>
 </body>
 </html>

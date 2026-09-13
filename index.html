@@ -1001,6 +1001,19 @@ tr.pt-excluded-row td { opacity:.52; }
 .sc-bb.t9010, .sc-bb.t8515 { background:rgba(52,199,89,.14); color:var(--green); }
 .sc-bb.t7030 { background:rgba(142,142,147,.14); color:var(--secondary); }
 .sc-arc { display:inline-block; margin-left:5px; padding:1px 6px; border-radius:6px; font-size:10px; font-weight:800; background:rgba(255,59,48,.14); color:var(--red); vertical-align:1px; cursor:help; white-space:nowrap; }
+
+/* [v1.14.2] 高分榜: 行点击进个股诊断页 + 徽章图例通俗说明 */
+.sc-tbl tbody tr[data-code] { cursor:pointer; transition:background .15s ease; }
+.sc-tbl tbody tr[data-code]:hover { background:rgba(0,122,255,.06); }
+.sc-tbl tbody tr[data-code]:focus-visible { outline:2px solid var(--primary); outline-offset:-2px; }
+.sc-legend { border-radius:14px; padding:13px 16px; margin:10px 0 2px; background:rgba(255,255,255,.42); box-shadow:inset 0 0 0 .5px var(--hairline-soft); }
+.sc-legend .lg-title { font-size:13px; font-weight:800; letter-spacing:-.2px; }
+.sc-legend .lg-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:7px 16px; margin-top:9px; }
+.sc-legend .lg-item { display:flex; align-items:flex-start; gap:7px; font-size:12px; line-height:1.55; color:var(--text); }
+.sc-legend .lg-item .sc-bb, .sc-legend .lg-item .sc-pd, .sc-legend .lg-item .sc-arc { margin:1px 0 0; flex:none; }
+.sc-legend .lg-buy { margin-top:9px; padding:9px 12px; border-radius:10px; background:rgba(255,59,48,.08); font-size:12px; line-height:1.65; color:var(--text); }
+.sc-legend .lg-buy b { color:var(--red); }
+.sc-legend .lg-click { margin-top:8px; font-size:11px; color:var(--tertiary); }
 .sc-acb { display:flex; align-items:center; gap:8px; margin:0 0 10px; padding:8px 12px; border-radius:10px; font-size:11.5px; line-height:1.5; }
 .sc-acb .ph { font-weight:800; white-space:nowrap; }
 .sc-acb.ferment, .sc-acb.ebb { background:rgba(255,59,48,.08); }
@@ -1457,6 +1470,7 @@ tr.pt-excluded-row td { opacity:.52; }
     <div class="sc-head" id="scHead"></div>
     <div class="sc-acb" id="scAcbBar" style="display:none;"></div>
     <div class="sc-pd-bar" id="scPdBar" style="display:none;"></div>
+    <div class="sc-legend" id="scLegend" style="display:none;"></div>
     <div class="tbl-scroll"><table class="tbl sc-tbl" id="scTbl"></table></div>
     <div id="scSubBox"></div>
     <div class="sc-foot-wrap">
@@ -3204,7 +3218,7 @@ function scRowHtml(x, i, isSub){
   const BB_LBL = { '9010': '极强单边', '8515': '强趋势', '8020': '多空拉扯', '7030': '分歧显著' };
   const bbBadge = x.bb ? `<span class="sc-bb t${x.bb}" title="野人哥·多空比值${x.bb.slice(0,2)}:${x.bb.slice(2)} · ${BB_LBL[x.bb] || ''} · 近20日上涨收盘${x.bb_win}%${x.bb === '8020' ? ' — 高分但多空拉扯结构弱, 2进3打板回测胜率仅18.92%, 剔除后+7.42pp' : x.bb === '9010' ? ' — 强单边结构, 趋势跟随' : x.bb === '8515' ? ' — 强趋势结构' : ' — 分歧显著, 观望为主'}">${x.bb}</span>` : '';
   const arcBadge = x.arc ? `<span class="sc-arc" title="野人哥·外弧预警(日K近似): 价格创20日新高 ∧ 近5日空头量占比/前5日${x.arc_lift}倍(>1.2) — 表强实弱, 高分新高中空头暗增, 逢高减仓预警">外弧</span>` : '';
-  return `<tr${isSub ? ' class="sc-sub-row"' : ''}>
+  return `<tr${isSub ? ' class="sc-sub-row"' : ''} data-code="${x.c}" role="button" tabindex="0" title="点击进入「${x.n}」个股诊断页 · 返回时自动回到原位置">
     <td class="dim">${i + 1}</td>
     <td class="sc-name"><b>${x.n}</b><span class="sc-code">${x.c}</span>${pdBadge}${bbBadge}${arcBadge}</td>
     <td>${scRing(x.s)}</td>
@@ -3217,6 +3231,29 @@ function scRowHtml(x, i, isSub){
   </tr>`;
 }
 let scHidePd = true;   // 抄底筹码型默认隐藏 (v1.9.11 野人哥P0-3)
+/* [v1.14.2] 行点击导航: 点击/回车进入个股诊断页, 委托绑定静态祖先 #sec-score
+   (高分榜+候补榜重渲染均不重复绑定; 保存 scrollY 供返回回位) */
+let scNavBound = false;
+function scBindRowNav(){
+  if (scNavBound) return;
+  const sec = $('sec-score'); if (!sec) return;
+  scNavBound = true;
+  const go = (row) => {
+    const code = (row.dataset.code || '').trim();
+    if (!/^\d{6}$/.test(code)) return;
+    try { sessionStorage.setItem('scBackScrollY', String(window.scrollY)); } catch (e) {}
+    location.href = './stock.html?code=' + code;
+  };
+  sec.addEventListener('click', e => {
+    const row = e.target.closest('tbody tr[data-code]');
+    if (row) go(row);
+  });
+  sec.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const row = e.target.closest('tbody tr[data-code]');
+    if (row){ e.preventDefault(); go(row); }
+  });
+}
 function renderScoreTable(){
   const box = $('scTbl'); if (!box) return;
   const all = (SC.main || []).slice();
@@ -3241,6 +3278,7 @@ function renderScoreTable(){
     if (scSort.key === key) scSort.dir *= -1; else { scSort.key = key; scSort.dir = -1; }
     renderScoreTable();
   }));
+  scBindRowNav();   // [v1.14.2] 行点击导航 (内部有防重复绑定标志)
 }
 function renderScoreHist(){
   const el = $('chScore'); if (!el || !SC) return;
@@ -3288,11 +3326,38 @@ function renderScore(){
     if (hasPdField && main.length){
       pdBar.style.display = '';
       pdBar.innerHTML = `<button type="button" class="sc-pd-toggle${scHidePd ? ' on' : ''}" id="scPdToggle">${scHidePd ? '已隐藏' : '显示中'}抄底筹码型 ${nPd} 只</button>` +
-        `<span class="sc-pd-info">${nPd ? '野人哥·物理距离低系数: 近20日上涨收盘&lt;3天 且 近5日/60日均量&gt;1.5 → 低位无右侧结构+底部抄底量堆积, 获利盘抛压物理距离近, 次日冲高回落风险大' : '今日无抄底筹码型标的 · 抛压物理距离健康'}</span>`;
+        `<span class="sc-pd-info">${nPd
+          ? `<b style="color:var(--orange);">大白话</b>: 今日有 <b>${nPd} 只</b>「抄底盘」— 近20天几乎没涨、底部却突然放量，说明有人在低位悄悄买入。这批人成本离现价很近，明天一旦冲高就容易集中卖出砸盘 → <b>切勿追高</b>。（判定: 近20日上涨收盘&lt;3天 且 近5日/60日均量&gt;1.5）`
+          : `<b style="color:var(--green);">大白话</b>: 今日无抄底盘 · 大家买入的成本普遍离现价较远，短期没有集中砸盘的压力，抛压结构健康。（近20日有正常上涨节奏 或 量能无低位堆积）`}</span>`;
       const tg = $('scPdToggle');
       if (tg) tg.addEventListener('click', () => { scHidePd = !scHidePd; renderScore(); });
     } else {
       pdBar.style.display = 'none';
+    }
+  }
+  /* [v1.14.2] 徽章图例 · 通俗解释 9010/8515/8020/7030/外弧/抄底筹码型 + 「能不能买」指引
+     仅当数据含徽章字段时展示, 旧版 score_data.js 无 bb/arc/pd 字段时自动隐藏 (优雅降级) */
+  const lgBox = $('scLegend');
+  if (lgBox){
+    const pool = main.concat(sub);
+    const hasBb = pool.some(x => x.bb), hasArc = pool.some(x => x.arc), hasPdLg = pool.some(x => x.pd);
+    if (pool.length && (hasBb || hasArc || hasPdLg)){
+      lgBox.style.display = '';
+      lgBox.innerHTML = `<div class="lg-title">徽章图例 · 这些标记到底是什么意思</div><div class="lg-grid">` +
+        (hasBb ? `
+        <div class="lg-item"><span class="sc-bb t9010">9010</span><span><b>多空比值 90:10</b> — 近20个交易日约九成收涨（18涨2跌左右），单边上涨趋势极强。持有者可拿住，但越高追入风险越大。</span></div>
+        <div class="lg-item"><span class="sc-bb t8515">8515</span><span><b>多空比值 85:15</b> — 约八成半交易日收涨，强上涨趋势，结构健康。</span></div>
+        <div class="lg-item"><span class="sc-bb t8020">8020</span><span><b>多空比值 80:20</b> — 总分虽高但内部多空拉扯（回测: 打板胜率仅18.92%），高分陷阱，慎追。</span></div>
+        <div class="lg-item"><span class="sc-bb t7030">7030</span><span><b>多空比值 70:30</b> — 涨跌七三开，多空分歧明显，观望为主。</span></div>` : '') +
+        (hasArc ? `
+        <div class="lg-item"><span class="sc-arc">外弧</span><span><b>表面新高、暗地抛压</b> — 股价创20日新高，但下跌日的成交量正暗中放大（空头量抬升&gt;1.2倍）。强势有水分，逢高减仓预警。</span></div>` : '') +
+        (hasPdLg ? `
+        <div class="lg-item"><span class="sc-pd">抄底筹码型</span><span><b>低位偷偷放量</b> — 近20天几乎没涨、底部却突然放量，低位买入的获利筹码离现价很近，次日冲高容易被集中卖出砸盘，别追。</span></div>` : '') +
+        `</div>
+        <div class="lg-buy"><b>能不能买？高分 ≠ 能买。</b>回测显示评分≥75的标的未来5日平均净收益为负（${scFmt(bt.net5, '%', true)}）、胜率仅 ${bt.win5 != null ? bt.win5.toFixed(2) : '—'}%，低于全市场基准 — 高分榜是「过热风险观察名单」，不是买入榜。具体买卖价位请点击任意一行进入个股诊断页，那里的五档位阶会给出明确的加减仓价格与止损位。</div>
+        <div class="lg-click">提示: 点击表格中任意一行 → 直接进入该股诊断页 · 返回时自动回到原位置</div>`;
+    } else {
+      lgBox.style.display = 'none';
     }
   }
   const mono = (bt.mono || []).map(w => w != null ? w.toFixed(2) + '%' : '—').join(' → ');
@@ -3693,6 +3758,18 @@ if (D){
 
 /* v1.13.0 高分标的榜: 独立于 SITE_DATA 渲染 (score_data.js 缺失时降级提示, 不阻塞主链路) */
 renderScore();
+
+/* [v1.14.2] 从个股诊断页返回高分榜: 恢复原滚动位置
+   (bfcache 命中与整页重载双场景兜底; 恢复一次即清除标记, 不影响后续正常访问) */
+addEventListener('pageshow', () => {
+  let y = null;
+  try { y = sessionStorage.getItem('scBackScrollY'); } catch (e) {}
+  if (y == null) return;
+  try { sessionStorage.removeItem('scBackScrollY'); } catch (e) {}
+  const n = Number(y);
+  if (!isFinite(n) || n <= 0) return;
+  requestAnimationFrame(() => setTimeout(() => scrollTo(0, n), 50));
+});
 
 </script>
 <script src="./totop.js" defer></script>
