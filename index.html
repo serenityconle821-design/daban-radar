@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>观澜</title>
+<title>观澜擒龙</title>
 <style>
 /* v1.13.1 全版块导航: 顶栏16入口补齐监控/影子/情绪/规则四版块(data-sec直达滚动, 顺序对齐页面section流);
    .topnav改flex-wrap换行替代overflow-x横滑 — 桌面右对齐两行/移动端左对齐chip流铺满, 免左右滑动;
@@ -1191,7 +1191,7 @@ tr.pt-excluded-row td { opacity:.52; }
     <div class="brand">
       <div class="brand-dot"></div>
       <div>
-        <div class="brand-name">观澜</div>
+        <div class="brand-name">观澜擒龙</div>
         <div class="brand-meta" id="brandMeta">加载中…</div>
       </div>
     </div>
@@ -1396,7 +1396,7 @@ tr.pt-excluded-row td { opacity:.52; }
     <canvas id="bgParticles"></canvas>
     <div class="hero-inner fade vis">
       <p class="date-line" id="heroDate"></p>
-      <h1>观澜</h1>
+      <h1>观澜擒龙</h1>
       <p class="sub">三段式节奏 · 胜率确定性评分 · 买卖时机预案 — 基于两年回测(5013股/484日)校准</p>
       <div class="badges" id="heroBadges"></div>
     </div>
@@ -3393,7 +3393,7 @@ function renderFooter(){
   const m = D.meta, mk = D.market || {}, w = mk.weights || {p12:.5, breadth:.3, height:.2};
   const wm = mk.weights_meta;
   const wTxt = `p12趋势${Math.round(w.p12*100)}% + 涨停广度${Math.round(w.breadth*100)}% + 最高板${Math.round(w.height*100)}%`;
-  $('footer').innerHTML = `观澜 v${m.version} · 数据源: AkShare 整池接口 + 新浪批量行情 · 扫描耗时 ${m.scan_cost_s}s<br>
+  $('footer').innerHTML = `观澜擒龙 v${m.version} · 数据源: AkShare 整池接口 + 新浪批量行情 · 扫描耗时 ${m.scan_cost_s}s<br>
   每日 15:10 / 09:26 / 10:30 自动刷新 · 评分体系 v2.1 加权连续(${wTxt})${wm ? ` · 权重经Logistic回归校准(${wm.n_trades}笔回测·${(wm.calibrated_at||'').slice(0,10)})` : ''} · 信号资格与市场质量已解耦<br>
   本页所有内容仅为历史数据回测与情绪解读, 不构成任何投资建议 · 股市有风险, 入市需谨慎`;
 }
