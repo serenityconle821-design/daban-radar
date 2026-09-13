@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>持仓体检 · 晴雨气象台</title>
-<!-- port.html v1.4.0 持仓体检: 上传券商App截图 → 浏览器端OCR解析 → 六条算术自洽校验 → 晴雨气象台诊断引擎 → 三组分组体检报告
+<title>持仓体检 · 观澜</title>
+<!-- port.html v1.4.0 持仓体检: 上传券商App截图 → 浏览器端OCR解析 → 六条算术自洽校验 → 观澜诊断引擎 → 三组分组体检报告
      设计: iOS Liquid Glass(与主看板/诊断中心同构); OCR: tesseract.js@5 自托管./ocr/(fast语言包, 打开即预热); 数据: 腾讯JSONP + SITE_DATA快照
      v1.4.0: OCR只识别名称/数量/成本价, 现价一律实时行情自动匹配; 名称/代码双向智能下拉(输入≥2字符出候选);
              确认表现价/市值/盈亏%列实时计算, 识别现价与实时偏差>2%黄标核对; KPI标注数据时点; 明细新增当日盈亏块
@@ -282,6 +282,31 @@ section.card { -webkit-backdrop-filter:var(--blur-card); backdrop-filter:var(--b
 .disc-list li { display:flex; gap:10px; align-items:flex-start; font-size:13.5px; color:var(--secondary); line-height:1.6; }
 .disc-list li .d-dot { flex:none; width:7px; height:7px; border-radius:50%; margin-top:8px; background:var(--orange); }
 
+/* v1.7.0 [C档·复盘七步法第⑦步]: 明日作战计划卡 */
+.plan-wrap { margin-top:14px; display:flex; flex-direction:column; gap:10px; }
+.plan-card {
+  border-radius:14px; padding:14px 16px; background:rgba(255,255,255,.34);
+  box-shadow:inset 0 0 0 .5px var(--hairline-soft), inset 0 1px 0 var(--specular-top);
+}
+.plan-top { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.plan-name { font-size:15.5px; font-weight:800; }
+.plan-quit {
+  margin-left:auto; display:inline-flex; align-items:baseline; gap:6px;
+  padding:5px 12px; border-radius:9px; background:var(--red-soft); color:var(--red);
+  font-size:11px; font-weight:800;
+}
+.plan-quit b { font-size:15px; font-variant-numeric:tabular-nums; }
+.plan-rows { margin-top:10px; display:flex; flex-direction:column; gap:7px; }
+.plan-row { display:flex; align-items:flex-start; gap:9px; font-size:12.5px; line-height:1.55; color:var(--text); font-weight:600; }
+.plan-row .p-tag {
+  flex:none; display:inline-flex; align-items:center; padding:2px 9px; border-radius:7px;
+  font-size:10.5px; font-weight:800; min-height:20px; margin-top:1px;
+}
+.plan-row .p-txt { flex:1; color:var(--secondary); font-weight:600; }
+.pt-up { background:var(--green-soft); color:var(--green); }
+.pt-flat { background:var(--primary-soft); color:var(--primary); }
+.pt-down { background:var(--red-soft); color:var(--red); }
+
 .pos-bar-wrap { margin-top:16px; display:flex; flex-direction:column; gap:10px; }
 .pos-row { display:flex; align-items:center; gap:12px; }
 .pos-row .p-name { flex:none; width:96px; font-size:13px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -333,7 +358,7 @@ section.card { -webkit-backdrop-filter:var(--blur-card); backdrop-filter:var(--b
 <div class="page">
   <div class="hero">
     <h1>持仓体检</h1>
-    <p class="sub">上传券商App持仓截图 — 浏览器端OCR识别 · 六条算术自洽校验 · 晴雨气象台诊断逻辑，生成三组分组体检报告</p>
+    <p class="sub">上传券商App持仓截图 — 浏览器端OCR识别 · 六条算术自洽校验 · 观澜诊断逻辑，生成三组分组体检报告</p>
   </div>
 
   <!-- ═══ Step 1: 上传 ═══ -->
@@ -431,6 +456,15 @@ section.card { -webkit-backdrop-filter:var(--blur-card); backdrop-filter:var(--b
         持仓明细
       </div>
       <div class="hold-detail" id="holdDetail"></div>
+    </div>
+
+    <div style="margin-top:26px;">
+      <div class="sec-title" style="font-size:16px;">
+        <span class="ico" style="width:28px;height:28px;border-radius:8px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg></span>
+        明日作战计划 · 认输线
+      </div>
+      <p class="sec-sub" style="margin:6px 0 10px;">复盘七步法第⑦步落地：每只持仓提前定义「错误条件」— 冲高怎么办 / 平开怎么办 / 破线无条件离场</p>
+      <div class="plan-wrap" id="planWrap"></div>
     </div>
 
     <div style="margin-top:26px;">

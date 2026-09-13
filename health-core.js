@@ -1,6 +1,8 @@
-/* health-core.js v1.2.0 — 持仓体检引擎 (设计手册Problem 3落地)
+/* health-core.js v1.3.0 — 持仓体检引擎 (设计手册Problem 3落地)
    架构: Fetcher(并发≤4·指数退避) → Indicator(纯函数·与diag.js口径逐字一致) → Decider(三组分组+三档触发价) → MarketEnv(大盘联动)
    数据: 腾讯JSONP(K线/行情/搜索) + SITE_DATA快照(相位/市场分) + 上证K线实时(中轨判据)
+   v1.3.0 [C档·复盘七步法第7步]: buildAction新增认输线quit_line+明日计划plan三条件
+           (冲高/平开/破线·触发式退出), 复用体检链路不另建模块, 执行层不入行情模型
    v1.2.0: profitPct盈亏口径统一实时quote.price vs 用户成本(与市值/当日盈亏同源,
            数据源已验证quote.price==qfq收盘价, 但保险起见趋势判断仍用前复权自洽序列)
    v1.1.0: decideHolding新增野人两板块明确建议(bbAction/pdAction, 附MA5/MA10具体数值);
@@ -316,6 +318,30 @@ function buildAction(h) {
     d.action = '减仓：反弹至' + f(t.reduce) + '附近减半仓，收盘跌破' + f(t.clear) + '清仓；不加仓不补仓';
   } else {
     d.action = '持有：收盘跌破MA20(' + f(ind.ma20) + ')即降档减仓，跌破' + f(t.clear) + '清仓；MA10(' + f(ind.ma10) + ')上方结构完好';
+  }
+  /* v1.2.0 [C档·复盘七步法第7步]: 认输线+明日计划结构化(执行层流程字段, 不入行情模型)
+     认输线=清仓红线(布林下轨/20日低点取低); 三条件计划=冲高/平开/破线, 触发式退出对齐视频「提前定义错误条件」 */
+  d.quit_line = t.clear != null ? t.clear : (ind.ma20 != null ? R2(ind.ma20) : null);
+  const q = d.quit_line != null ? R2(d.quit_line) : null;
+  const qp = q != null ? q : '—';
+  if (d.group === 'lock') {
+    d.plan = {
+      up: '冲高持有让利润奔跑(MA5 ' + f(ind.ma5) + ' 上方不动)，不因涨幅大而主动了结',
+      flat: '震荡持有；跌破「再减」' + f(t.halve) + '减半仓',
+      down: '收盘跌破认输线 ' + qp + ' → 无条件清仓离场，不幻想不摊薄',
+    };
+  } else if (d.group === 'reduce') {
+    d.plan = {
+      up: '高开或冲高至 ' + f(t.reduce) + ' 附近减半仓，视为减仓窗口而非加仓窗口',
+      flat: '平开震荡不加仓不补仓，等待反弹触发减仓',
+      down: '收盘跌破认输线 ' + qp + ' → 无条件清仓离场，不幻想不摊薄',
+    };
+  } else {
+    d.plan = {
+      up: '冲高观察不追不加仓，涨幅扩大注意乖离回落',
+      flat: '持有观察；收盘破MA20(' + f(ind.ma20) + ')即降档减仓',
+      down: '收盘跌破认输线 ' + qp + ' → 无条件清仓离场，不幻想不摊薄',
+    };
   }
 }
 

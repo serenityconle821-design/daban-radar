@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>晴雨气象台</title>
+<title>观澜</title>
 <style>
 /* v1.13.1 全版块导航: 顶栏16入口补齐监控/影子/情绪/规则四版块(data-sec直达滚动, 顺序对齐页面section流);
    .topnav改flex-wrap换行替代overflow-x横滑 — 桌面右对齐两行/移动端左对齐chip流铺满, 免左右滑动;
@@ -222,6 +222,81 @@ section { scroll-margin-top: 88px; }
   font-size:11.5px; font-weight:600; background:var(--orange-soft); color:var(--orange); }
 .mk-prox .p-chip.warm { background:var(--green-soft); color:var(--green); }
 
+/* ── [v1.14.0] A1 亏钱效应辐射计 (市场分镜像·240°径向量规) ── */
+.le-wrap { flex:none; width:178px; padding-left:14px; border-left:1px solid var(--sep); }
+.le-head { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--secondary); }
+.le-head .le-grade { margin-left:auto; font-size:10.5px; padding:1.5px 8px; border-radius:9px; font-weight:800; white-space:nowrap; }
+.le-gauge { position:relative; width:136px; height:92px; margin:2px auto 0; }
+.le-gauge svg { width:100%; height:100%; display:block; }
+.le-center { position:absolute; left:8px; right:8px; top:40px; text-align:center; pointer-events:none; }
+.le-center b { font-size:25px; font-weight:800; letter-spacing:-.5px; font-variant-numeric:tabular-nums; line-height:1; }
+.le-center span { display:block; font-size:10px; color:var(--tertiary); font-weight:600; margin-top:1px; }
+.le-signed { display:flex; align-items:center; justify-content:center; gap:4px; margin-top:1px; font-size:11px; font-weight:700; }
+.le-signed .ss { font-variant-numeric:tabular-nums; font-size:13.5px; letter-spacing:-.3px; }
+.le-signed .sl { color:var(--secondary); font-weight:600; font-size:10.5px; }
+.le-comps { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:8px; }
+.le-comp { background:var(--bg); border-radius:10px; padding:5.5px 8px 5px; }
+.le-comp .lc-top { display:flex; justify-content:space-between; align-items:baseline; }
+.le-comp .lc-l { font-size:10px; color:var(--secondary); white-space:nowrap; }
+.le-comp .lc-v { font-size:11.5px; font-weight:800; font-variant-numeric:tabular-nums; }
+.le-comp .lc-v em { font-style:normal; color:var(--tertiary); font-weight:600; font-size:9.5px; }
+.le-comp .lc-bar { height:3px; border-radius:1.5px; background:rgba(120,120,128,.14); margin-top:4px; overflow:hidden; }
+.le-comp .lc-bar i { display:block; height:100%; border-radius:1.5px; transition: width .8s cubic-bezier(.2,.8,.2,1); }
+
+/* ── [v1.14.0] A2 昨停溢价温度条 (纯观察·不进评分) ── */
+.prem-strip { margin-top:14px; padding:13px 15px 12px; border-radius:14px; background:var(--bg); }
+.prem-head { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.prem-title { font-size:13px; font-weight:800; display:inline-flex; align-items:center; gap:6px; }
+.prem-lock { width:24px; height:24px; border-radius:8px; background:var(--primary-soft); color:var(--primary);
+  display:inline-flex; align-items:center; justify-content:center; cursor:help; flex:none; }
+.prem-lock svg { width:12px; height:12px; }
+.prem-chips { display:flex; flex-wrap:wrap; gap:5px; margin-left:auto; }
+.prem-chip { font-size:11px; font-weight:700; padding:3px 9px; border-radius:9px; background:rgba(120,120,128,.1);
+  color:var(--secondary); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.prem-thermo { position:relative; margin-top:11px; }
+.prem-thermo .pt-l { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px; }
+.prem-thermo .pt-name { font-size:11.5px; font-weight:700; color:var(--secondary); }
+.prem-thermo .pt-val { font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; }
+.pt-track { position:relative; height:13px; border-radius:7px;
+  background:linear-gradient(90deg,#28A745 0%,#7BD88F 24%,#E9E9EE 50%,#FFB340 76%,#FF3B30 100%); }
+.pt-zero { position:absolute; left:50%; top:-2px; bottom:-2px; width:1.5px; background:rgba(60,60,67,.35); border-radius:1px; }
+.pt-needle { position:absolute; top:-4.5px; width:2.5px; height:22px; border-radius:2px; background:#1d1d1f;
+  box-shadow:0 1px 4px rgba(0,0,0,.35); transform:translateX(-50%); transition:left .8s cubic-bezier(.2,.8,.2,1); }
+.pt-scale { display:flex; justify-content:space-between; margin-top:4px; font-size:10px; color:var(--tertiary);
+  font-variant-numeric:tabular-nums; }
+.prem-pct { display:grid; grid-template-columns:1fr 1fr; gap:6px 20px; margin-top:10px; }
+.pp-row .pp-l { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; }
+.pp-row .pp-name { font-size:11px; font-weight:700; color:var(--secondary); }
+.pp-row .pp-val { font-size:11.5px; font-weight:800; font-variant-numeric:tabular-nums; }
+.pp-track { position:relative; height:9px; border-radius:5px; background:rgba(120,120,128,.12); }
+.pp-dot { position:absolute; top:50%; width:11px; height:11px; border-radius:50%; border:2.5px solid #fff;
+  transform:translate(-50%,-50%); box-shadow:0 1px 3px rgba(0,0,0,.3); transition:left .8s cubic-bezier(.2,.8,.2,1); }
+.pp-band { position:absolute; top:1px; bottom:1px; width:0; border-left:1.5px dashed rgba(60,60,67,.32); }
+.pp-band b { position:absolute; top:13px; left:50%; transform:translateX(-50%); font-size:9px; color:var(--tertiary);
+  font-weight:600; white-space:nowrap; }
+.pp-ext { display:inline-flex; align-items:center; gap:3px; margin-left:6px; font-size:10px; font-weight:800; color:var(--red); }
+
+/* ── [v1.14.0] A3 梯队断层迷你柱状图 (候选名单上方) ── */
+.ladder-strip { display:flex; align-items:stretch; gap:16px; padding:12px 16px 10px; border-radius:14px;
+  background:var(--bg); margin:12px 0 2px; flex-wrap:wrap; }
+.ls-head { flex:none; display:flex; flex-direction:column; justify-content:center; gap:3px; min-width:118px; }
+.ls-title { font-size:12.5px; font-weight:800; display:inline-flex; align-items:center; gap:6px; color:var(--secondary); }
+.ls-title svg { width:13px; height:13px; }
+.ls-gi { font-size:11px; color:var(--tertiary); font-weight:600; line-height:1.5; }
+.ls-gi b { font-size:17px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.3px; }
+.ls-warn { display:inline-flex; align-items:center; gap:4px; padding:2px 9px; border-radius:9px; font-size:10.5px;
+  font-weight:800; background:rgba(255,59,48,.12); color:#FF3B30; width:fit-content; }
+.ls-bars { flex:1; display:flex; align-items:flex-end; gap:5px; height:58px; min-width:230px; padding-top:14px; }
+.ls-col { flex:1; max-width:52px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:2.5px; height:100%; }
+.ls-bar { width:100%; border-radius:5px 5px 0 0; min-height:3px;
+  background:linear-gradient(180deg,#FF3B30,rgba(255,59,48,.5)); transition:height .7s cubic-bezier(.2,.8,.2,1); }
+.ls-col.mid .ls-bar { background:linear-gradient(180deg,#FF9500,rgba(255,149,0,.5)); }
+.ls-col.high .ls-bar { background:linear-gradient(180deg,#007AFF,rgba(0,122,255,.5)); }
+.ls-col.gap .ls-bar { background:transparent; border:1.5px dashed #FF3B30; min-height:13px; border-radius:5px; }
+.ls-n { font-size:10px; color:var(--secondary); font-variant-numeric:tabular-nums; line-height:1; }
+.ls-col.gap .ls-n { color:#FF3B30; font-weight:800; }
+.ls-k { font-size:10px; color:var(--tertiary); line-height:1; }
+
 /* ── 三段式时间线 ── */
 .tl { display:grid; grid-template-columns: repeat(3, 1fr); gap:14px; }
 .tl-node {
@@ -383,7 +458,7 @@ section { scroll-margin-top: 88px; }
 .st-ok { color:var(--green); font-weight:700; } .st-bad { color:var(--red); font-weight:700; } .st-mid { color:var(--orange); font-weight:600; }
 
 /* ── 情绪统计 ── */
-.emo-grid { display:grid; grid-template-columns: repeat(6, 1fr); gap:12px; margin-bottom:18px; }
+.emo-grid { display:grid; grid-template-columns: repeat(9, 1fr); gap:12px; margin-bottom:18px; }
 .emo-cell { background:var(--bg); border-radius:14px; padding:14px 10px; text-align:center; }
 .emo-cell .v { font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.5px; }
 .emo-cell .l { font-size:12px; color:var(--secondary); margin-top:1px; }
@@ -1003,6 +1078,11 @@ tr.pt-excluded-row td { opacity:.52; }
   .mk-row { flex-direction: column; gap: 12px; }
   .mk-10wrap { width: 100%; }
   .mk-bar { grid-template-columns: 96px 1fr 50px; gap: 8px; font-size: 12.5px; }
+  /* [v1.14.0] A档: 亏钱效应辐射计全宽 + 溢价分位单列 */
+  .le-wrap { width: 100%; padding-left: 0; border-left: none; }
+  .le-gauge { margin: 2px auto 0; }
+  .prem-pct { grid-template-columns: 1fr; gap: 6px; }
+  .ladder-strip { gap: 10px; }
   /* 候选卡操作行 */
   .act-row { padding: 11px 12px; }
   .act-desc { min-width: 120px; }
@@ -1111,7 +1191,7 @@ tr.pt-excluded-row td { opacity:.52; }
     <div class="brand">
       <div class="brand-dot"></div>
       <div>
-        <div class="brand-name">晴雨气象台</div>
+        <div class="brand-name">观澜</div>
         <div class="brand-meta" id="brandMeta">加载中…</div>
       </div>
     </div>
@@ -1316,7 +1396,7 @@ tr.pt-excluded-row td { opacity:.52; }
     <canvas id="bgParticles"></canvas>
     <div class="hero-inner fade vis">
       <p class="date-line" id="heroDate"></p>
-      <h1>晴雨气象台</h1>
+      <h1>观澜</h1>
       <p class="sub">三段式节奏 · 胜率确定性评分 · 买卖时机预案 — 基于两年回测(5013股/484日)校准</p>
       <div class="badges" id="heroBadges"></div>
     </div>
@@ -1348,6 +1428,7 @@ tr.pt-excluded-row td { opacity:.52; }
         <div class="mk-row">
           <div class="mk-10wrap" id="mk10"></div>
           <div class="mk-bars" id="mkBars"></div>
+          <div class="le-wrap" id="leWrap"></div>
         </div>
         <div class="mk-prox" id="mkProx"></div>
       </div>
@@ -1386,6 +1467,7 @@ tr.pt-excluded-row td { opacity:.52; }
   <!-- ═══ 候选股 ═══ -->
   <section id="sec-candidates" class="fade">
     <div class="master" id="masterAction" style="display:none;"></div>
+    <div class="ladder-strip" id="ladderStrip"></div>
     <div class="sec-title" style="margin:34px 0 4px;">
       <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
       <span>次日候选 · 2进3 黄金组合</span>
@@ -1468,11 +1550,13 @@ tr.pt-excluded-row td { opacity:.52; }
     </div>
     <div class="card" id="emoCard" style="margin-top:12px;">
       <div class="emo-grid" id="emoGrid"></div>
+      <div class="prem-strip" id="premStrip"></div>
       <div class="charts">
         <div class="chart-box"><h3>涨停家数趋势 <span class="hint" id="cycleLegend">近120交易日</span> <span class="hint" id="acbLegend"></span></h3><div id="chTrend" class="chart"></div><div class="nochart" id="ncTrend">图表库离线 · 数据仍可读</div></div>
         <div class="chart-box"><h3>连板梯队结构 <span class="hint">当日</span></h3><div id="chLadder" class="chart"></div><div class="nochart" id="ncLadder">图表库离线 · 数据仍可读</div></div>
         <div class="chart-box"><h3>1进2 / 2进3 晋级率 <span class="hint">阈值 20% / 50%</span></h3><div id="chPromo" class="chart"></div><div class="nochart" id="ncPromo">图表库离线 · 数据仍可读</div></div>
         <div class="chart-box"><h3>涨停 vs 炸板 <span class="hint">晋级率观察窗口</span></h3><div id="chZb" class="chart"></div><div class="nochart" id="ncZb">图表库离线 · 数据仍可读</div></div>
+        <div class="chart-box" style="grid-column:1/-1;"><h3>亏钱效应 L · 90日光谱 <span class="hint">纯观察 · 与市场分构成双边结构</span></h3><div id="chSpectrum" class="chart"></div><div class="nochart" id="ncSpectrum">图表库离线 · 数据仍可读</div></div>
       </div>
     </div>
 
@@ -2035,12 +2119,170 @@ function renderWatch(){
 /* ── 情绪 ── */
 function renderEmotion(){
   const e = D.emotion;
+  const LG = e.ladder_gap || {}, LE = e.loss_effect, PM = e.premium;
+  const leFg = LE ? ((LE_GRADE_META[LE.grade] || {}).fg || 'var(--secondary)') : 'var(--secondary)';
   const cells = [
     [e.zt, '涨停家数', 'var(--red)'], [e.zb, '炸板家数', 'var(--orange)'],
     [e.dt, '跌停家数', 'var(--green)'], [(e.seal_rate??'—') + (e.seal_rate!=null?'%':''), '封板率', 'var(--primary)'],
     [e.max_lb + '板', '最高连板', 'var(--red)'], [e.first_board, '今日首板', 'var(--secondary)'],
+    [LE ? (+LE.score_0_10).toFixed(1) : '—', '亏钱效应L', leFg],
+    [PM && PM.o != null ? sign(PM.o, '%') : '—', '昨停溢价O', PM && PM.o != null ? (PM.o >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--secondary)'],
+    [LG && LG.gi != null ? LG.gi + '%' : '—', '断层指数', LG && LG.warn ? 'var(--red)' : 'var(--orange)'],
   ];
   $('emoGrid').innerHTML = cells.map(c => `<div class="emo-cell"><div class="v" style="color:${c[2]}">${c[0]}</div><div class="l">${c[1]}</div></div>`).join('');
+  renderPremium();
+}
+
+/* ── [v1.14.0] A1 亏钱效应辐射计 (市场分镜像 · 240°径向量规 · 签名分S=M−L) ── */
+const LE_SEG_COLORS = ['#30D158', '#FFD60A', '#FF9500', '#FF3B30', '#C62838'];
+const LE_GRADE_META = {
+  safe:    { label: '安全',   bg: 'rgba(48,209,88,.13)',   fg: '#30D158' },
+  low:     { label: '低',     bg: 'rgba(255,214,10,.15)',  fg: '#B89400' },
+  warn:    { label: '警戒',   bg: 'rgba(255,149,0,.13)',   fg: '#FF9500' },
+  high:    { label: '高风险', bg: 'rgba(255,59,48,.12)',   fg: '#FF3B30' },
+  extreme: { label: '极寒',   bg: 'rgba(198,40,56,.15)',   fg: '#C62838' },
+};
+function leGaugeSVG(L){
+  /* 240°量规: 底部留120°开口; 屏幕角(顺时针) 150°→390°; 5段色阶 0-2绿/2-4黄/4-6橙/6-8红/8-10深红 */
+  const cx = 68, cy = 56, r = 45, sw = 9;
+  const pt = (a, rr) => [cx + rr * Math.cos(a * Math.PI / 180), cy + rr * Math.sin(a * Math.PI / 180)];
+  const angOf = v => 150 + (Math.min(10, Math.max(0, v)) / 10) * 240;
+  const arc = (a1, a2) => {
+    const [x1, y1] = pt(a1, r), [x2, y2] = pt(a2, r);
+    return `M ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+  };
+  const active = Math.max(0, Math.min(4, Math.floor(L / 2)));
+  let segs = '';
+  for (let i = 0; i < 5; i++)
+    segs += `<path d="${arc(150 + i * 48, 150 + (i + 1) * 48)}" stroke="${LE_SEG_COLORS[i]}" stroke-width="${i === active ? sw + 2 : sw}" fill="none" stroke-linecap="round" opacity="${i === active ? 1 : .26}"/>`;
+  const [nx, ny] = pt(angOf(L), r - 15);
+  return `<svg viewBox="0 0 136 92">${segs}
+    <line x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="#1d1d1f" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="${cx}" cy="${cy}" r="4" fill="#1d1d1f"/></svg>`;
+}
+function renderLossEffect(){
+  const LE = D.emotion.loss_effect, S = D.emotion.signed_net_score;
+  const el = $('leWrap');
+  if (!el) return;
+  if (!LE || LE.score_0_10 == null){
+    el.innerHTML = `<div class="le-head">亏钱效应 L</div>
+      <div style="padding:26px 4px;text-align:center;color:var(--tertiary);font-size:11.5px;line-height:1.7;">待数据<br>15:10 盘后增量</div>`;
+    return;
+  }
+  const L = +LE.score_0_10;
+  const g = LE_GRADE_META[LE.grade] || LE_GRADE_META.warn;
+  const comps = LE.components || {};
+  const defs = [['n_d', '跌停家数', '只'], ['n_h', '高位跌停', '只'], ['n_y', '昨停今跌', '只'], ['q', '板块集中', '%']];
+  el.innerHTML = `
+    <div class="le-head">亏钱效应 L<span class="le-grade" style="background:${g.bg};color:${g.fg};">${LE.grade_label}</span></div>
+    <div class="le-gauge">${leGaugeSVG(L)}<div class="le-center"><b style="color:${g.fg};">${L.toFixed(1)}</b><span>/ 10</span></div></div>
+    <div class="le-signed"><span class="sl">签名 S = M − L</span>
+      <b class="ss" style="color:${S == null ? 'var(--tertiary)' : (S >= 0 ? 'var(--green)' : 'var(--red)')};">${S == null ? '—' : (S > 0 ? '+' : '') + S}</b></div>
+    <div class="le-comps">${defs.map(([k, lab, unit]) => {
+      const c = comps[k] || {}, v = c.value ?? 0, s = c.score ?? 0;
+      const col = LE_SEG_COLORS[Math.max(0, Math.min(4, Math.floor(s / 2)))];
+      return `<div class="le-comp">
+        <div class="lc-top"><span class="lc-l">${lab}</span>
+          <span class="lc-v" style="color:${s >= 5 ? 'var(--red)' : 'var(--secondary)'};">${v}<em>${unit}·${s}分</em></span></div>
+        <div class="lc-bar"><i style="width:0" data-w="${s * 10}%" data-c="${col}"></i></div>
+      </div>`;
+    }).join('')}</div>`;
+  setTimeout(() => el.querySelectorAll('.lc-bar i').forEach(i => { i.style.background = i.dataset.c; i.style.width = i.dataset.w; }), 80);
+}
+
+/* ── [v1.14.0] A2 昨停溢价温度计 (纯观察·不进评分 · T=0.5z(O)+0.5z(C) · 90日分位带) ── */
+const PREM_LOCK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+function renderPremium(){
+  const PM = D.emotion.premium, TH = D.emotion.premium_thermo || {}, AS = D.emotion.a_series || {};
+  const el = $('premStrip');
+  if (!el) return;
+  if (!PM || PM.n == null || PM.o == null){
+    el.innerHTML = `<div class="prem-head">
+      <span class="prem-title">昨日涨停股次日溢价温度计</span>
+      <span class="prem-lock" title="观察指标，未纳入评分">${PREM_LOCK_SVG}</span>
+      <div class="prem-chips"><span class="prem-chip">待数据 · 15:10盘后增量 / 90日回填</span></div></div>`;
+    return;
+  }
+  const ex = PM.excluded || {};
+  const pctf = v => (v > 0 ? '+' : '') + (+v).toFixed(2) + '%';
+  const lastDate = (AS.dates || []).length ? shortD(AS.dates[AS.dates.length - 1]) : '';
+  const chips = [
+    [`O ${pctf(PM.o)}`, PM.o >= 0 ? 'rgba(52,199,89,.14);color:#34C759' : 'rgba(255,59,48,.12);color:#FF3B30'],
+    [`C ${pctf(PM.c)}`, PM.c >= 0 ? 'rgba(52,199,89,.14);color:#34C759' : 'rgba(255,59,48,.12);color:#FF3B30'],
+    [`上涨 ${Math.round((PM.u ?? 0) * 100)}%`, ''],
+    [`负溢价 ${Math.round((PM.neg ?? 0) * 100)}%`, ''],
+    [`n=${PM.n} 剔一字${ex.yizi || 0}/ST${ex.st || 0}/新${ex.new || 0}`, ''],
+  ];
+  /* 接力温度条: T∈[-3,+3] → 位置[3%,97%] */
+  const t = TH.t;
+  const tPos = t == null ? null : Math.min(97, Math.max(3, 50 + (t / 3) * 47));
+  const tCol = t == null ? 'var(--secondary)' : (t <= -2 ? '#28A745' : (t < 0 ? '#7BD88F' : (t <= 2 ? '#FFB340' : '#FF3B30')));
+  /* 90日分位行: 值域[P5,P95], P10/P50/P90虚线带 */
+  const pctRow = (tag, name, val) => {
+    const p5 = TH['p5_' + tag], p95 = TH['p95_' + tag], p10 = TH['p10_' + tag],
+          p50 = TH['p50_' + tag], p90 = TH['p90_' + tag];
+    if (val == null || p5 == null || p95 == null || p95 <= p5) return '';
+    const pos = v => Math.min(100, Math.max(0, (v - p5) / (p95 - p5) * 100));
+    const extHi = val >= p95, extLo = val <= p5;
+    const ext = extHi ? `▲ 破P95(${lastDate})` : (extLo ? `▼ 破P5(${lastDate})` : '');
+    return `<div class="pp-row">
+      <div class="pp-l"><span class="pp-name">${name} · 90日分位</span>
+        <span class="pp-val" style="color:${val >= 0 ? 'var(--green)' : 'var(--red)'};">${pctf(val)}${ext ? `<span class="pp-ext">${ext}</span>` : ''}</span></div>
+      <div class="pp-track">
+        <div class="pp-band" style="left:${pos(p10).toFixed(1)}%;"><b>P10</b></div>
+        <div class="pp-band" style="left:${pos(p50).toFixed(1)}%;"><b>P50</b></div>
+        <div class="pp-band" style="left:${pos(p90).toFixed(1)}%;"><b>P90</b></div>
+        <div class="pp-dot" style="left:${pos(val).toFixed(1)}%;background:${val >= (p50 ?? 0) ? '#FF3B30' : '#34C759'};"></div>
+      </div></div>`;
+  };
+  el.innerHTML = `
+    <div class="prem-head">
+      <span class="prem-title">昨日涨停股次日溢价温度计</span>
+      <span class="prem-lock" title="观察指标，未纳入评分">${PREM_LOCK_SVG}</span>
+      <div class="prem-chips">${chips.map(c => `<span class="prem-chip" style="${c[1] ? 'background:' + c[1] + ';' : ''}">${c[0]}</span>`).join('')}</div>
+    </div>
+    <div class="prem-thermo">
+      <div class="pt-l"><span class="pt-name">接力温度 T = 0.5·z(O) + 0.5·z(C) <span style="font-weight:500;color:var(--tertiary);">· 90日标准化 · ${TH.days || 0}日样本</span></span>
+        <span class="pt-val" style="color:${tCol};">${t == null ? '样本不足 · 展示原始O/C' : 'T ' + (t > 0 ? '+' : '') + t}</span></div>
+      <div class="pt-track">
+        <div class="pt-zero"></div>
+        ${tPos != null ? `<div class="pt-needle" style="left:0;" data-x="${tPos.toFixed(1)}%;"></div>` : ''}
+      </div>
+      <div class="pt-scale"><span>-3 深绿</span><span>-2</span><span>0</span><span>+2</span><span>+3 深红</span></div>
+    </div>
+    <div class="prem-pct">${pctRow('o', '开盘溢价 O', PM.o)}${pctRow('c', '收盘溢价 C', PM.c)}</div>`;
+  setTimeout(() => { const n = el.querySelector('.pt-needle'); if (n) n.style.left = n.dataset.x; }, 80);
+}
+
+/* ── [v1.14.0] A3 连板梯队断层 CBE-GI (候选名单上方 · 缺档红色虚线高亮) ── */
+function renderLadderStrip(){
+  const LG = D.emotion.ladder_gap, lad = D.emotion.ladder || {};
+  const el = $('ladderStrip');
+  if (!el) return;
+  const h = Math.max(2, LG?.h || 0);
+  const hasLad = Object.keys(lad).length > 0;
+  if (!hasLad){ el.style.display = 'none'; return; }
+  const maxN = Math.max(1, ...Object.values(lad).map(Number));
+  let cols = '';
+  for (let k = 2; k <= h; k++){
+    const n = Number(lad[k] || 0), isGap = n === 0;
+    const cls = isGap ? 'gap' : (k <= 2 ? '' : (k <= 4 ? 'mid' : 'high'));
+    const bh = isGap ? 13 : Math.max(4, Math.round(n / maxN * 42));
+    cols += `<div class="ls-col ${cls}">
+      <span class="ls-n">${n}</span>
+      <div class="ls-bar" style="height:0" data-h="${bh}"></div>
+      <span class="ls-k">${k}板</span></div>`;
+  }
+  const giCol = LG && LG.warn ? '#FF3B30' : 'var(--secondary)';
+  el.style.display = '';
+  el.innerHTML = `
+    <div class="ls-head">
+      <span class="ls-title"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"/><path d="M5 20V10"/><path d="M10 20V4"/><path d="M15 20v-9"/><path d="M20 20V7"/></svg>连板梯队断层 CBE-GI</span>
+      <div class="ls-gi"><b style="color:${giCol};">${LG ? LG.gi : '—'}%</b> · 缺${LG ? LG.g : '—'}/${LG ? Math.max(1, LG.denom) : '—'}档 · 最高${LG ? LG.h : h}板${h < 3 ? ' · h&lt;3无结构性梯队' : ''}</div>
+      ${LG && LG.warn ? '<span class="ls-warn">⚠ 梯队断裂 · 中层接力缺失</span>' : ''}
+    </div>
+    <div class="ls-bars">${cols}</div>`;
+  setTimeout(() => el.querySelectorAll('.ls-bar').forEach(b => b.style.height = b.dataset.h + 'px'), 60);
 }
 
 /* ── 五大战法雷达 (T3/T4/T5 回测融合) ── */
@@ -2556,6 +2798,8 @@ function renderParallel(){
   const MF = PT.ma20_filter || {};               // v1.1.0 MA20过滤观察
   const WF = PT.wild_filter || {};                // v1.2.0 野人哥联合过滤观察
   const W2F = PT.wild2_filter || {};              // v1.3.0 野人哥第二过滤组观察
+  const SSFh = PT.sector_struct_filter || {};     // v1.4.0 B1 先锋-中军结构观察
+  const RWh = PT.rebound_watch || {};              // v1.4.0 B2 断板反包观察
   const IRS = PT.index_regime_stats || [];        // v1.1.0 指数环境分层
   const c = PT.counts || {}, S2 = PT.strategy_v2 || {}, br = S2.backtest_ref || {};
 
@@ -2570,7 +2814,7 @@ function renderParallel(){
     : vd === 'yellow'
     ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="9" x2="12" y2="13.5"/><line x1="12" y1="17.5" x2="12.01" y2="17.5"/></svg>'
     : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 7 12 12 15.5 14"/></svg>';
-  $('ptSub').innerHTML = `影子运行 <b>${PT.days_elapsed != null ? PT.days_elapsed + ' 天' : '—'}</b> · 信号 <b>${c.signals || 0}</b> 条 · 已结算 <b>${c.closed || 0}</b> 笔${MF.enabled ? ` · MA20观察第 <b>${MF.week_elapsed || '—'}/${MF.observe_weeks || 4}</b> 周` : ''}${WF.enabled ? ` · 野人哥第 <b>${WF.week_elapsed || '—'}/${WF.observe_weeks || 4}</b> 周` : ''}${W2F.enabled ? ` · 野2组第 <b>${W2F.week_elapsed || '—'}/${W2F.observe_weeks || 4}</b> 周` : ''} · <b style="color:${PT_VERDICT_COLOR[vd]}">${PT_VERDICT_TXT[vd]}</b>`;
+  $('ptSub').innerHTML = `影子运行 <b>${PT.days_elapsed != null ? PT.days_elapsed + ' 天' : '—'}</b> · 信号 <b>${c.signals || 0}</b> 条 · 已结算 <b>${c.closed || 0}</b> 笔${MF.enabled ? ` · MA20观察第 <b>${MF.week_elapsed || '—'}/${MF.observe_weeks || 4}</b> 周` : ''}${WF.enabled ? ` · 野人哥第 <b>${WF.week_elapsed || '—'}/${WF.observe_weeks || 4}</b> 周` : ''}${W2F.enabled ? ` · 野2组第 <b>${W2F.week_elapsed || '—'}/${W2F.observe_weeks || 4}</b> 周` : ''}${SSFh.enabled ? ` · 结构B1第 <b>${SSFh.week_elapsed || '—'}/${SSFh.observe_weeks || 4}</b> 周` : ''}${RWh.enabled ? ` · 反包B2第 <b>${RWh.week_elapsed || '—'}/${RWh.observe_weeks || 4}</b> 周` : ''} · <b style="color:${PT_VERDICT_COLOR[vd]}">${PT_VERDICT_TXT[vd]}</b>`;
   $('ptMini').innerHTML = `
     <span class="pt-chip">信号 <b>${c.signals || 0}</b></span>
     <span class="pt-chip">已结算 <b>${c.closed || 0}</b></span>
@@ -2689,6 +2933,80 @@ function renderParallel(){
       </div>
     </div>` : '';
 
+  // ③b5 [v1.4.0 B1] 先锋-中军板块结构观察 · 复盘七步法第6步 — 观察维度(同指数环境·不过滤)
+  const SSF = PT.sector_struct_filter || {};       // B1 结构观察块
+  const ssk = SSF.kpi_struct_ok || {}, ssn = SSF.kpi_struct_no || {};
+  const ssLift = SSF.wr_lift_pp;
+  const ssPct = SSF.enabled ? Math.min(100, ((SSF.week_elapsed || 1) / (SSF.observe_weeks || 4)) * 100) : 0;
+  const ssLiftCls = ssLift != null ? (ssLift >= (SSF.pass_gap_pp || 8) ? 'pt-diff-pos' : ssLift > 0 ? 'pct-pos' : 'pt-diff-neg') : '';
+  const sectorHTML = SSF.enabled ? `
+    <div class="pt-ma20">
+      <div class="pt-ma20-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>
+        先锋-中军板块结构 · B1 观察期
+        <span class="pt-ma20-week">第 ${SSF.week_elapsed || '—'} / ${SSF.observe_weeks || 4} 周 · 至 ${SSF.deadline ? fmtDate(SSF.deadline) : '—'}</span>
+      </div>
+      <div class="pt-ma20-bar"><i style="width:${ssPct.toFixed(0)}%;"></i></div>
+      <div class="pt-ma20-rule">规则 · <b>${SSF.rule || ''}</b><br>${SSF.backtest || ''} · 已打标 ${SSF.n_tagged || 0} 条信号</div>
+      <div class="pt-excl">
+        <div class="e-head">含结构(先锋∧中军) ${ssk.n_signals || 0} 条 vs 无结构 ${ssn.n_signals || 0} 条 · 胜率差 <b class="${ssLiftCls}" style="margin-left:4px;">${ssLift != null ? (ssLift > 0 ? '+' : '') + ssLift.toFixed(2) + 'pp' : '—'}</b> <span style="font-weight:400;color:var(--tertiary);">(通过线 ≥+${SSF.pass_gap_pp || 8}pp)</span></div>
+        <div class="e-stats">
+          <span>含结构已结算 <b>${ssk.n || 0}</b> 笔</span>
+          <span>含结构胜率 <b>${ssk.win_rate != null ? ssk.win_rate.toFixed(2) + '%' : '—'}</b></span>
+          <span>无结构已结算 <b>${ssn.n || 0}</b> 笔</span>
+          <span>无结构胜率 <b>${ssn.win_rate != null ? ssn.win_rate.toFixed(2) + '%' : '—'}</b></span>
+          <span>含结构期望 <b class="${ssk.avg_ret != null ? pctCls(ssk.avg_ret) : ''}">${ptNum(ssk.avg_ret)}</b></span>
+        </div>
+        <div class="e-note">板块结构 = 观察维度(同指数环境标签·不入场不过滤) · 信号行业取当日快照 · 期满按胜率差决策是否升级为附加维度 · ${SSF.verdict_note || '观察中'}</div>
+      </div>
+    </div>` : '';
+
+  // ③b6 [v1.4.0 B2] 断板反包观察 · 复盘七步法第7步 — 前向累积(不回溯)
+  const RW = PT.rebound_watch || {};               // B2 反包观察块
+  const rba = RW.kpi_all || {}, rbl = RW.kpi_limited || {};
+  const rbLift = RW.hit_lift_pp;
+  const rbPct = RW.enabled ? Math.min(100, ((RW.week_elapsed || 1) / (RW.observe_weeks || 4)) * 100) : 0;
+  const rbLiftCls = rbLift != null ? (rbLift >= (RW.pass_gap_pp || 10) ? 'pt-diff-pos' : rbLift > 0 ? 'pct-pos' : 'pt-diff-neg') : '';
+  const RB_ST = { open:['st-open','待结算'], hit:['st-done','反包✓'], miss:['st-miss','未反包'] };
+  const rbRecent = RW.recent || [];
+  const rbTableHTML = rbRecent.length ? `<div class="tbl-scroll" style="margin-top:8px;"><table class="tbl"><tr>
+      <th>断板日</th><th>标的</th><th>昨板</th><th>行业</th><th>当日跌幅</th><th>分组</th><th>反包结果</th></tr>
+      ${rbRecent.map(r => {
+        const st = RB_ST[r.status] || ['st-open', r.status || '—'];
+        const res = r.result || {};
+        return `<tr>
+        <td class="mono">${fmtDate(r.date)}</td>
+        <td>${r.name}<span class="code" style="margin-left:4px;">${r.code}</span></td>
+        <td style="font-size:12px;">${r.lb_prev || '—'}板</td>
+        <td style="font-size:11.5px;color:var(--secondary);">${r.industry || '—'}</td>
+        <td class="mono ${(r.pct != null && r.pct < 0) ? 'pct-neg' : 'pct-pos'}">${r.pct != null ? r.pct.toFixed(2) + '%' : '—'}</td>
+        <td>${r.limited ? '<span class="chip-ma20 ok" title="温和断板(≥-5%)∧板块结构在(先锋∪中军)">限定组</span>' : '<span class="chip-ma20 na" title="跌幅<-5%或板块结构不在">非限定</span>'}</td>
+        <td class="${st[0]}" style="font-size:12.5px;">${st[1]}${res.pct != null ? ` <span class="mono ${pctCls(res.pct)}" style="font-size:11.5px;">${sign(res.pct.toFixed(2), '%')}</span>` : ''}</td>
+      </tr>`; }).join('')}
+    </table></div>` : '<div class="exit-calm" style="margin-top:8px;">暂无断板记录 · 下一交易日盘后(15:10)按昨日涨停池×今日表现自动登记</div>';
+  const reboundHTML = RW.enabled ? `
+    <div class="pt-ma20">
+      <div class="pt-ma20-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 11 19 13 21 11"/><line x1="12" y1="5" x2="12" y2="21"/><polyline points="9 14 12 11 15 14"/><path d="M5 7.5C5 5 7 3 9.5 3S14 5 14 7.5c0 1.5-.8 2.5-2 3.5"/></svg>
+        断板反包观察 · B2 前向累积
+        <span class="pt-ma20-week">第 ${RW.week_elapsed || '—'} / ${RW.observe_weeks || 4} 周 · 至 ${RW.deadline ? fmtDate(RW.deadline) : '—'}</span>
+      </div>
+      <div class="pt-ma20-bar"><i style="width:${rbPct.toFixed(0)}%;"></i></div>
+      <div class="pt-ma20-rule">规则 · <b>${RW.rule || ''}</b><br>${RW.backtest || ''} · 已登记 ${RW.n_records || 0} 条断板(限定组 ${RW.n_limited || 0} 条)</div>
+      <div class="pt-excl">
+        <div class="e-head">全体断板基线 ${rba.n || 0} 条 vs 限定组 ${rbl.n || 0} 条 · 命中率差 <b class="${rbLiftCls}" style="margin-left:4px;">${rbLift != null ? (rbLift > 0 ? '+' : '') + rbLift.toFixed(2) + 'pp' : '—'}</b> <span style="font-weight:400;color:var(--tertiary);">(通过线 ≥+${RW.pass_gap_pp || 10}pp)</span></div>
+        <div class="e-stats">
+          <span>全体已结算 <b>${rba.n_settled || 0}</b> 笔</span>
+          <span>全体反包率 <b>${rba.hit_rate != null ? rba.hit_rate.toFixed(2) + '%' : '—'}</b></span>
+          <span>限定已结算 <b>${rbl.n_settled || 0}</b> 笔</span>
+          <span>限定反包率 <b>${rbl.hit_rate != null ? rbl.hit_rate.toFixed(2) + '%' : '—'}</b></span>
+          <span>待结算 <b>${(rba.n_open || 0)}</b> 笔</span>
+        </div>
+        <div class="e-note">断板 = 昨日涨停(核心口径)今日未再涨停 · 限定组 = 温和断板(≥-5%)∧板块结构在(先锋∪中军) · 反包 = T+1收盘≥涨停价 · ${RW.verdict_note || '观察中'}</div>
+      </div>
+      ${rbTableHTML}
+    </div>` : '';
+
   // ③b4 [v1.3.0] 明日入场清单 — 最新信号日 open/holding 按三重过滤分桶(B1四级漏斗绿灯·影子验证)
   const recsAll = PT.records || [];
   const latestSigDate = recsAll.length ? recsAll[0].advice_date : null;
@@ -2797,10 +3115,15 @@ function renderParallel(){
         const w2chip = r.excluded_by_wild2 ? `<span class="chip-ma20 no" title="${w2Tip}">野2✕</span>`
           : w2.unverified ? '<span class="chip-ma20 na" title="野2数据不足·放行">野2?</span>'
           : `<span class="chip-ma20 ok" title="${w2Tip}">野2✓</span>`;
+        const ss = r.sector_struct || {};
+        const ssTip = '先锋-中军板块结构(B1) · 行业:' + (ss.sector || '未知') + ' · 先锋:' + (ss.vanguard ? '✓(连板≥2板家数≥2)' : '✕') + ' · 中军:' + (ss.mainforce ? '✓(涨停市值≥300亿)' : '✕') + ' · 观察维度不过滤';
+        const ssChip = r.sector_struct == null ? '' : ss.ok
+          ? `<span class="chip-ma20 ok" title="${ssTip}">构✓</span>`
+          : `<span class="chip-ma20 na" title="${ssTip}">构✕</span>`;
         const rchip = REG_CHIP[r.index_regime] || '';
         return `<tr class="${r.excluded_by_ma20 ? 'pt-excluded-row' : ''}">
           <td class="mono">${fmtDate(r.advice_date)}</td>
-          <td>${r.name}<span class="code" style="margin-left:4px;">${r.code}</span>${mchip}${rchip}${wchip}${w2chip}${r.p12_unverified ? '<span style="font-size:11px;color:var(--orange);margin-left:4px;">p12未验证</span>' : ''}</td>
+          <td>${r.name}<span class="code" style="margin-left:4px;">${r.code}</span>${mchip}${rchip}${wchip}${w2chip}${ssChip}${r.p12_unverified ? '<span style="font-size:11px;color:var(--orange);margin-left:4px;">p12未验证</span>' : ''}</td>
           <td style="font-size:12px;">${PT_LB_TXT[r.lb] || (r.lb + '板')}</td>
           <td class="mono" style="font-size:12px;">${r.mv != null ? r.mv.toFixed(0) + '亿' : '—'}</td>
           <td class="mono">${r.entry_price != null ? r.entry_price.toFixed(2) : '—'}</td>
@@ -2816,7 +3139,7 @@ function renderParallel(){
     <div class="sec-sub" style="margin:14px 0 0;">影子期满判定标准(S1-S5) · 4周期满后按红黄绿灯客观决策: 全切换 / 部分采纳 / 延长 / 返工</div>
     <div class="pt-criteria">${critHTML}</div>
     <div class="pt-vs">${trackV2}${trackV1}</div>
-    ${ma20HTML}${wildHTML}${wild2HTML}
+    ${ma20HTML}${wildHTML}${wild2HTML}${sectorHTML}${reboundHTML}
     <div class="ec-title" style="margin-top:18px;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       周小结 · 双轨并览</div>${weeklyHTML ? `<div class="pt-weekly">${weeklyHTML}</div>` : ''}
@@ -2828,7 +3151,7 @@ function renderParallel(){
     ${pairHTML}
     <div class="ec-title" style="margin-top:18px;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-      影子信号明细 · 最近 ${recs.length} 条 <span style="font-weight:600;color:var(--tertiary);font-size:11.5px;">(MA20✓/✕=趋势过滤 · 野✓/✕=发酵期∪8020联合过滤 · 野2✓/✕=高潮期∪次新股第二组 · 多头/震荡/弱势=指数环境)</span></div>
+      影子信号明细 · 最近 ${recs.length} 条 <span style="font-weight:600;color:var(--tertiary);font-size:11.5px;">(MA20✓/✕=趋势过滤 · 野✓/✕=发酵期∪8020联合过滤 · 野2✓/✕=高潮期∪次新股第二组 · 构✓/✕=先锋中军结构B1 · 多头/震荡/弱势=指数环境)</span></div>
     ${recHTML}
     <div class="pt-rules">
       <h4><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>v2.0.1 影子策略规则(与v1.9三处差异)</h4>
@@ -3070,7 +3393,7 @@ function renderFooter(){
   const m = D.meta, mk = D.market || {}, w = mk.weights || {p12:.5, breadth:.3, height:.2};
   const wm = mk.weights_meta;
   const wTxt = `p12趋势${Math.round(w.p12*100)}% + 涨停广度${Math.round(w.breadth*100)}% + 最高板${Math.round(w.height*100)}%`;
-  $('footer').innerHTML = `晴雨气象台 v${m.version} · 数据源: AkShare 整池接口 + 新浪批量行情 · 扫描耗时 ${m.scan_cost_s}s<br>
+  $('footer').innerHTML = `观澜 v${m.version} · 数据源: AkShare 整池接口 + 新浪批量行情 · 扫描耗时 ${m.scan_cost_s}s<br>
   每日 15:10 / 09:26 / 10:30 自动刷新 · 评分体系 v2.1 加权连续(${wTxt})${wm ? ` · 权重经Logistic回归校准(${wm.n_trades}笔回测·${(wm.calibrated_at||'').slice(0,10)})` : ''} · 信号资格与市场质量已解耦<br>
   本页所有内容仅为历史数据回测与情绪解读, 不构成任何投资建议 · 股市有风险, 入市需谨慎`;
 }

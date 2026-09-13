@@ -1,7 +1,9 @@
-/* port.js v1.6.0 — 持仓体检交互逻辑 (设计手册Problem 2/4/5落地)
+/* port.js v1.7.0 — 持仓体检交互逻辑 (设计手册Problem 2/4/5落地)
    模块: preprocess(canvas重采样/灰度/锐化) + ocr(自托管fast语言包/打开即预热/降级) +
          parser(双粒度聚类+三通道候选+区域竞争: L1单行/SEG名称锚定段/VP垂直价格对) +
          match(三级匹配: 本地全市场语料LCS模糊/在线多档前缀/smartbox反查) + ui(五步状态机/确认表格/报告渲染/localStorage历史)
+   v1.7.0 [C档·复盘七步法第⑦步]: 报告新增「明日作战计划·认输线」卡 —
+           每只持仓认输线价格+距线空间+冲高/平开/破线三条件计划(触发式退出, 执行层)
    v1.6.0: ① 成本价方向修复 — 用户确认布局: 持仓数量后紧邻两值, 前(上)为成本后(下)为现价;
              数量紧邻规则+4, 移除P>C偏置(亏损持仓会翻转正确顺序), VP翻转需强证据(≥2反向%或显式负号单命中),
              新增市值顺序复核(V≈上行×数量 且不匹配下行才翻转), vHit容差5%→1.5%;
@@ -17,7 +19,7 @@
            ④ 报告盈亏口径统一quote.price实时价 vs 用户成本(与市值同源, 数据源已验证quote==kline)
    v1.4.0: 成本保留原始精度(≤3位小数, ETF如1.082); 代码列可编辑(6位代码或sh588200式, 反查前缀)
    v1.3.0: 修复垂直布局(成本上/现价下)识别率低; 报告「操作指令+野人两板块建议」行
-   引擎: window.Health (health-core.js v1.2.0, 与diag.js口径逐字一致)
+   引擎: window.Health (health-core.js v1.3.0, 与diag.js口径逐字一致)
    声明: 条件概率诊断, 非预测, 不构成投资建议 */
 (function () {
 'use strict';
@@ -755,6 +757,7 @@ const els = {
   secConfirm: $('secConfirm'), editBody: $('editBody'), btnAddRow: $('btnAddRow'), btnRun: $('btnRun'),
   secReport: $('secReport'), reportMeta: $('reportMeta'), kpiGrid: $('kpiGrid'), envWrap: $('envWrap'),
   grpGrid: $('grpGrid'), holdDetail: $('holdDetail'), discList: $('discList'), posWrap: $('posWrap'),
+  planWrap: $('planWrap'),   /* v1.7.0 [C档·复盘七步法第⑦步] 明日作战计划挂载点 */
   btnBackEdit: $('btnBackEdit'), btnSave: $('btnSave'),
   histList: $('histList'),
 };
@@ -1188,6 +1191,27 @@ function renderReport(rep) {
       })() +
       '</div>';
   }).join('') + (rep.errs.length ? '<div class="empty" style="color:var(--red);">' + rep.errs.map(e => esc(e.name) + ': ' + e.error).join(' · ') + '</div>' : '');
+  /* v1.7.0 [C档·复盘七步法第⑦步]: 明日作战计划卡 — 认输线+三条件触发式退出(执行层) */
+  if (els.planWrap) {
+    const GRP_TAG = { lock: '锁利', reduce: '减仓', hold: '持有' };
+    const GRP_CLS = { lock: 'ha-tag ok', reduce: 'ha-tag warn', hold: 'ha-tag main' };
+    els.planWrap.innerHTML = rep.ok.map(h => {
+      const d2 = h.decision, pl = d2.plan || {};
+      const livePx = h.quote ? h.quote.price : (h.ind ? h.ind.c : 0);
+      const distToQuit = (d2.quit_line != null && livePx) ? R2((livePx / d2.quit_line - 1) * 100) : null;
+      return '<div class="plan-card">' +
+        '<div class="plan-top"><span class="plan-name">' + esc(h.name) + '</span>' +
+        '<span class="hr-code">' + h.code + '</span>' +
+        '<span class="' + (GRP_CLS[d2.group] || 'ha-tag main') + '" style="display:inline-flex;">' + (GRP_TAG[d2.group] || d2.group) + '</span>' +
+        (distToQuit != null ? '<span style="font-size:11px;color:var(--tertiary);">距认输线 ' + (distToQuit >= 0 ? '+' : '') + distToQuit + '%</span>' : '') +
+        '<span class="plan-quit">认输线 <b>' + (d2.quit_line != null ? d2.quit_line : '—') + '</b></span></div>' +
+        '<div class="plan-rows">' +
+        (pl.up ? '<div class="plan-row"><span class="p-tag pt-up">冲高</span><span class="p-txt">' + esc(pl.up) + '</span></div>' : '') +
+        (pl.flat ? '<div class="plan-row"><span class="p-tag pt-flat">平开</span><span class="p-txt">' + esc(pl.flat) + '</span></div>' : '') +
+        (pl.down ? '<div class="plan-row"><span class="p-tag pt-down">破线</span><span class="p-txt">' + esc(pl.down) + '</span></div>' : '') +
+        '</div></div>';
+    }).join('') || '<div class="empty">无持仓数据</div>';
+  }
   /* 纪律 (v1.3.0: 新增多空弱档纪律行) */
   const disc = env.discipline.slice();
   if (rep.groups.reduce.length) disc.push('反弹减仓组' + rep.groups.reduce.length + '只：冲高至触发价分批减，不追涨停不加仓');
