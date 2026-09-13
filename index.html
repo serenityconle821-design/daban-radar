@@ -853,6 +853,8 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 }
 .pt-chip b { font-weight:800; }
 .pt-criteria { display:grid; grid-template-columns: repeat(5, 1fr); gap:10px; margin:16px 0 4px; }
+/* v1.5.0 TOP2观察卡: C1-C4四条标准·4列布局(主轨S1-S5为5列) */
+.t2-crit-grid { grid-template-columns: repeat(4, 1fr); }
 .pt-crit { border-radius:13px; padding:12px 12px 11px; background:var(--card2); position:relative; overflow:hidden; }
 .pt-crit .c-dot { width:10px; height:10px; border-radius:50%; margin-bottom:7px; }
 .pt-crit.green .c-dot { background:var(--green); box-shadow:0 0 0 4px var(--green-soft); }
@@ -1122,6 +1124,7 @@ tr.pt-excluded-row td { opacity:.52; }
   .tbl th, .tbl td { padding: 8px 8px; font-size: 13px; }
   /* v1.9.1 并行跟踪实验区: 单列堆叠 */
   .pt-criteria { grid-template-columns: repeat(2, 1fr); }
+  .t2-crit-grid { grid-template-columns: repeat(2, 1fr); }
   .pt-vs { grid-template-columns: 1fr; }
   .pt-week { grid-template-columns: 76px 1fr 1fr; padding: 10px 12px; }
   .pt-head .pt-title { font-size: 15.5px; }
@@ -2814,6 +2817,7 @@ function renderParallel(){
   const W2F = PT.wild2_filter || {};              // v1.3.0 野人哥第二过滤组观察
   const SSFh = PT.sector_struct_filter || {};     // v1.4.0 B1 先锋-中军结构观察
   const RWh = PT.rebound_watch || {};              // v1.4.0 B2 断板反包观察
+  const T2h = PT.top2_watch || {};                 // v1.5.0 TOP2轻仓级影子观察
   const IRS = PT.index_regime_stats || [];        // v1.1.0 指数环境分层
   const c = PT.counts || {}, S2 = PT.strategy_v2 || {}, br = S2.backtest_ref || {};
 
@@ -2828,7 +2832,7 @@ function renderParallel(){
     : vd === 'yellow'
     ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="9" x2="12" y2="13.5"/><line x1="12" y1="17.5" x2="12.01" y2="17.5"/></svg>'
     : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 7 12 12 15.5 14"/></svg>';
-  $('ptSub').innerHTML = `影子运行 <b>${PT.days_elapsed != null ? PT.days_elapsed + ' 天' : '—'}</b> · 信号 <b>${c.signals || 0}</b> 条 · 已结算 <b>${c.closed || 0}</b> 笔${MF.enabled ? ` · MA20观察第 <b>${MF.week_elapsed || '—'}/${MF.observe_weeks || 4}</b> 周` : ''}${WF.enabled ? ` · 野人哥第 <b>${WF.week_elapsed || '—'}/${WF.observe_weeks || 4}</b> 周` : ''}${W2F.enabled ? ` · 野2组第 <b>${W2F.week_elapsed || '—'}/${W2F.observe_weeks || 4}</b> 周` : ''}${SSFh.enabled ? ` · 结构B1第 <b>${SSFh.week_elapsed || '—'}/${SSFh.observe_weeks || 4}</b> 周` : ''}${RWh.enabled ? ` · 反包B2第 <b>${RWh.week_elapsed || '—'}/${RWh.observe_weeks || 4}</b> 周` : ''} · <b style="color:${PT_VERDICT_COLOR[vd]}">${PT_VERDICT_TXT[vd]}</b>`;
+  $('ptSub').innerHTML = `影子运行 <b>${PT.days_elapsed != null ? PT.days_elapsed + ' 天' : '—'}</b> · 信号 <b>${c.signals || 0}</b> 条 · 已结算 <b>${c.closed || 0}</b> 笔${MF.enabled ? ` · MA20观察第 <b>${MF.week_elapsed || '—'}/${MF.observe_weeks || 4}</b> 周` : ''}${WF.enabled ? ` · 野人哥第 <b>${WF.week_elapsed || '—'}/${WF.observe_weeks || 4}</b> 周` : ''}${W2F.enabled ? ` · 野2组第 <b>${W2F.week_elapsed || '—'}/${W2F.observe_weeks || 4}</b> 周` : ''}${SSFh.enabled ? ` · 结构B1第 <b>${SSFh.week_elapsed || '—'}/${SSFh.observe_weeks || 4}</b> 周` : ''}${RWh.enabled ? ` · 反包B2第 <b>${RWh.week_elapsed || '—'}/${RWh.observe_weeks || 4}</b> 周` : ''}${T2h.enabled ? ` · TOP2第 <b>${T2h.week_elapsed || '—'}/${T2h.observe_weeks || 4}</b> 周` : ''} · <b style="color:${PT_VERDICT_COLOR[vd]}">${PT_VERDICT_TXT[vd]}</b>`;
   $('ptMini').innerHTML = `
     <span class="pt-chip">信号 <b>${c.signals || 0}</b></span>
     <span class="pt-chip">已结算 <b>${c.closed || 0}</b></span>
@@ -3021,6 +3025,73 @@ function renderParallel(){
       ${rbTableHTML}
     </div>` : '';
 
+  // ③b7 [v1.5.0] TOP2轻仓级影子 — 战法雷达"确定性最强TOP2"独立登记结算(零资金·不碰生产信号)
+  const T2K = T2h.kpi_light || {}, T2FB = T2h.score_feedback || {};
+  const t2Pct = T2h.enabled ? Math.min(100, ((T2h.week_elapsed || 1) / (T2h.observe_weeks || 4)) * 100) : 0;
+  const t2FbLift = T2FB.lift_pp;
+  const t2FbCls = t2FbLift != null ? (t2FbLift >= 10 ? 'pt-diff-pos' : t2FbLift > 0 ? 'pct-pos' : 'pt-diff-neg') : '';
+  const t2CritHTML = (T2h.criteria || []).map(s => `
+    <div class="pt-crit ${s.status}">
+      <div class="c-dot"></div>
+      <div class="c-key">${s.key}</div>
+      <div class="c-lab">${s.label}</div>
+      <div class="c-val">${s.value}</div>
+      <div class="c-tgt">目标 ${s.target}</div>
+      <div class="c-note">${s.note || ''}</div>
+    </div>`).join('');
+  const T2_GRADE_TXT = { light:['chip-ma20 ok','轻仓·结算'], wait:['chip-ma20 na','酝酿·仅登记'] };
+  const t2Recent = T2h.recent || [];
+  const t2TableHTML = t2Recent.length ? `<div class="tbl-scroll" style="margin-top:8px;"><table class="tbl"><tr>
+      <th>信号日</th><th>标的</th><th>战法</th><th>评分</th><th>信号收盘</th><th>止损价</th><th>分级</th><th>状态</th><th>收益</th></tr>
+      ${t2Recent.map(r => {
+        const gc = T2_GRADE_TXT[r.grade] || ['chip-ma20 na', r.grade || '—'];
+        const ret = (r.result || {}).ret;
+        const stc = { open:'st-open', holding:'st-hold', closed:'st-done', missed:'st-miss', no_touch:'st-miss' }[r.status] || 'st-open';
+        return `<tr>
+        <td class="mono">${fmtDate(r.date)}</td>
+        <td><b>${r.name}</b><span class="code" style="margin-left:4px;">${r.code}</span></td>
+        <td style="font-size:12px;">${r.strat_name || r.strat || '—'}</td>
+        <td class="mono" style="font-weight:700;">${r.score != null ? r.score.toFixed(1) : '—'}</td>
+        <td class="mono" style="font-size:12px;">${r.sig_close != null ? r.sig_close.toFixed(2) : '—'}</td>
+        <td class="mono" style="color:var(--green);font-size:12px;">${r.stop_price != null ? r.stop_price.toFixed(2) : '—'}</td>
+        <td><span class="${gc[0]}">${gc[1]}</span></td>
+        <td class="${stc}" style="font-size:12.5px;">${r.status_label || r.status || '—'}</td>
+        <td class="mono ${ret != null ? pctCls(ret) : ''}" style="font-weight:700;">${ret != null ? sign(ret.toFixed(2), '%') : '—'}</td>
+      </tr>`; }).join('')}
+    </table></div>` : '<div class="exit-calm" style="margin-top:8px;">暂无TOP2登记 · 战法雷达出现确定性候选后自动登记(观察池light优先·酝酿池wait补足)</div>';
+  const top2HTML = T2h.enabled ? `
+    <div class="pt-ma20">
+      <div class="pt-ma20-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        TOP2 轻仓级影子 · 确定性最强TOP2
+        <span class="pt-ma20-week">第 ${T2h.week_elapsed || '—'} / ${T2h.observe_weeks || 4} 周 · 至 ${T2h.deadline ? fmtDate(T2h.deadline) : '—'}</span>
+      </div>
+      <div class="pt-ma20-bar"><i style="width:${t2Pct.toFixed(0)}%;"></i></div>
+      <div class="pt-ma20-rule">规则 · <b>${T2h.rule || ''}</b><br>${T2h.backtest || ''} · 已登记 ${T2h.n_records || 0} 条(轻仓级 ${T2h.n_light || 0} · 酝酿级 ${T2h.n_wait || 0} 仅登记)</div>
+      <div class="pt-kpis" style="margin-top:8px;">
+        <div class="pt-kpi"><div class="v">${T2K.n || 0}<span style="font-size:12px;color:var(--tertiary);"> / ${T2K.n_signals || 0}</span></div><div class="l">已结算/轻仓级登记</div></div>
+        <div class="pt-kpi"><div class="v">${T2K.win_rate != null ? T2K.win_rate.toFixed(2) + '%' : '—'}</div><div class="l">胜率(C2线≥50%)</div></div>
+        <div class="pt-kpi"><div class="v ${T2K.avg_ret != null ? pctCls(T2K.avg_ret) : ''}">${ptNum(T2K.avg_ret)}</div><div class="l">单笔期望%</div></div>
+        <div class="pt-kpi"><div class="v" style="color:var(--green)">${ptNum(T2K.avg_win)}</div><div class="l">均盈%</div></div>
+        <div class="pt-kpi"><div class="v" style="color:var(--red)">${ptNum(T2K.avg_loss)}</div><div class="l">均亏%</div></div>
+        <div class="pt-kpi"><div class="v ${T2K.max_loss != null ? pctCls(T2K.max_loss) : ''}">${ptNum(T2K.max_loss)}</div><div class="l">最差单笔%</div></div>
+      </div>
+      <div class="pt-excl" style="margin-top:10px;">
+        <div class="e-head">评分区分度(手工watch_score验证) · 高分组 <b>${T2FB.hi_win_rate != null ? T2FB.hi_win_rate.toFixed(2) + '%' : '—'}</b> vs 低分组 <b>${T2FB.lo_win_rate != null ? T2FB.lo_win_rate.toFixed(2) + '%' : '—'}</b> · 差值 <b class="${t2FbCls}" style="margin-left:4px;">${t2FbLift != null ? (t2FbLift > 0 ? '+' : '') + t2FbLift.toFixed(2) + 'pp' : '—'}</b> <span style="font-weight:400;color:var(--tertiary);">(通过线 ≥+10pp · 中位数${T2FB.median_score != null ? T2FB.median_score.toFixed(1) : '—'}分组 · 已结算${T2FB.n || 0}笔)</span></div>
+        <div class="e-stats">
+          <span>高分组 <b>${T2FB.n_hi || 0}</b> 笔</span>
+          <span>低分组 <b>${T2FB.n_lo || 0}</b> 笔</span>
+          <span>待结算 <b>${(T2K.n_open || 0)}</b> 笔</span>
+          <span>未成交/放弃 <b>${(T2K.n_unfilled || 0)}</b> 笔</span>
+        </div>
+        <div class="e-note">${T2FB.note || '样本不足'} · ${T2h.verdict_note || '观察中'}</div>
+      </div>
+      <div class="sec-sub" style="margin:10px 0 0;">期满判定标准(C1-C4) · 独立于主轨S1-S5 · 4周期满按红黄绿灯客观决策</div>
+      <div class="pt-criteria t2-crit-grid" style="margin-top:4px;">${t2CritHTML}</div>
+      ${t2TableHTML}
+      <div class="e-note" style="margin-top:8px;">TOP2影子 = 战法雷达watch_top数据面独立登记结算, 完全复刻轻仓级交易计划 · <b>不改变生产信号/推荐/仓位</b> · 期满回答: ①轻仓级TOP2推荐保留还是撤下(C1-C3) ②_watch_score手工权重往哪调(C4)</div>
+    </div>` : '';
+
   // ③b4 [v1.3.0] 明日入场清单 — 最新信号日 open/holding 按三重过滤分桶(B1四级漏斗绿灯·影子验证)
   const recsAll = PT.records || [];
   const latestSigDate = recsAll.length ? recsAll[0].advice_date : null;
@@ -3153,7 +3224,7 @@ function renderParallel(){
     <div class="sec-sub" style="margin:14px 0 0;">影子期满判定标准(S1-S5) · 4周期满后按红黄绿灯客观决策: 全切换 / 部分采纳 / 延长 / 返工</div>
     <div class="pt-criteria">${critHTML}</div>
     <div class="pt-vs">${trackV2}${trackV1}</div>
-    ${ma20HTML}${wildHTML}${wild2HTML}${sectorHTML}${reboundHTML}
+    ${ma20HTML}${wildHTML}${wild2HTML}${sectorHTML}${reboundHTML}${top2HTML}
     <div class="ec-title" style="margin-top:18px;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       周小结 · 双轨并览</div>${weeklyHTML ? `<div class="pt-weekly">${weeklyHTML}</div>` : ''}
