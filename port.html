@@ -4,8 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>持仓体检 · 观澜擒龙</title>
-<!-- port.html v1.4.0 持仓体检: 上传券商App截图 → 浏览器端OCR解析 → 六条算术自洽校验 → 观澜擒龙诊断引擎 → 三组分组体检报告
+<!-- port.html v1.4.1 持仓体检: 上传券商App截图 → 浏览器端OCR解析 → 六条算术自洽校验 → 观澜擒龙诊断引擎 → 三组分组体检报告
      设计: iOS Liquid Glass(与主看板/诊断中心同构); OCR: tesseract.js@5 自托管./ocr/(fast语言包, 打开即预热); 数据: 腾讯JSONP + SITE_DATA快照
+     v1.4.1 [卖飞复盘修复·2026-09-14]: 引擎health-core.js v1.3.1 — ①冰冷期减仓价上移仅对结构性弱势生效(9010/8515
+             强结构且MA20上方豁免, 防回暖日平盘扫飞) ②冲高条件带回暖失效条款(高开>2%且量比>1.5/触涨停/放量破20日高
+             → 暂缓减仓改MA5跟踪) ③减仓指令明确先减半仓+剩余半付认输线双价格 ④作战计划卡新增执行提示行(勿隔夜挂死单)
      v1.4.0: OCR只识别名称/数量/成本价, 现价一律实时行情自动匹配; 名称/代码双向智能下拉(输入≥2字符出候选);
              确认表现价/市值/盈亏%列实时计算, 识别现价与实时偏差>2%黄标核对; KPI标注数据时点; 明细新增当日盈亏块
      v1.3.0: 成本/现价保留原始精度(≤3位小数, ETF如1.082); 代码列可手动编辑(6位代码或sh588200式, smartbox反查前缀); 分析严格按确认表持仓口径
@@ -505,8 +508,8 @@ section.card { -webkit-backdrop-filter:var(--blur-card); backdrop-filter:var(--b
 <script src="./ocr/tesseract.min.js" defer></script>
 <script src="./data.js"></script>
 <script src="./names.js"></script>
-<script src="./health-core.js"></script>
-<script src="./port.js" defer></script>
+<script src="./health-core.js?v=131"></script>
+<script src="./port.js?v=171" defer></script>
 <script src="./totop.js" defer></script>
 </body>
 </html>

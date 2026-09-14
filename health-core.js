@@ -1,6 +1,12 @@
-/* health-core.js v1.3.0 — 持仓体检引擎 (设计手册Problem 3落地)
+/* health-core.js v1.3.1 — 持仓体检引擎 (设计手册Problem 3落地)
    架构: Fetcher(并发≤4·指数退避) → Indicator(纯函数·与diag.js口径逐字一致) → Decider(三组分组+三档触发价) → MarketEnv(大盘联动)
    数据: 腾讯JSONP(K线/行情/搜索) + SITE_DATA快照(相位/市场分) + 上证K线实时(中轨判据)
+   v1.3.1 [卖飞复盘修复·2026-09-14]: ①冰冷期reduce上移仅对结构性弱势生效, 9010/8515强结构且
+           MA20上方豁免(原: 全员上移至现价×0.99, 强势股锚=MA20低于现价, 上移后=平盘即卖,
+           回暖反弹日挂单必被扫飞) ②plan.up增回暖失效条款(高开>2%且量比>1.5/触涨停/放量破
+           20日高 → 暂缓减仓改MA5移动止盈跟踪), 对冲退潮降档"只降不回" ③reduce指令明确
+           "先减半仓+剩余半付认输线"双价格, 防整仓一次性卖飞 ④plan.note执行提示: 勿隔夜
+           预挂死单, 挂单前看盘中量能区分"放量突破"与"冲高乏力"
    v1.3.0 [C档·复盘七步法第7步]: buildAction新增认输线quit_line+明日计划plan三条件
            (冲高/平开/破线·触发式退出), 复用体检链路不另建模块, 执行层不入行情模型
    v1.2.0: profitPct盈亏口径统一实时quote.price vs 用户成本(与市值/当日盈亏同源,
@@ -286,20 +292,31 @@ async function fetchMarketEnv() {
   return env;
 }
 
-/* 大盘环境注入决策: 退潮强制全员降档至反弹减仓 + 冰冷期reduce上移 */
+/* 大盘环境注入决策: 退潮强制全员降档至反弹减仓 + 冰冷期reduce上移(仅结构性弱势) */
 function applyMarketEnv(h, env) {
-  /* 退潮期: 锁定利润/持有观察 均强制降档 (设计手册: 反弹视作减仓窗口而非加仓窗口) */
+  /* 退潮期: 锁定利润/持有观察 均强制降档 (设计手册: 反弹视作减仓窗口而非加仓窗口)
+     v1.3.1: 降档保留, 但buildAction的plan.up带回暖失效条款对冲 — 回暖日强势股暂缓减仓改MA5跟踪 */
   if (env.ebb && (h.decision.group === 'hold' || h.decision.group === 'lock')) {
     const prevLabel = h.decision.group === 'lock' ? '锁定利润' : '持有观察';
     h.decision.group = 'reduce';
     h.decision.groupColor = ORANGE;
     h.decision.reasons.unshift('退潮期强制降档：' + prevLabel + ' → 反弹减仓');
   }
+  /* v1.3.1修复①: 冰冷期上移只对结构性弱势生效, 健康结构(9010/8515且MA20上方)豁免。
+     原逻辑全员上移至现价×0.99 — 强势股reduce锚=MA20(低于现价), 上移后=平盘即卖,
+     V型回暖日挂单必被扫飞; 而弱势股reduce锚本就高于现价×0.99, 上移仅覆盖少数
+     "结构弱但价贴MA20"的边缘情况, 豁免健康结构不影响冰冷期纪律本身 */
+  const bb = h.ind ? h.ind.bullBear : null;
+  const healthy = bb && (bb.tier === '9010' || bb.tier === '8515') && h.ind.c > h.ind.ma20;
   if (env.cold && h.decision.triggers.reduce != null) {
-    const floor = R2(h.ind.c * 0.99);
-    if (h.decision.triggers.reduce < floor) {
-      h.decision.triggers.reduce = floor;
-      h.decision.reasons.push('冰冷期减仓触发价上移至现价×0.99（' + floor + '）');
+    if (healthy) {
+      h.decision.reasons.push('冰冷期豁免：' + bb.tier + '强结构且MA20上方，减仓价维持 ' + R2(h.decision.triggers.reduce) + ' 锚位不上移（防回暖日平盘扫飞）');
+    } else {
+      const floor = R2(h.ind.c * 0.99);
+      if (h.decision.triggers.reduce < floor) {
+        h.decision.triggers.reduce = floor;
+        h.decision.reasons.push('冰冷期减仓触发价上移至现价×0.99（' + floor + '）');
+      }
     }
   }
   buildAction(h); /* v1.1.0: 环境注入后(含降档/触发价上移)重算主操作指令 */
@@ -315,7 +332,7 @@ function buildAction(h) {
   if (d.group === 'lock') {
     d.action = '锁利：MA5(' + f(ind.ma5) + ')上方持有，跌破「再减」' + f(t.halve) + '减半，跌破「清仓红线」' + f(t.clear) + '离场';
   } else if (d.group === 'reduce') {
-    d.action = '减仓：反弹至' + f(t.reduce) + '附近减半仓，收盘跌破' + f(t.clear) + '清仓；不加仓不补仓';
+    d.action = '减仓：反弹至' + f(t.reduce) + '附近先减半仓，剩余半仓收盘跌破' + f(t.clear) + '清仓；不加仓不补仓';
   } else {
     d.action = '持有：收盘跌破MA20(' + f(ind.ma20) + ')即降档减仓，跌破' + f(t.clear) + '清仓；MA10(' + f(ind.ma10) + ')上方结构完好';
   }
@@ -332,8 +349,13 @@ function buildAction(h) {
     };
   } else if (d.group === 'reduce') {
     d.plan = {
-      up: '高开或冲高至 ' + f(t.reduce) + ' 附近减半仓，视为减仓窗口而非加仓窗口',
-      flat: '平开震荡不加仓不补仓，等待反弹触发减仓',
+      /* v1.3.1修复②: 回暖失效条款 — 对冲退潮降档"只降不回"。
+         依据(2026-09-14卖飞复盘): 退潮+冰冷报告把强势股卖价钉在昨收附近, 次日情绪
+         回暖(涨停39家/晋级率75%)强势股全部平盘位被扫掉后继续上涨。此条款让"放量
+         突破"与"冲高乏力"分开处理, 高开>2%且量比>1.5/触涨停/放量破20日高任一成立
+         → 暂缓减仓, 改用MA5移动止盈让利润奔跑(破MA5再执行减仓) */
+      up: '冲高至 ' + f(t.reduce) + ' 附近先减半仓(非清仓)；回暖失效条款：高开>2%且盘中量比>1.5 / 触涨停 / 放量突破20日高 ' + f(ind.hi20) + ' 任一成立 → 暂缓减仓，改MA5(' + f(ind.ma5) + ')上方移动止盈跟踪，跌破MA5再执行减仓',
+      flat: '平开震荡不加仓不补仓，等反弹触发减仓；已减半后，剩余半仓跌破认输线 ' + qp + ' 清仓',
       down: '收盘跌破认输线 ' + qp + ' → 无条件清仓离场，不幻想不摊薄',
     };
   } else {
@@ -343,6 +365,9 @@ function buildAction(h) {
       down: '收盘跌破认输线 ' + qp + ' → 无条件清仓离场，不幻想不摊薄',
     };
   }
+  /* v1.3.1修复④: 执行层提示 — 触发式计划需盘中确认量能再挂单, 隔夜死单无法区分
+     "放量突破"(不该卖)与"冲高乏力"(该卖), 2026-09-14多笔卖飞直接原因之一 */
+  if (d.plan) d.plan.note = '执行提示：触发式计划勿隔夜预挂死单——挂单前先看盘中量能：放量突破挂单价(量比>1.5)撤单改MA5跟踪，冲高乏力(量比<1)再挂单。';
 }
 
 /* ═══════════ Fetcher: 并发拉取(≤4, 指数退避重试2次) ═══════════ */
@@ -403,7 +428,7 @@ async function runPortfolioHealth(rows, onProgress) {
 
 /* ═══════════ 暴露 window.Health (供 port.js / three.html 复用) ═══════════ */
 window.Health = {
-  version: '1.2.0',
+  version: '1.3.1',
   /* 数据层 */
   tencent, searchStock, fetchKline, fetchQuote, fetchWithRetry, runPool,
   /* 指标层 */

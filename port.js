@@ -1,7 +1,9 @@
-/* port.js v1.7.0 — 持仓体检交互逻辑 (设计手册Problem 2/4/5落地)
+/* port.js v1.7.1 — 持仓体检交互逻辑 (设计手册Problem 2/4/5落地)
    模块: preprocess(canvas重采样/灰度/锐化) + ocr(自托管fast语言包/打开即预热/降级) +
          parser(双粒度聚类+三通道候选+区域竞争: L1单行/SEG名称锚定段/VP垂直价格对) +
          match(三级匹配: 本地全市场语料LCS模糊/在线多档前缀/smartbox反查) + ui(五步状态机/确认表格/报告渲染/localStorage历史)
+   v1.7.1 [卖飞复盘修复]: 作战计划卡新增plan.note执行提示行(勿隔夜挂死单/挂单前看量能),
+           渲染引擎v1.3.1的回暖失效条款+双价格指令(修复2026-09-14回暖日强势股卖飞)
    v1.7.0 [C档·复盘七步法第⑦步]: 报告新增「明日作战计划·认输线」卡 —
            每只持仓认输线价格+距线空间+冲高/平开/破线三条件计划(触发式退出, 执行层)
    v1.6.0: ① 成本价方向修复 — 用户确认布局: 持仓数量后紧邻两值, 前(上)为成本后(下)为现价;
@@ -1209,6 +1211,8 @@ function renderReport(rep) {
         (pl.up ? '<div class="plan-row"><span class="p-tag pt-up">冲高</span><span class="p-txt">' + esc(pl.up) + '</span></div>' : '') +
         (pl.flat ? '<div class="plan-row"><span class="p-tag pt-flat">平开</span><span class="p-txt">' + esc(pl.flat) + '</span></div>' : '') +
         (pl.down ? '<div class="plan-row"><span class="p-tag pt-down">破线</span><span class="p-txt">' + esc(pl.down) + '</span></div>' : '') +
+        /* v1.7.1: plan.note 执行提示行 (引擎v1.3.1新增, 灰底小字与三条件区分) */
+        (pl.note ? '<div class="plan-row" style="margin-top:4px;padding-top:6px;border-top:1px dashed var(--hairline);"><span class="p-tag" style="background:#8E8E93;">提示</span><span class="p-txt" style="color:var(--tertiary);font-size:11px;">' + esc(pl.note) + '</span></div>' : '') +
         '</div></div>';
     }).join('') || '<div class="empty">无持仓数据</div>';
   }
