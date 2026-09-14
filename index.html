@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>观澜擒龙</title>
 <style>
+/* v1.15.0 打板直答引擎: 候选卡重构为「三问直答」面板(①隔夜单能不能挂+胜率 ②盘中现在能不能买·实时判定
+   ③买入后次日怎么操作), 移除买入时机/开盘分层/放弃条件/卖出预案四类描述性内容;
+   新增"我的打板仓"(localStorage登记买入, 次日盘中实时提示 持有/止盈/收盘离场);
+   数据: 腾讯qt.gtimg.cn批量JSONP(仅交易日盘中拉取, 60s刷新); 回测: 两年4995股×24万样本,
+   R3规则(封板续持·断板就走)分年度2024/2025/2026全部为正, 隔夜单资格=连板≥3(2板次级·高开>2%撤单) */
 /* v1.13.1 全版块导航: 顶栏16入口补齐监控/影子/情绪/规则四版块(data-sec直达滚动, 顺序对齐页面section流);
    .topnav改flex-wrap换行替代overflow-x横滑 — 桌面右对齐两行/移动端左对齐chip流铺满, 免左右滑动;
    本页打板策略逻辑零改动, 不影响 v2.0 影子观察(MA20对照) */
@@ -388,6 +393,52 @@ section { scroll-margin-top: 88px; }
 .plan .p-tag.sell { background:var(--green-soft); color:var(--green); }
 .plan .p-txt b { font-variant-numeric:tabular-nums; }
 .plan .p-txt { flex:1; word-break:keep-all; overflow-wrap:break-word; line-height:1.6; }
+
+/* ── v1.15.0 打板直答面板 ── */
+.da { margin-top:14px; border-top:1px solid var(--sep); padding-top:12px; display:flex; flex-direction:column; gap:9px; }
+.da-row { display:flex; gap:10px; align-items:flex-start; }
+.da-tag { flex:none; font-size:11px; font-weight:800; padding:3px 9px; border-radius:7px; white-space:nowrap; text-align:center; margin-top:2px; }
+.da-tag.ok { background:var(--green-soft); color:var(--green); }
+.da-tag.warn { background:var(--orange-soft); color:var(--orange); }
+.da-tag.no { background:var(--red-soft); color:var(--red); }
+.da-tag.live { background:var(--primary-soft); color:var(--primary); }
+.da-tag.sell { background:var(--red-soft); color:var(--red); }
+.da-tag.hold { background:var(--green-soft); color:var(--green); }
+.da-body { flex:1; min-width:0; font-size:13px; color:var(--text); line-height:1.62; }
+.da-body b { font-variant-numeric:tabular-nums; }
+.da-body .da-sub { color:var(--secondary); font-size:11.8px; display:block; margin-top:1px; }
+.da-wait { color:var(--tertiary); }
+.da-btn { border:none; cursor:pointer; font:700 12px -apple-system,"PingFang SC",sans-serif; color:var(--primary);
+  background:var(--primary-soft); border-radius:9px; padding:7px 14px; min-height:34px; transition:transform .15s, opacity .15s; }
+.da-btn:active { transform:scale(.95); }
+.da-btn.del { color:var(--red); background:var(--red-soft); padding:4px 11px; min-height:28px; }
+/* 直答指引条(候选区顶部) */
+.da-guide { margin-top:14px; border-radius:14px; background:rgba(255,255,255,.32); padding:14px 18px;
+  box-shadow:inset 0 0 0 .5px var(--hairline-soft), inset 0 1px 0 var(--specular-top); }
+.da-guide .dg-head { font-size:14.5px; font-weight:800; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.da-guide .dg-steps { margin-top:8px; font-size:13px; color:var(--text); line-height:1.7; }
+.da-guide .dg-steps b { color:var(--primary); }
+.da-guide details { margin-top:8px; }
+.da-guide summary { cursor:pointer; font-size:12.5px; color:var(--secondary); font-weight:600; }
+.da-mat { width:100%; border-collapse:collapse; margin-top:8px; font-size:12px; }
+.da-mat th, .da-mat td { padding:5px 7px; text-align:right; white-space:nowrap; }
+.da-mat th { color:var(--secondary); font-weight:700; border-bottom:1px solid var(--sep); }
+.da-mat td:first-child, .da-mat th:first-child { text-align:left; }
+.da-mat .pos { color:var(--red); font-weight:700; }
+.da-mat .neg { color:var(--green); font-weight:700; }
+.da-mat .dead { background:var(--red-soft); color:var(--red); font-weight:800; }
+/* 我的打板仓 */
+.mine-row { display:flex; align-items:center; gap:12px; padding:13px 2px; border-bottom:1px solid var(--sep); flex-wrap:wrap; }
+.mine-row:last-child { border-bottom:none; }
+.mine-name { font-size:16px; font-weight:800; min-width:150px; }
+.mine-name .code { font-size:12px; font-weight:600; color:var(--secondary); margin-left:6px; font-variant-numeric:tabular-nums; }
+.mine-nums { display:flex; gap:5px 14px; font-size:12px; color:var(--secondary); flex-wrap:wrap; }
+.mine-nums b { color:var(--text); font-variant-numeric:tabular-nums; }
+.mine-verdict { margin-left:auto; text-align:right; min-width:200px; flex:1; }
+.mine-verdict .mv-txt { font-size:14.5px; font-weight:800; }
+.mine-verdict .mv-sub { font-size:11.5px; color:var(--secondary); margin-top:1px; line-height:1.5; }
+@media (max-width:760px){ .mine-verdict { margin-left:0; text-align:left; min-width:100%; } }
+.eb-row .eb-nums .sv b { color:var(--green); }
 
 /* ── 操作总方针横幅 ── */
 .master {
@@ -1428,6 +1479,17 @@ tr.pt-excluded-row td { opacity:.52; }
     <div id="entryBrief"></div>
   </section>
 
+  <!-- ═══ v1.15.0 我的打板仓 · 次日直答 ═══ -->
+  <section id="sec-mine" class="card fade" style="display:none;">
+    <div class="sec-title">
+      <span class="ico" style="background:var(--primary-soft); color:var(--primary);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9m9 5h-9m9 5h-9M5 5l-3 3 3 3M5 12l-3 3 3 3"/></svg></span>
+      <span>我的打板仓 · 持有直答</span>
+      <span class="eb-count" id="mineCount"></span>
+    </div>
+    <p class="sec-sub">候选卡点「已买入·登记」后自动出现在这里 · 交易日盘中实时提示<b>继续持有 / 止盈卖出 / 收盘离场</b>（数据存本机浏览器，不上传）</p>
+    <div id="mineList"></div>
+  </section>
+
   <!-- ═══ 今日信号 ═══ -->
   <section id="sec-signal" class="card fade">
     <div class="sec-title">
@@ -1485,6 +1547,35 @@ tr.pt-excluded-row td { opacity:.52; }
   <section id="sec-candidates" class="fade">
     <div class="master" id="masterAction" style="display:none;"></div>
     <div class="ladder-strip" id="ladderStrip"></div>
+    <!-- v1.15.0 打板三步直答指引 -->
+    <div class="da-guide" id="daGuide">
+      <div class="dg-head">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+        打板三步直答 — 只看结论, 不背条件
+      </div>
+      <div class="dg-steps">
+        <b>① 今晚挂不挂隔夜单？</b> 看每张候选卡的「隔夜单」标签：3板及以上 ✅ 可挂（挂涨停价限价单，次日按开盘价成交）· 2板 ⚠️ 次级 · 1板 ❌ 不挂。明早 9:15-9:20 盯竞价，<b>高开&gt;2% 撤单</b>（9:20 后无法撤单；高开&gt;5% 两年均值 -1.9%~-2.7%）。<br>
+        <b>② 明天盘中能不能买？</b> 交易日盘中打开本页，每张卡的「盘中直答」实时判定：已封板→可排队打板 · 高开&gt;5%→禁止追 · 其余→半路不追等回封。<br>
+        <b>③ 买入后第二天怎么办？</b> 统一规则「<b>封板续持 · 断板就走</b>」：收盘封板→继续持有；未封板日 开盘≥+3%→开盘卖 / 盘中冲高+3%→即刻卖 / 全天没到→收盘卖。买入后点卡上「已买入·登记」，「我的打板仓」每天盘中直接给 持有/止盈/离场 提示。
+      </div>
+      <details>
+        <summary>📊 回测证据：隔夜单资格矩阵 + 持有规则分年度验证（两年 4995股 · 24万可成交样本 · 含0.15%双边成本）</summary>
+        <div style="overflow-x:auto;">
+        <table class="da-mat">
+          <tr><th>连板\次日竞价</th><th>低开&gt;5%</th><th>低开2~5%</th><th>低开0~2%</th><th>平开0~2%</th><th>高开2~5%</th><th>高开&gt;5%</th></tr>
+          <tr><td>1板</td><td class="pos">+0.31</td><td class="pos">+0.29</td><td class="neg">-0.33</td><td class="neg">-0.20</td><td class="neg">-0.47</td><td class="dead">-1.59</td></tr>
+          <tr><td>2板</td><td class="pos">+1.41</td><td class="pos">+0.32</td><td class="neg">-0.43</td><td class="pos">+0.07</td><td class="neg">-0.97</td><td class="dead">-2.67</td></tr>
+          <tr><td>3板</td><td class="pos">+1.49</td><td class="pos">+1.33</td><td class="neg">-0.48</td><td class="pos">+0.60</td><td class="neg">-0.03</td><td class="dead">-2.35</td></tr>
+          <tr><td>4板+</td><td class="pos">+1.82</td><td class="pos">+0.37</td><td class="pos">+0.55</td><td class="pos">+0.75</td><td class="neg">-0.02</td><td class="dead">-2.56</td></tr>
+        </table>
+        </div>
+        <p style="font-size:11.5px;color:var(--secondary);margin-top:6px;line-height:1.65;">
+          上表=入口裸期望（T+1收盘卖，单位%）。同口径下买入后拿到 T+2 开盘再卖全线为负（-0.5%~-1.9%）——<b>隔夜单买入后不要被动拿到第二天开盘</b>。
+          按「封板续持·断板就走」规则执行后的分年度结果（胜率/单笔均值）：3板+·平开±2% → 2024年 72.1%/+3.84 · 2025年 72.5%/+2.28 · 2026年 72.3%/+3.22；4板+·平开 → 92.2%/+10.63 · 80.2%/+4.28 · 82.4%/+4.22；2板·平开 → 77.4%/+3.04 · 71.9%/+2.91 · 74.7%/+2.85。三年全正、无单一年份驱动。
+          最差一成交易约 -9%（P10），故单票仓位 2-3% 是真正的风控；盘中加止损线反而把期望打坏（-5%止损版本均值 -1.4%）。
+        </p>
+      </details>
+    </div>
     <div class="sec-title" style="margin:34px 0 4px;">
       <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
       <span>次日候选 · 2进3 黄金组合</span>
@@ -1706,9 +1797,14 @@ function renderEntryBrief(){
     const g = c.entry && { strong:'建议入场', std:'建议入场', confirm:'条件入场' }[c.entry.grade];
     if (!g) return;
     const A = c.action || {};
+    /* v1.15.0 精华卡直答: 隔夜单资格 + R3胜率 */
+    const ov = daOvernight(c.lb);
+    const ovClr = ov.cls === 'ok' ? 'var(--green)' : ov.cls === 'warn' ? 'var(--orange)' : 'var(--red)';
+    const ovBg  = ov.cls === 'ok' ? 'var(--green-soft)' : ov.cls === 'warn' ? 'var(--orange-soft)' : 'var(--red-soft)';
     rows.push(ebRow(c.rank, c.name, c.code,
       pill(g + ' · ' + Math.round(c.score) + '分', g === '条件入场' ? 'var(--orange)' : 'var(--green)', g === '条件入场' ? 'var(--orange-soft)' : 'var(--green-soft)')
-      + pill(`${c.lb}板→${c.lb + 1}板 · ${c.industry || ''}`, 'var(--secondary)', 'var(--sep)'),
+      + pill(`${c.lb}板→${c.lb + 1}板 · ${c.industry || ''}`, 'var(--secondary)', 'var(--sep)')
+      + pill(ov.w ? `隔夜${ov.txt} · 胜率${ov.w.w}%` : '隔夜单不挂', ovClr, ovBg),
       `<span>${A.buy_price != null ? '买入参考' : '打板价'} <b>${fp(A.buy_price != null ? A.buy_price : c.next_zt)}</b></span>`
       + (A.stop_loss != null ? `<span class="st">止损 <b>${fp(A.stop_loss)}</b></span>` : '')
       + (A.label ? `<span class="en">${A.label}</span>` : '')));
@@ -1922,6 +2018,195 @@ function strataStrip(c){
     ${x.range} → ${TXT[x.act]||x.act}·成交~${Math.round(x.prob*100)}%</span>`).join('') +
     '<div style="font-size:11.5px;color:var(--tertiary);margin-top:4px;">高开0-5%为死亡区间(回测胜率33.1%) · 概率越高越易成交</div>';
 }
+/* ═══ v1.15.0 打板直答引擎 · 三问直答 + 我的打板仓 ═══
+   回测口径: 两年4995股 · 24万可成交样本 · 0.1%滑点 + 0.15%双边成本
+   R3持有规则: 封板续持·断板就走 (2024/2025/2026 分年度全正期望)
+   行情: 腾讯 qt.gtimg.cn 批量拉取(script注入GBK), 仅交易日盘中30s刷新 */
+const DA_Q = {};                                        // 实时行情缓存 code → {px,pc,po,ph,pl,ztp,ts}
+const DA_WIN = { 2:{w:74.3,r:2.93}, 3:{w:75.7,r:3.85}, 4:{w:84.0,r:6.06} };  // R3执行后 胜率%/均值%
+const DA_STORE_KEY = 'glql_daban_v115';
+
+function daOvernight(lb){                               // 隔夜单资格: 1板禁 / 2板次级 / 3板+可挂
+  if (lb >= 4) return { cls:'ok',   txt:'✅ 可挂',     w:DA_WIN[4] };
+  if (lb === 3) return { cls:'ok',   txt:'✅ 可挂',     w:DA_WIN[3] };
+  if (lb === 2) return { cls:'warn', txt:'⚠️ 轻仓挂',  w:DA_WIN[2] };
+  return { cls:'no', txt:'❌ 不挂', w:null };
+}
+function daBook(){
+  try { return JSON.parse(localStorage.getItem(DA_STORE_KEY) || '[]'); } catch(e){ return []; }
+}
+function daSave(b){ try { localStorage.setItem(DA_STORE_KEY, JSON.stringify(b)); } catch(e){} }
+function daRegist(code){
+  const all = [...(D.candidates_2to3||[]), ...(D.candidates_3to4||[])];
+  const c = all.find(x => x.code === code);
+  if (!c || daBook().some(x => x.code === code)) return;
+  const v = prompt(`登记「${c.name}」实际买入价（隔夜单默认按涨停价 ${c.next_zt} 成交，可改成实际成交价）：`, c.next_zt);
+  if (v === null) return;
+  const buy = parseFloat(v) || c.next_zt;
+  const book = daBook();
+  book.push({ code:c.code, name:c.name, lb:c.lb, next_zt:c.next_zt, buy, date: daBJDate() });
+  daSave(book);
+  renderMine(); renderCands();
+}
+function daRemove(code){
+  daSave(daBook().filter(x => x.code !== code));
+  renderMine(); renderCands();
+}
+function daBtnHTML(c){
+  return daBook().some(x => x.code === c.code)
+    ? `<button class="da-btn del" onclick="daRemove('${c.code}')">移除登记</button>`
+    : `<button class="da-btn" onclick="daRegist('${c.code}')">已买入 · 登记（次日提示持有/止盈/离场）</button>`;
+}
+function daPanel(c){
+  const ov = daOvernight(c.lb);
+  const ovBody = ov.w
+    ? `今晚可挂隔夜单（挂涨停价 <b>${c.next_zt}</b> 限价单，次日按开盘价成交）。
+       <span class="da-sub">前提：明早 9:15-9:20 盯竞价，<b>高开&gt;2% 撤单</b>（9:20 后不可撤）；平开成交后按下方规则执行 → 两年回测胜率 <b>${ov.w.w}%</b> · 单笔均值 <b>+${ov.w.r}%</b></span>`
+    : `1板次日买入为负期望（两年回测均值 -0.3%），不挂隔夜单、盘中也不追。`;
+  const holdBody = `统一规则「<b>封板续持 · 断板就走</b>」：任意持有日收盘封板 → 继续持有；未封板日：开盘高开≥3% → 开盘卖 / 盘中冲高 +3% → 即刻卖 / 全天没到 → 收盘卖。
+    <span class="da-sub">2024/2025/2026 分年度全正期望；最差一成交易约 -9%，单票仓位 2-3% 才是真正的风控</span>`;
+  return `
+  <div class="da">
+    <div class="da-row">
+      <span class="da-tag ${ov.cls}">${ov.txt}</span>
+      <span class="da-body">${ovBody}</span>
+    </div>
+    <div class="da-row">
+      <span class="da-tag" style="background:var(--primary-soft);color:var(--primary);">盘中直答</span>
+      <span class="da-body da-live" data-code="${c.code}"><span class="da-wait">交易时段打开本页 · 自动判定现在能不能买</span></span>
+    </div>
+    <div class="da-row">
+      <span class="da-tag" style="background:var(--sep);color:var(--secondary);">买入后</span>
+      <span class="da-body">${holdBody}</span>
+    </div>
+    <div class="da-row" style="justify-content:flex-end;">${daBtnHTML(c)}</div>
+  </div>`;
+}
+/* ── 我的打板仓渲染 (localStorage, 不上传) ── */
+function renderMine(){
+  const book = daBook();
+  const sec = $('sec-mine');
+  if (!book.length){ sec.style.display = 'none'; return; }
+  sec.style.display = '';
+  $('mineCount').textContent = book.length + ' 只';
+  $('mineList').innerHTML = book.map(x => `
+    <div class="mine-row">
+      <div class="mine-name">${x.name}<span class="code">${x.code}</span></div>
+      <div class="mine-nums">
+        <span>买入价 <b>${fp(x.buy)}</b></span>
+        <span>登记日 <b>${x.date}</b></span>
+        <span>当时 <b>${x.lb}板</b></span>
+      </div>
+      <div class="mine-verdict" id="mv-${x.code}">
+        <div class="mv-txt da-wait">等待交易时段…</div>
+        <div class="mv-sub">封板续持 · 断板就走 · 盘中自动提示</div>
+      </div>
+      <button class="da-btn del" onclick="daRemove('${x.code}')">移除</button>
+    </div>`).join('');
+}
+/* ── 持有直答: R3规则实时判定 ── */
+function daVerdict(x, q){
+  const today = daBJDate();
+  if (x.date === today) return { t:'🆕 今日登记', c:'var(--primary)', s:'明日起按「封板续持 · 断板就走」执行，盘中来本页看提示' };
+  if (!q) return { t:'💤 非交易时段', c:'var(--secondary)', s:'交易日盘中打开本页，自动给出 持有/止盈/离场' };
+  const openRef = q.po > 0 ? q.po : q.px;               // 竞价期 po 可能未定, 回退现价
+  const sealed = q.px >= q.ztp - 0.001;
+  const gapOpen = openRef / q.pc - 1;
+  const up3Hit = q.ph >= x.buy * 1.03;
+  const gapNow = q.px / x.buy - 1;
+  if (sealed) return { t:'🟢 封板续持', c:'var(--green)',
+    s:`已封板（${q.px.toFixed(2)}）· 继续持有，明天重复本规则` };
+  if (gapOpen >= 0.03) return { t:'🔴 高开≥3% · 开盘离场', c:'var(--red)',
+    s:`今日开盘 +${(gapOpen*100).toFixed(1)}% · 断板规则要求开盘卖出；若尚未卖出，逢反弹离场` };
+  if (up3Hit) return { t:'🟠 冲高+3% · 即刻止盈', c:'var(--orange)',
+    s:`今日最高 ${q.ph.toFixed(2)} 已触及买入价×1.03 · 卖出` };
+  const toGo = (x.buy * 1.03 / q.px - 1) * 100;
+  return { t:'⚪ 未触发 · 尾盘卖', c:'var(--secondary)',
+    s:`现价 ${q.px.toFixed(2)}（浮盈 ${(gapNow*100).toFixed(1)}%）· 距+3%止盈还差 ${toGo.toFixed(1)}% · 14:50 未触发则收盘卖` };
+}
+/* ── 候选卡盘中直答: 现在能不能买 ── */
+function daLiveCell(code, q){
+  if (!q) return '<span class="da-wait">非交易时段 · 交易日盘中自动判定</span>';
+  const openRef = q.po > 0 ? q.po : q.px;
+  const sealed = q.px >= q.ztp - 0.001;
+  const nowGap = q.px / q.pc - 1;
+  if (sealed) return `<b style="color:var(--green);">✅ 已封板 ${q.px.toFixed(2)} · 可排队打板</b>
+    <span class="da-sub">排单挂 ${q.ztp.toFixed(2)}，成交后按「封板续持 · 断板就走」执行</span>`;
+  const gap = openRef / q.pc - 1;
+  if (gap > 0.05) return `<b style="color:var(--red);">❌ 高开 ${(gap*100).toFixed(1)}% · 禁止追买</b>
+    <span class="da-sub">高开&gt;5% 两年均值 -2.4%，排板/半路都不做</span>`;
+  if (gap > 0.02) return `<b style="color:var(--orange);">⚠️ 高开 ${(gap*100).toFixed(1)}% · 隔夜单应已撤</b>
+    <span class="da-sub">高开2-5%：不追，等回封（触 ${q.ztp.toFixed(2)}）再排</span>`;
+  return `<b style="color:var(--primary);">⏸ 现价 ${q.px.toFixed(2)}（${nowGap>=0?'+':''}${(nowGap*100).toFixed(1)}%）· 半路不追</b>
+    <span class="da-sub">等回封（触 ${q.ztp.toFixed(2)}）再排队打板；低开/平开回封是正期望区</span>`;
+}
+/* ── 腾讯批量行情 (script注入, GBK, 无跨域问题) ── */
+function qtFetch(codes){
+  return new Promise(resolve => {
+    const mkt = c => /^[69]/.test(c) ? 'sh' : 'sz';
+    const s = document.createElement('script');
+    s.charset = 'GBK';
+    let done = false;
+    const fin = () => {
+      if (done) return; done = true;
+      const out = {};
+      codes.forEach(c => {
+        const v = window['v_' + mkt(c) + c];
+        if (typeof v === 'string'){
+          const f = v.split('~');
+          if (f.length > 48) out[c] = { px:+f[3], pc:+f[4], po:+f[5], ph:+f[33], pl:+f[34], ztp:+f[47], ts:f[30] };
+        }
+      });
+      s.remove(); resolve(out);
+    };
+    s.onload = fin; s.onerror = fin;
+    setTimeout(fin, 8000);
+    s.src = 'https://qt.gtimg.cn/q=' + codes.map(c => mkt(c) + c).join(',') + '&r=' + Date.now();
+    document.head.appendChild(s);
+  });
+}
+function daBJ(){
+  return new Date(Date.now() + 8 * 3600 * 1000);        // 北京时间(UTC+8), 海外时区打开也不错位
+}
+function daBJDate(){                                    // 北京日期 'YYYY-MM-DD'
+  const d = daBJ();
+  return d.getUTCFullYear() + '-' + ('0'+(d.getUTCMonth()+1)).slice(-2) + '-' + ('0'+d.getUTCDate()).slice(-2);
+}
+function daTradingBJ(){                                 // 北京交易时段: 周一~五 9:15-15:00
+  const d = daBJ();
+  const wd = d.getUTCDay();
+  if (wd === 0 || wd === 6) return false;
+  const hm = d.getUTCHours() * 60 + d.getUTCMinutes();
+  return hm >= 9*60 + 15 && hm < 15*60;
+}
+function daTodayStr(){                                  // 北京日期 YYYYMMDD (匹配腾讯ts前8位)
+  return daBJDate().replace(/-/g, '');
+}
+async function daTick(){
+  if (!daTradingBJ()) return;                           // 非交易时段不拉行情(凌晨/收盘后不空转)
+  const codes = [];
+  [...(D.candidates_2to3||[]), ...(D.candidates_3to4||[])].forEach(c => { if (!codes.includes(c.code)) codes.push(c.code); });
+  daBook().forEach(x => { if (!codes.includes(x.code)) codes.push(x.code); });
+  if (!codes.length) return;
+  const q = await qtFetch(codes);
+  const today = daTodayStr();
+  Object.keys(q).forEach(k => { if (!q[k].ts || !q[k].ts.startsWith(today)) delete q[k]; });  // 节假日旧数据剔除
+  Object.assign(DA_Q, q);
+  document.querySelectorAll('.da-live[data-code]').forEach(el => {
+    el.innerHTML = daLiveCell(el.dataset.code, DA_Q[el.dataset.code]);
+  });
+  daBook().forEach(x => {
+    const el = $('mv-' + x.code);
+    if (!el) return;
+    const v = daVerdict(x, DA_Q[x.code]);
+    el.innerHTML = `<div class="mv-txt" style="color:${v.c};">${v.t}</div><div class="mv-sub">${v.s}</div>`;
+  });
+}
+function initDaLive(){
+  renderMine();
+  daTick();
+  setInterval(daTick, 30000);
+}
 function candCard(c, planOpen){
   const color = TIER_COLOR[c.tier];
   const factors = [
@@ -1965,21 +2250,7 @@ function candCard(c, planOpen){
       <div class="f-cell"><div class="fv ${f.good?'good':''} ${f.bad?'bad':''}">${f.v}</div>
       <div class="fl">${f.l}</div>${f.s ? `<div class="fs">${f.s}</div>` : ''}</div>`).join('')}
     </div>
-    <div class="plan">
-      <details ${planOpen?'open':''}>
-        <summary><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>最佳买入时机${ICON_CHEV}</summary>
-        <div class="p-body">
-          <div class="p-row"><span class="p-tag">9:25 竞价</span><span class="p-txt">${c.buy.auction}</span></div>
-          <div class="p-row"><span class="p-tag">开盘分层</span><span class="p-txt">${strataStrip(c)}</span></div>
-          <div class="p-row"><span class="p-tag">9:30-10:30</span><span class="p-txt">${c.buy.confirm}</span></div>
-          <div class="p-row"><span class="p-tag warn">放弃条件</span><span class="p-txt">${c.buy.abandon}</span></div>
-        </div>
-      </details>
-      <details ${planOpen?'open':''}>
-        <summary><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>卖出预案与止损${ICON_CHEV}</summary>
-        <div class="p-body"><div class="p-row"><span class="p-tag sell">后天卖出(买入次日)</span><span class="p-txt">${c.sell}</span></div></div>
-      </details>
-    </div>
+    ${daPanel(c)}
   </div>`;
 }
 function renderCands(){
