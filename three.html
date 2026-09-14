@@ -339,7 +339,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
       </svg>
       <div class="gauge-right">
         <span class="gauge-label-hero g-mid" id="gaugeLabel">—</span>
-        <p class="gauge-hint" id="gaugeHint">温度计由隔夜美股(50%) · A50夜盘(30%) · 港股(10%) · 离岸人民币(10%)加权合成，反映外围对A股开盘的综合影响方向。</p>
+        <p class="gauge-hint" id="gaugeHint">温度计由隔夜美股(45%) · A50期货(25%) · 韩国KOSPI(10%) · 离岸人民币(10%) · 日经225(5%) · 港股(5%)加权合成，反映外围对A股开盘的综合影响方向。</p>
         <div class="gauge-meta" id="gaugeMeta"></div>
       </div>
     </div>
@@ -354,7 +354,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
       <span>隔夜外围明细</span>
     </div>
     <div class="q-rows" id="overnightRows"></div>
-    <div class="fund-note" style="margin-top:12px;">A50期货为新加坡夜盘收盘价（北京时间凌晨 05:15 定格），对A股开盘最直接；美股为美东收盘；离岸人民币贬值利空A股（温度计中反向计入）。</div>
+    <div class="fund-note" style="margin-top:12px;">A50期货为新加坡夜盘收盘价（北京时间凌晨 05:15 定格），对A股开盘最直接；日经225/韩国KOSPI为08:45抓取时的实时盘中读数（日韩与A股竞价窗口直接衔接，韩综半导体浓度对A股存储/AI硬件链映射直接）；美股期货为CME亚盘实时（仅展示，不进温度计）；离岸人民币贬值利空A股（温度计中反向计入）。</div>
   </section>
 
   <!-- 温度计历史验证 -->
@@ -530,17 +530,17 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 <div class="disclaimer">⚠ 本页为数据聚合与规则化复盘展示：温度计/情绪/资金流均为历史统计的条件概率观察，不构成投资建议，不预测未来价格；据此操作风险自担。数据快照由本机定时任务自动生成（08:45 / 10:30 / 14:00 / 14:30 / 15:10）。</div>
 
 <footer>
-  观澜擒龙 · 三时段作战室 v1.1.1 · 数据源: 腾讯行情(JSONP实时+mkline分时) / 新浪外盘期货·外汇·指数 / 东财push2delay资金流 / 本地快照管道<br>
+  观澜擒龙 · 三时段作战室 v1.2.0 · 数据源: 腾讯行情(JSONP实时+mkline分时) / 新浪外盘期货·外汇·美股期货 / 东财push2delay(日经·韩综·资金流) / 本地快照管道<br>
   三时段联动 · Liquid Glass UI
 </footer>
 
 </div>
 
 <script src="./echarts.min.js"></script>
-<script src="./premarket_data.js?v=100"></script>
+<script src="./premarket_data.js?v=101"></script>
 <script src="./intraday_data.js?v=100"></script>
 <script src="./settle_data.js?v=100"></script>
-<script src="./three.js?v=101"></script>
+<script src="./three.js?v=103"></script>
 <script src="./totop.js" defer></script>
 </body>
 </html>

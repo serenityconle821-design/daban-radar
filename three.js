@@ -1,4 +1,4 @@
-/* three.js v1.1.1 — 三时段作战室逻辑
+/* three.js v1.2.0 — 三时段作战室逻辑
    数据: premarket_data.js(PREMARKET_DATA) + intraday_data.js(INTRADAY_DATA) + settle_data.js(SETTLE_DATA)
          + 腾讯JSONP实时轮询(竞价雷达/盘中指数, 浏览器直连零token)
    渲染: 盘前温度计gauge+贡献条+隔夜明细+命中率 | 盘中情绪/资金/时点曲线+竞价雷达+尾盘异动+RT实时作战 | 盘后复盘全景
@@ -14,7 +14,10 @@
            M5=近5完整日S_d均值 vs M5p=前5日; 新高=日内高>max(前19完整日收盘);
            观察(黄)=新高∧今日S_d>1.10×M5 | 预警(橙)=新高∧M5>1.2×M5p
            确认(红)=预警∧现价>=0.995×max(日内高,19日收盘高)·当日锁存防闪烁;
-           与div60/div30/div15并行独立不打架, 确认级进决策树「预警」层+风险点 */
+           与div60/div30/div15并行独立不打架, 确认级进决策树「预警」层+风险点
+   v1.2.0: 盘前外围升级 — ①日经改东财push2delay实时源(新浪int_nikkei已失效返回旧值)
+           ②新增韩国KOSPI(韩综)展示+温度计权重10% ③新增美股三大期货CME实时展示组
+           ④温度计新权重: 美股45/A50·25/韩综10/日经5/港股5/CNH10(配套premarket_fetch.py v1.1.0) */
 (function () {
 'use strict';
 
@@ -157,7 +160,7 @@ function renderPre() {
   $('gaugeMeta').innerHTML =
     '<span class="badge2 b-gray">数据时点 ' + (d.date || '') + ' ' + (d.fetchTime || '') + '</span>' +
     '<span class="badge2 b-gray">有效权重 ' + (g.wsum || 100) + '%</span>' +
-    '<span class="badge2 b-blue">美股50 · A50·30 · CNH·10 · 港股·10</span>';
+    '<span class="badge2 b-blue">美股45 · A50·25 · 韩综10 · CNH·10 · 日经5 · 港股5</span>';
 
   /* 贡献条形 */
   const maxC = 45;                          // 满分贡献 = 权重30×1.5
@@ -193,10 +196,15 @@ function renderOvernight() {
     html += '<div class="q-group-title">美股 · 隔夜收盘</div>';
     d.us.forEach(u => { html += qRow(u.name, u.price, u.pct, u.time); });
   }
-  if (d.a50 || d.nikkei || d.fx) {
-    html += '<div class="q-group-title">亚洲 · A50夜盘 / 日经 / 人民币</div>';
+  if ((d.usfut || []).length) {
+    html += '<div class="q-group-title">美股期货 · CME实时</div>';
+    d.usfut.forEach(u => { html += qRow(u.name, u.price, u.pct, (u.time || '') + ' 实时'); });
+  }
+  if (d.a50 || d.nikkei || d.kospi || d.fx) {
+    html += '<div class="q-group-title">亚洲 · A50 / 日经 / 韩综 / 人民币</div>';
     if (d.a50) html += qRow(d.a50.name || 'A50期货', d.a50.price, d.a50.pct, d.a50.time + ' 定格');
-    if (d.nikkei) html += qRow(d.nikkei.name, d.nikkei.price, d.nikkei.pct, '');
+    if (d.nikkei) html += qRow(d.nikkei.name, d.nikkei.price, d.nikkei.pct, (d.nikkei.time || '') + ' 实时');
+    if (d.kospi) html += qRow(d.kospi.name, d.kospi.price, d.kospi.pct, (d.kospi.time || '') + ' 实时');
     if (d.fx) html += qRow(d.fx.name, d.fx.price, d.fx.pct, '');
   }
   if ((d.hk || []).length) {
