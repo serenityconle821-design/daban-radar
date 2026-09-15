@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>观澜擒龙</title>
 <style>
+/* v1.16.0 选股系统: 打板区改造为「高度梯队+分数排雷」选股引擎(依据 bt_env/bt_env2/bt_env3/bt_score 全量回测)
+   · 梯队: S级=4板+(隔夜单·2-3%仓·两年84.0%/+6.06·近3月7笔全胜·分数不淘汰) / A级=2进3(2-3%仓·74.3%/+2.93)
+     / B级=3进4(轻仓1-2%或放弃·两年75.7%但近3月42.9%)
+   · 排雷: 尾盘板(首封≥13:00) / 炸板≥3 / A·B级确定性<65(S级豁免: 4板+低分组+7.03%比高分组还高, 高度即资格)
+   · 分数定位: 排雷器非排序器(≥75分胜率70.0% vs <75分68.8%, 不单调) → 名单内排序=高度→首封早
+   · 环境: 情绪退潮/冰点仅降仓位不禁止; 三条件不满足胜率仅降2-4pp → 降级为环境提示
+   · 执行: 入场统一隔夜单(涨停价限价·高开>2%撤) · 出场统一R3「封板续持·断板就走」
+   · UI: 新增S级区块+梯队徽章(S红/A蓝/B橙/淘汰灰)+淘汰条+相位降级条; 旧S级快照因子缺失显示'—'不影响资格 */
 /* v1.15.0 打板直答引擎: 候选卡重构为「三问直答」面板(①隔夜单能不能挂+胜率 ②盘中现在能不能买·实时判定
    ③买入后次日怎么操作), 移除买入时机/开盘分层/放弃条件/卖出预案四类描述性内容;
    新增"我的打板仓"(localStorage登记买入, 次日盘中实时提示 持有/止盈/收盘离场);
@@ -366,6 +374,25 @@ section { scroll-margin-top: 88px; }
 .pill.cautious { background:var(--orange-soft); color:var(--orange); }
 .pill.wait { background:var(--sep); color:var(--gray-badge); }
 .pill.ind { background:var(--bg); color:var(--secondary); font-weight:500; }
+/* v1.16.0 选股梯队徽章: S=红(高度护城河) A=蓝(基准) B=橙(轻仓) OUT=灰(淘汰) */
+.pill.tS { background:var(--red-soft); color:var(--red); }
+.pill.tA { background:var(--primary-soft); color:var(--primary); }
+.pill.tB { background:var(--orange-soft); color:var(--orange); }
+.pill.tOut { background:var(--sep); color:var(--gray-badge); text-decoration:line-through; }
+/* v1.16.0 淘汰卡: 置灰 + 顶部淘汰条 */
+.cand.is-skip { opacity:.62; }
+.cand.is-skip .cand-name .n1 { color:var(--secondary); }
+.sel-drop {
+  margin-top:10px; display:flex; align-items:center; gap:8px;
+  background:var(--red-soft); color:var(--red); border-radius:10px;
+  padding:8px 12px; font-size:12.5px; font-weight:600;
+}
+.sel-drop svg { flex:none; }
+.sel-down {
+  margin-top:10px; display:flex; align-items:center; gap:8px;
+  background:var(--orange-soft); color:var(--orange); border-radius:10px;
+  padding:8px 12px; font-size:12.5px; font-weight:600;
+}
 .cand-ring { position:relative; width:88px; height:88px; flex:none; }
 .cand-ring svg { transform: rotate(-90deg); }
 .cand-ring .num { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
@@ -1547,15 +1574,15 @@ tr.pt-excluded-row td { opacity:.52; }
   <section id="sec-candidates" class="fade">
     <div class="master" id="masterAction" style="display:none;"></div>
     <div class="ladder-strip" id="ladderStrip"></div>
-    <!-- v1.15.0 打板三步直答指引 -->
+    <!-- v1.16.0 选股三步直答指引 -->
     <div class="da-guide" id="daGuide">
       <div class="dg-head">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-        打板三步直答 — 只看结论, 不背条件
+        选股三步直答 — 高度定梯队 · 分数只排雷
       </div>
       <div class="dg-steps">
-        <b>① 今晚挂不挂隔夜单？</b> 看每张候选卡的「隔夜单」标签：3板及以上 ✅ 可挂（挂涨停价限价单，次日按开盘价成交）· 2板 ⚠️ 次级 · 1板 ❌ 不挂。明早 9:15-9:20 盯竞价，<b>高开&gt;2% 撤单</b>（9:20 后无法撤单；高开&gt;5% 两年均值 -1.9%~-2.7%）。<br>
-        <b>② 明天盘中能不能买？</b> 交易日盘中打开本页，每张卡的「盘中直答」实时判定：已封板→可排队打板 · 高开&gt;5%→禁止追 · 其余→半路不追等回封。<br>
+        <b>① 今晚买谁？挂几只？</b> 看梯队：<b>S级（4板+）优先挂隔夜单</b>（两年胜率84.0%/+6.06 · 近3月7笔全胜）· A级（2进3）正常挂（74.3%/+2.93）· B级（3进4）轻仓1-2%或放弃（近3月42.9%）。挂涨停价限价单，次日按开盘价成交；明早 9:15-9:20 盯竞价，<b>高开&gt;2% 撤单</b>（9:20 后无法撤单）。<br>
+        <b>② 带淘汰标记的能不能买？</b> ❌ 淘汰 · 不买：尾盘板（首封≥13:00）/ 炸板≥3次 / A·B级确定性&lt;65分（负期望区）。S级不看分数 — 回测4板+低分组收益反而更高，高度即资格。<br>
         <b>③ 买入后第二天怎么办？</b> 统一规则「<b>封板续持 · 断板就走</b>」：收盘封板→继续持有；未封板日 开盘≥+3%→开盘卖 / 盘中冲高+3%→即刻卖 / 全天没到→收盘卖。买入后点卡上「已买入·登记」，「我的打板仓」每天盘中直接给 持有/止盈/离场 提示。
       </div>
       <details>
@@ -1576,18 +1603,26 @@ tr.pt-excluded-row td { opacity:.52; }
         </p>
       </details>
     </div>
+    <!-- v1.16.0 S级 · 4板+ 选股池 (高度即护城河) -->
+    <div class="sec-title" style="margin:34px 0 4px;">
+      <span class="ico" style="background:var(--red-soft); color:var(--red);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.2H22l-6 4.6 2.3 7.2-6.3-4.5-6.3 4.5L8 13.8l-6-4.6h7.6z"/></svg></span>
+      <span>S级 · 4板及以上 · 高度即资格</span>
+    </div>
+    <p class="sec-sub" id="c4Sub">两年胜率 84.0% · 单笔 +6.06% · 近3月 7笔全胜 · 分数不淘汰（低分组收益反而更高）</p>
+    <div id="c4List"></div>
+
     <div class="sec-title" style="margin:34px 0 4px;">
       <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
-      <span>次日候选 · 2进3 黄金组合</span>
+      <span>A级 · 2进3 基准池</span>
     </div>
-    <p class="sec-sub" id="c23Sub">回测胜率 76% 区间 · 换手&lt;10% + 封单强 + 首封早 + 0炸板</p>
+    <p class="sec-sub" id="c23Sub">两年胜率 74.3% · 单笔 +2.93% · 2024-2026 分年度全正 · 确定性&lt;65分淘汰</p>
     <div id="c23List"></div>
 
     <div class="sec-title" style="margin:34px 0 4px;">
       <span class="ico" style="background:var(--orange-soft); color:var(--orange);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span>
-      <span>高位接力 · 3进4</span>
+      <span>B级 · 3进4 轻仓档</span>
     </div>
-    <p class="sec-sub">回测胜率 45.6% / 期望 -1.9% · 仅轻仓参与最强标的</p>
+    <p class="sec-sub">两年胜率 75.7% / +3.85% 但近3月仅 42.9% · 轻仓1-2%或放弃 · 靠盈亏比不靠胜率</p>
     <div id="c34List"></div>
   </section>
 
@@ -1764,7 +1799,10 @@ function renderHero(){
   const lvBadge = { strong:'green', active:'blue', cautious:'gray', cold:'gray', weak:'gray' }[lv] || 'gray';
   bd.push(`<span class="badge ${lvBadge}"><span class="dot"></span>市场环境 ${(D.market.score10 ?? 0).toFixed(1)}/10 · ${D.market.level_txt || ''}</span>`);
   if (sg.p12 != null) bd.push(`<span class="badge ${sg.p12>=50?'green':sg.p12>=20?'blue':'gray'}"><span class="dot"></span>1进2 ${sg.p12}%</span>`);
-  bd.push(`<span class="badge gray"><span class="dot"></span>候选 ${D.candidates_2to3.length + D.candidates_3to4.length} 只</span>`);
+  /* v1.16.0 选股: 梯队可买统计(替代旧候选计数) */
+  const _sel = D.selection || {}, _sc = _sel.counts || {};
+  const _sBuy = (_sc.S||{}).buy||0, _aBuy = (_sc.A||{}).buy||0, _bL = (_sc.B||{}).light||0;
+  bd.push(`<span class="badge ${(_sBuy||_aBuy)?'green':'gray'}"><span class="dot"></span>选股 S${_sBuy}·A${_aBuy}·B轻${_bL} 可买</span>`);
   $('heroBadges').innerHTML = bd.join('');
 }
 
@@ -1792,21 +1830,19 @@ function renderEntryBrief(){
         + `<span>收盘 <b>${fp(x.price)}</b></span>`));
     });
   });
-  /* ② 打板候选: strong/std=建议入场, confirm=条件入场 */
-  [...(D.candidates_2to3 || []), ...(D.candidates_3to4 || [])].forEach(c => {
-    const g = c.entry && { strong:'建议入场', std:'建议入场', confirm:'条件入场' }[c.entry.grade];
-    if (!g) return;
+  /* ② 选股候选([v1.16.0] S/A级=建议买入, B级=轻仓或放弃; 淘汰不进精华卡) */
+  [...(D.candidates_4plus || []), ...(D.candidates_2to3 || []), ...(D.candidates_3to4 || [])].forEach(c => {
+    const sel = c.sel || {};
+    if (sel.verdict === 'skip') return;
+    const isS = sel.tier === 'S', isA = sel.tier === 'A';
+    if (!isS && !isA && sel.verdict !== 'light') return;
     const A = c.action || {};
-    /* v1.15.0 精华卡直答: 隔夜单资格 + R3胜率 */
-    const ov = daOvernight(c.lb);
-    const ovClr = ov.cls === 'ok' ? 'var(--green)' : ov.cls === 'warn' ? 'var(--orange)' : 'var(--red)';
-    const ovBg  = ov.cls === 'ok' ? 'var(--green-soft)' : ov.cls === 'warn' ? 'var(--orange-soft)' : 'var(--red-soft)';
     rows.push(ebRow(c.rank, c.name, c.code,
-      pill(g + ' · ' + Math.round(c.score) + '分', g === '条件入场' ? 'var(--orange)' : 'var(--green)', g === '条件入场' ? 'var(--orange-soft)' : 'var(--green-soft)')
-      + pill(`${c.lb}板→${c.lb + 1}板 · ${c.industry || ''}`, 'var(--secondary)', 'var(--sep)')
-      + pill(ov.w ? `隔夜${ov.txt} · 胜率${ov.w.w}%` : '隔夜单不挂', ovClr, ovBg),
-      `<span>${A.buy_price != null ? '买入参考' : '打板价'} <b>${fp(A.buy_price != null ? A.buy_price : c.next_zt)}</b></span>`
-      + (A.stop_loss != null ? `<span class="st">止损 <b>${fp(A.stop_loss)}</b></span>` : '')
+      pill(`${sel.label} · ${isS ? '隔夜单' : isA ? '隔夜单或回封排队' : '轻仓或放弃'} · 胜率${sel.win}`, isS ? 'var(--red)' : isA ? 'var(--green)' : 'var(--orange)', isS ? 'var(--red-soft)' : isA ? 'var(--green-soft)' : 'var(--orange-soft)')
+      + pill(`${c.lb}板 · ${sel.full} · ${c.industry || ''}`, 'var(--secondary)', 'var(--sep)')
+      + pill(`仓位${sel.pos}${sel.downgrade ? ' · 相位降级' : ''}`, 'var(--primary)', 'var(--primary-soft)'),
+      `<span>挂单价 <b>${fp(A.buy_price != null ? A.buy_price : c.next_zt)}</b></span>`
+      + `<span>两年均值 <b>${sel.avg}</b></span>`
       + (A.label ? `<span class="en">${A.label}</span>` : '')));
   });
   /* ③ 可入场池·轻仓级(形态今日已触发, 相位闸门未开) */
@@ -2026,10 +2062,14 @@ const DA_Q = {};                                        // 实时行情缓存 co
 const DA_WIN = { 2:{w:74.3,r:2.93}, 3:{w:75.7,r:3.85}, 4:{w:84.0,r:6.06} };  // R3执行后 胜率%/均值%
 const DA_STORE_KEY = 'glql_daban_v115';
 
-function daOvernight(lb){                               // 隔夜单资格: 1板禁 / 2板次级 / 3板+可挂
-  if (lb >= 4) return { cls:'ok',   txt:'✅ 可挂',     w:DA_WIN[4] };
-  if (lb === 3) return { cls:'ok',   txt:'✅ 可挂',     w:DA_WIN[3] };
-  if (lb === 2) return { cls:'warn', txt:'⚠️ 轻仓挂',  w:DA_WIN[2] };
+function daOvernight(c){
+  /* [v1.16.0] 隔夜单资格由选股梯队判定: S级=全胜档可挂 · A级=正常挂 · B级=轻仓 · 淘汰=不挂 */
+  const sel = (c && c.sel) || {};
+  if (sel.verdict === 'skip') return { cls:'no', txt:'❌ 淘汰不挂', w:null, drop:sel.drop };
+  const w = DA_WIN[sel.tier === 'S' ? 4 : (c.lb || 2)] || DA_WIN[2];
+  if (sel.tier === 'S') return { cls:'ok', txt:'✅ S级可挂', w:DA_WIN[4] };
+  if (sel.tier === 'A')  return { cls:'ok', txt:'✅ A级可挂', w:DA_WIN[2] };
+  if (sel.tier === 'B')  return { cls:'warn', txt:'⚠️ B级轻仓挂', w:DA_WIN[3] };
   return { cls:'no', txt:'❌ 不挂', w:null };
 }
 function daBook(){
@@ -2037,7 +2077,7 @@ function daBook(){
 }
 function daSave(b){ try { localStorage.setItem(DA_STORE_KEY, JSON.stringify(b)); } catch(e){} }
 function daRegist(code){
-  const all = [...(D.candidates_2to3||[]), ...(D.candidates_3to4||[])];
+  const all = [...(D.candidates_4plus||[]), ...(D.candidates_2to3||[]), ...(D.candidates_3to4||[])];
   const c = all.find(x => x.code === code);
   if (!c || daBook().some(x => x.code === code)) return;
   const v = prompt(`登记「${c.name}」实际买入价（隔夜单默认按涨停价 ${c.next_zt} 成交，可改成实际成交价）：`, c.next_zt);
@@ -2058,10 +2098,21 @@ function daBtnHTML(c){
     : `<button class="da-btn" onclick="daRegist('${c.code}')">已买入 · 登记（次日提示持有/止盈/离场）</button>`;
 }
 function daPanel(c){
-  const ov = daOvernight(c.lb);
+  /* [v1.16.0] 直答面板由选股梯队驱动: S/A级→挂隔夜单 · B级→轻仓 · 淘汰→不买 */
+  const sel = c.sel || {};
+  if (sel.verdict === 'skip'){
+    return `
+    <div class="da">
+      <div class="da-row">
+        <span class="da-tag no">❌ 淘汰 · 不买</span>
+        <span class="da-body">${sel.drop || '排雷未通过'}（尾盘板 / 炸板≥3 / A·B级确定性&lt;65）。<span class="da-sub">回测口径: 该类标的近3月胜率55.6%/均值-0.71%负期望</span></span>
+      </div>
+    </div>`;
+  }
+  const ov = daOvernight(c);
   const ovBody = ov.w
-    ? `今晚可挂隔夜单（挂涨停价 <b>${c.next_zt}</b> 限价单，次日按开盘价成交）。
-       <span class="da-sub">前提：明早 9:15-9:20 盯竞价，<b>高开&gt;2% 撤单</b>（9:20 后不可撤）；平开成交后按下方规则执行 → 两年回测胜率 <b>${ov.w.w}%</b> · 单笔均值 <b>+${ov.w.r}%</b></span>`
+    ? `${sel.label}（${sel.full}）· 今晚挂隔夜单（挂涨停价 <b>${c.next_zt}</b> 限价单，次日按开盘价成交）· 仓位 <b>${sel.pos}</b>。
+       <span class="da-sub">前提：明早 9:15-9:20 盯竞价，<b>高开&gt;2% 撤单</b>（9:20 后不可撤）；成交后按下方规则执行 → 两年回测胜率 <b>${ov.w.w}%</b> · 单笔均值 <b>+${ov.w.r}%</b> · ${sel.recent}</span>`
     : `1板次日买入为负期望（两年回测均值 -0.3%），不挂隔夜单、盘中也不追。`;
   const holdBody = `统一规则「<b>封板续持 · 断板就走</b>」：任意持有日收盘封板 → 继续持有；未封板日：开盘高开≥3% → 开盘卖 / 盘中冲高 +3% → 即刻卖 / 全天没到 → 收盘卖。
     <span class="da-sub">2024/2025/2026 分年度全正期望；最差一成交易约 -9%，单票仓位 2-3% 才是真正的风控</span>`;
@@ -2071,6 +2122,11 @@ function daPanel(c){
       <span class="da-tag ${ov.cls}">${ov.txt}</span>
       <span class="da-body">${ovBody}</span>
     </div>
+    ${sel.downgrade ? `
+    <div class="da-row">
+      <span class="da-tag" style="background:var(--orange-soft);color:var(--orange);">相位降级</span>
+      <span class="da-body">${sel.why || '情绪退潮/冰点'} → 仓位降为 <b>1% 轻仓或放弃</b>（环境差时胜率仅微降，不再一刀切禁止）</span>
+    </div>` : ''}
     <div class="da-row">
       <span class="da-tag" style="background:var(--primary-soft);color:var(--primary);">盘中直答</span>
       <span class="da-body da-live" data-code="${c.code}"><span class="da-wait">交易时段打开本页 · 自动判定现在能不能买</span></span>
@@ -2185,7 +2241,7 @@ function daTodayStr(){                                  // 北京日期 YYYYMMDD
 async function daTick(){
   if (!daTradingBJ()) return;                           // 非交易时段不拉行情(凌晨/收盘后不空转)
   const codes = [];
-  [...(D.candidates_2to3||[]), ...(D.candidates_3to4||[])].forEach(c => { if (!codes.includes(c.code)) codes.push(c.code); });
+  [...(D.candidates_4plus||[]), ...(D.candidates_2to3||[]), ...(D.candidates_3to4||[])].forEach(c => { if (!codes.includes(c.code)) codes.push(c.code); });
   daBook().forEach(x => { if (!codes.includes(x.code)) codes.push(x.code); });
   if (!codes.length) return;
   const q = await qtFetch(codes);
@@ -2208,44 +2264,59 @@ function initDaLive(){
   setInterval(daTick, 30000);
 }
 function candCard(c, planOpen){
+  /* [v1.16.0] 选股卡: 梯队徽章 + 判定(买入/轻仓/淘汰) + 因子缺失兼容(S级旧快照) */
+  const sel = c.sel || {};
+  const skip = sel.verdict === 'skip';
   const color = TIER_COLOR[c.tier];
+  const SP = c.score_parts || {};
+  const fNA = c.factors_missing;                       // S级旧快照: 因子缺失显示'—'
   const factors = [
-    { l:'换手率', v: (c.turn ?? 0).toFixed(2) + '%', s:(c.score_parts.turn ?? 0).toFixed(1) + '/20', good: c.turn < 10, bad: c.turn >= 20 },
-    { l:'封单', v: (c.seal ?? 0).toFixed(2) + '亿', s:(c.score_parts.seal ?? 0).toFixed(1) + '/15', good: c.seal >= 1.5, bad: c.seal < 0.4 },
-    { l:'首封时间', v: c.first, s:(c.score_parts.first ?? 0).toFixed(1) + '/15', good: c.first <= '10:30', bad: c.first >= '13:30' },
-    { l:'炸板次数', v: c.zbc + '次', s:(c.score_parts.zbc ?? 0).toFixed(1) + '/10', good: c.zbc === 0, bad: c.zbc >= 2 },
-    /* v1.9.2 修正: 板级契合与市值拆为两格(原"板级契合"格的值显示市值, 语义错位)
-       6格 = 移动端完美3×2 / 桌面一行6列, 消除3+2失衡 */
-    { l:'板级契合', v: (c.score_parts.lb ?? 0).toFixed(1) + '/5', s:'档位契合加成' },
+    { l:'换手率', v: fNA ? '—' : (c.turn ?? 0).toFixed(2) + '%', s: fNA ? '' : (SP.turn ?? 0).toFixed(1) + '/20', good: !fNA && c.turn < 10, bad: !fNA && c.turn >= 20 },
+    { l:'封单', v: fNA ? '—' : (c.seal ?? 0).toFixed(2) + '亿', s: fNA ? '' : (SP.seal ?? 0).toFixed(1) + '/15', good: !fNA && c.seal >= 1.5, bad: !fNA && c.seal < 0.4 },
+    { l:'首封时间', v: c.first || '—', s: fNA ? '' : (SP.first ?? 0).toFixed(1) + '/15', good: !fNA && c.first <= '10:30', bad: !fNA && c.first >= '13:30' },
+    { l:'炸板次数', v: fNA ? '—' : c.zbc + '次', s: fNA ? '' : (SP.zbc ?? 0).toFixed(1) + '/10', good: !fNA && c.zbc === 0, bad: !fNA && c.zbc >= 2 },
+    { l:'板级契合', v: fNA ? '高度即资格' : (SP.lb ?? 0).toFixed(1) + '/5', s: fNA ? 'S级豁免分数' : '档位契合加成' },
     { l:'市值', v: (c.mv ?? 0).toFixed(2) + '亿', s: (c.mv ?? 0) >= 100 ? '大票' : '' },
   ];
-  const inner = `<div class="num"><b style="color:${color}">${Math.round(c.score)}</b><span>确定性</span></div>`;
+  /* 分数环: 分数仅排雷(S级豁免); 淘汰/缺失显示占位 */
+  const scoreNum = skip ? '✕' : (c.score != null ? Math.round(c.score) : '—');
+  const inner = `<div class="num"><b style="color:${skip ? 'var(--gray-badge)' : color}">${scoreNum}</b><span>${skip ? '淘汰' : '排雷分'}</span></div>`;
   const tag = c.tag ? `<span class="pill cautious">${c.tag}</span>` : '';
+  const tierPill = skip
+    ? `<span class="pill tOut">${sel.label} · 淘汰</span>`
+    : `<span class="pill t${sel.tier}">${sel.label} · ${sel.verdict_txt}</span>`;
   const A = c.action || {};
-  /* v1.9.2 语义降级: 入场分级为禁止/观察时, 绿色操作chip降灰(否则"首选打板"与"禁止入场"红绿对峙) */
-  const dimAct = c.entry && (c.entry.grade === 'forbid' || c.entry.grade === 'observe');
   const actRow = A.key ? `
     <div class="act-row">
-      <span class="act-chip ${A.key}${dimAct ? ' dim' : ''}">${ACT_ICO[A.key] || ''}${A.label}</span>
+      <span class="act-chip ${A.key}">${ACT_ICO[A.key] || ''}${A.label}</span>
       <span class="act-desc">${A.desc}</span>
       <span class="act-price">
-        <span>买入参考 <b>${fp(A.buy_price)}</b></span>
-        <span class="stop">止损 <b>${fp(A.stop_loss)}</b></span>
+        <span>挂单价 <b>${fp(A.buy_price)}</b></span>
       </span>
     </div>` : '';
+  const dropBar = skip ? `
+    <div class="sel-drop">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      ${sel.drop || '排雷未通过'} — 不挂隔夜单 · 盘中也不追
+    </div>` : '';
+  const downBar = (!skip && sel.downgrade) ? `
+    <div class="sel-down">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      ${sel.why} → 仓位降为 1% 轻仓或放弃
+    </div>` : '';
   return `
-  <div class="cand">
+  <div class="cand${skip ? ' is-skip' : ''}">
     <div class="cand-head">
       <div class="cand-rank">${c.rank}</div>
       <div class="cand-name">
         <div class="n1">${c.name} <span class="code">${c.code}</span>
-          <span class="pill ${c.tier}">${c.tier_txt}</span> ${tag}</div>
-        <div class="n2">${c.lb}板→${c.lb+1}板 · ${c.industry} · 明日打板价参考 <b>${c.next_zt}</b></div>
+          ${tierPill} ${tag}</div>
+        <div class="n2">${c.lb}板 · ${sel.full} · ${c.industry} · 隔夜挂单价 <b>${c.next_zt}</b> · 两年胜率 <b>${sel.win}</b>/均值 <b>${sel.avg}</b></div>
       </div>
-      <div class="cand-ring">${ringHTML(88, 8, c.score/100, color, inner)}</div>
+      <div class="cand-ring">${ringHTML(88, 8, skip ? 0 : (c.score != null ? c.score/100 : 0), color, inner)}</div>
     </div>
     ${actRow}
-    ${entryBadgeHTML(c.entry)}
+    ${dropBar}${downBar}
     <div class="factor-grid">${factors.map(f => `
       <div class="f-cell"><div class="fv ${f.good?'good':''} ${f.bad?'bad':''}">${f.v}</div>
       <div class="fl">${f.l}</div>${f.s ? `<div class="fs">${f.s}</div>` : ''}</div>`).join('')}
@@ -2255,15 +2326,23 @@ function candCard(c, planOpen){
 }
 function renderCands(){
   renderMaster();
-  /* v1.9.2 移动端节奏: 候选卡买卖计划默认折叠, 仅每组首选(评分最高)展开
-     → 单卡1170px→~600px, 候选区14778px→~8000px, 消除节奏区与龙回头之间的空旷带 */
-  $('c23List').innerHTML = D.candidates_2to3.length
-    ? D.candidates_2to3.map((c, i) => candCard(c, i === 0)).join('')
+  /* [v1.16.0] 选股系统: S级(4板+) / A级(2进3) / B级(3进4) 三梯队渲染, 淘汰垫底
+     移动端节奏: 每组首卡(未淘汰排序第一)展开完整直答, 其余折叠 */
+  const SLC = D.selection || {}, SC = SLC.counts || {};
+  const c4 = D.candidates_4plus || [], c23 = D.candidates_2to3 || [], c34 = D.candidates_3to4 || [];
+  $('c4List').innerHTML = c4.length
+    ? c4.map((c, i) => candCard(c, i === 0)).join('')
+    : '<div class="card" style="color:var(--secondary);">今日无 4板及以上核心标的 — S级空缺也是答案（不强行降级追2板高标）</div>';
+  $('c23List').innerHTML = c23.length
+    ? c23.map((c, i) => candCard(c, i === 0)).join('')
     : '<div class="card" style="color:var(--secondary);">今日无符合条件的 2进3 候选</div>';
-  $('c34List').innerHTML = D.candidates_3to4.length
-    ? D.candidates_3to4.map((c, i) => candCard(c, i === 0)).join('')
+  $('c34List').innerHTML = c34.length
+    ? c34.map((c, i) => candCard(c, i === 0)).join('')
     : '<div class="card" style="color:var(--secondary);">今日无符合条件的 3进4 候选</div>';
-  $('c23Sub').textContent = `回测胜率 76% 区间 · 换手<10% + 封单强 + 首封早 + 0炸板 · 共 ${D.candidates_2to3.length} 只（个股65分+市场35分，开盘强度待竞价验证）`;
+  /* 梯队副标题: 实时可买/淘汰统计 */
+  const sS = SC.S || {}, sA = SC.A || {}, sB = SC.B || {};
+  $('c4Sub').textContent = `两年胜率 84.0% · 单笔 +6.06% · 近3月 7笔全胜 · 分数不淘汰（低分组收益反而更高） · 今日 ${sS.buy || 0}/${sS.total || 0} 可挂` + (sS.out ? ` · 淘汰 ${sS.out} 只（尾盘板/炸板≥3）` : '');
+  $('c23Sub').textContent = `两年胜率 74.3% · 单笔 +2.93% · 2024-2026 分年度全正 · 确定性<65分淘汰 · 今日 ${sA.buy || 0}/${sA.total || 0} 可买` + (sA.out ? ` · 淘汰 ${sA.out} 只` : '');
 }
 
 /* ── 龙回头(分层优化v2) ── */
@@ -3825,7 +3904,7 @@ function npRow(nm, v1, v2, v3, color){
 }
 function renderPanels(){
   const m = D.meta || {}, sg = D.signal || {}, mk = D.market || {};
-  const c23 = D.candidates_2to3 || [], c34 = D.candidates_3to4 || [], dr = D.dragons || [];
+  const c4 = D.candidates_4plus || [], c23 = D.candidates_2to3 || [], c34 = D.candidates_3to4 || [], dr = D.dragons || [];
   const B = D.backtest || {}, g = B.golden || {}, dbt = B.dragon || {};
   const opt = dbt.optimized || {}, vs = dbt.vs_daban || {};
   const aT = opt.a_tier || {}, bT = opt.b_tier || {};
@@ -3833,22 +3912,25 @@ function renderPanels(){
 
   $('brandMeta').textContent = 'v' + m.version + ' · ' + (m.date_label || '') + ' · ' + (m.stage_label || '');
 
-  // ① 概览
-  const cands = c23.length + c34.length;
-  const all = c23.concat(c34).sort((a,b) => (b.score||0) - (a.score||0));
-  const top = all[0];
+  // ① 概览([v1.16.0] 选股梯队统计: S级优先展示)
+  const _selc = (D.selection || {}).counts || {};
+  const cands = c4.length + c23.length + c34.length;
+  const ok4 = c4.filter(c => c.sel && c.sel.verdict !== 'skip');
+  const okA = c23.filter(c => c.sel && c.sel.verdict !== 'skip');
+  const top = ok4[0] || okA[0] || c34.concat(c23, c4).sort((a,b) => (b.score||0) - (a.score||0))[0];
   $('npOvBadge').textContent = sg.pass ? '信号有效' : '信号失效';
   $('npOvBadge').className = 'np-badge ' + (sg.pass ? 'ok' : 'no');
   $('npOvBody').innerHTML = `
     <div class="np-stats">
-      ${npStat(sg.pass ? '有效' : '失效', '今日信号', sg.pass ? 'var(--green)' : 'var(--red)')}
+      ${npStat((sg.pass ? '有效' : '失效'), '今日信号', sg.pass ? 'var(--green)' : 'var(--red)')}
       ${npStat((mk.score10 ?? 0).toFixed(1) + '/10', '市场环境 · ' + (mk.level_txt || ''), (mk.level === 'strong' || mk.level === 'active') ? 'var(--green)' : (mk.level === 'cautious' ? 'var(--orange)' : 'var(--secondary)'))}
       ${npStat(sg.p12 == null ? '—' : sg.p12 + '%', '1进2晋级率', sg.p12 >= 50 ? 'var(--green)' : sg.p12 >= 20 ? 'var(--primary)' : 'var(--orange)')}
-      ${npStat(cands + '只', '明日候选名单')}
+      ${npStat((( _selc.S||{}).buy||0) + '只', 'S级可挂 · 4板+', ((_selc.S||{}).buy ? 'var(--red)' : 'var(--secondary)'))}
+      ${npStat((((_selc.A||{}).buy||0) + '/' + ((_selc.B||{}).light||0)), 'A级买/B级轻', 'var(--primary)')}
       ${npStat(dr.length + '只', '龙回头信号')}
     </div>
     <div class="np-note">${top
-      ? `当前评分最高: <b>${top.name}</b>（${(top.score||0).toFixed(2)}分 · ${top.tier_txt||''} · ${((top.action||{}).label)||''}）· `
+      ? `梯队首选: <b>${top.name}</b>（${(top.sel||{}).label || ''} · ${top.lb}板 · 挂单价 ${top.next_zt || '—'} · 两年胜率 ${(top.sel||{}).win || '—'}）· `
       : '今日无符合条件的候选 · 规则下观望为主 · '}
       每日三段式节奏: 15:10 名单生成 → 09:26 竞价验证 → 10:30 定型复查</div>`;
 
@@ -3926,20 +4008,23 @@ function renderPanels(){
     $('npScBody').innerHTML = '<div class="np-note">score_data.js 未加载或尚未生成 · 15:10 管道自动扫描全市场后更新。</div>';
   }
 
-  // ④ 候选
+  // ④ 候选([v1.16.0] 选股梯队: S→A→B, 淘汰标注)
   $('npCdBadge').textContent = cands ? cands + '只候选' : '今日无候选';
   $('npCdBadge').className = 'np-badge ' + (cands ? 'blue' : 'gray');
+  const selRows = c4.concat(c23, c34).slice(0, 6);
   $('npCdBody').innerHTML = cands ? `
     <div class="np-rows">
-      ${all.slice(0, 5).map(c => npRow(
+      ${selRows.map(c => npRow(
         `${c.name}<span class="code">${c.code}</span>`,
-        `${c.lb}板→${(c.lb||0)+1}板`,
-        (c.score||0).toFixed(2) + '分 · ' + (c.tier_txt||''),
+        `${c.lb}板 · ${(c.sel||{}).label || ''}`,
+        (c.sel||{}).verdict === 'skip'
+          ? '❌ ' + ((c.sel||{}).drop || '淘汰')
+          : (c.score != null ? (c.score||0).toFixed(1) + '分 · ' : '') + (c.sel||{}).verdict_txt,
         ((c.action||{}).label) || '',
-        TIER_COLOR[c.tier] || 'var(--primary)'
+        (c.sel||{}).verdict === 'skip' ? 'var(--red)' : ((c.sel||{}).tier === 'S' ? 'var(--red)' : ((c.sel||{}).tier === 'A' ? 'var(--green)' : 'var(--orange)'))
       )).join('')}
     </div>
-    <div class="np-note">完整卡片含换手率/封单额/首封时间/炸板次数/买入参考价/止损价/买卖时机预案 — 点击「查看详情」展开。</div>`
+    <div class="np-note">选股系统: 高度定梯队(S=4板+ / A=2进3 / B=3进4) + 排雷(尾盘板/炸板≥3/A·B级<65分) · 隔夜单挂涨停价限价 · 高开>2%撤 — 点击「查看详情」展开。</div>`
     : '<div class="np-note">今日无符合条件的候选标的 · 等待下一轮 15:10 盘后扫描。</div>';
 
   // ⑤ 龙回头
