@@ -56,6 +56,19 @@
 .eb-none { padding:14px 0 4px; font-size:13px; color:var(--secondary); line-height:1.65; }
 .eb-none b { color:var(--orange); }
 .eb-tip { font-size:11.5px; color:var(--tertiary); margin-top:6px; }
+/* v1.16.1 三段式当前阶段提示行: 修复阶段"停留"困惑, 明示当前/下一节点/快照时间 */
+.tl-now { margin-top:14px; border-radius:12px; background:var(--primary-soft); padding:10px 14px;
+  font-size:12.5px; color:var(--text); display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; }
+.tl-now b { color:var(--primary); }
+.tl-now-sub { width:100%; font-size:11px; color:var(--secondary); margin-top:2px; }
+/* v1.16.1 精华卡盘中直答行 + 可点击行 */
+.eb-live { margin-top:6px; font-size:12px; line-height:1.55; color:var(--text); }
+.eb-live .da-sub { display:block; font-size:11px; color:var(--secondary); }
+.eb-row.link { cursor:pointer; border-radius:12px; margin:0 -8px; padding-left:10px; padding-right:10px;
+  transition:background .15s; }
+.eb-row.link:active { background:var(--sep); }
+.eb-row.link .eb-go { flex:none; width:22px; height:22px; border-radius:7px; background:var(--sep);
+  display:inline-flex; align-items:center; justify-content:center; color:var(--secondary); }
 /* 详情折叠: 龙回头/高位板/建议跟踪/情绪图表/回测/规则 默认收起, 点击标题展开 */
 .foldable .sec-title { cursor:pointer; border-radius:10px; }
 .foldable .fold-caret { margin-left:auto; flex:none; width:26px; height:26px; border-radius:8px; background:var(--sep); display:inline-flex; align-items:center; justify-content:center; color:var(--secondary); transition:transform .3s cubic-bezier(.2,.8,.2,1); transform:rotate(180deg); }
@@ -1548,6 +1561,7 @@ tr.pt-excluded-row td { opacity:.52; }
     </div>
     <p class="sec-sub">名单在前、竞价验证、盘中定型 — 每个阶段由定时任务自动刷新本页数据</p>
     <div class="tl" id="timeline"></div>
+    <div class="tl-now" id="tlNow"></div>
   </section>
 
   <!-- ═══ v1.13.0 高分标的榜 · 全市场诊断评分≥75 (风险/拥挤观察池定位) ═══ -->
@@ -1750,7 +1764,8 @@ const D = (typeof SITE_DATA !== 'undefined') ? SITE_DATA : null;
 const $ = id => document.getElementById(id);
 /* v1.9.6 实时阶段推导: stage 固化在 data.js 构建时刻, 若盘中部署失败或跨时段打开页面会显示滞后
    (如过了10:30仍显示盘前待命)。数据日期为今天/昨天时用本地时钟实时覆盖 — 仅展示层,
-   不改构建时固化的入场分级/候选判定。 */
+   不改构建时固化的入场分级/候选判定。
+   [v1.16.1] 拆为可重复调用函数: 供30s定时器推进(原只在加载时执行一次, 页面挂着不动就不变) */
 function liveStage(){
   const n = new Date(), wd = n.getDay();
   if (wd === 0 || wd === 6) return ['review', '周末复盘'];
@@ -1760,7 +1775,7 @@ function liveStage(){
   if (cur < 15*60+10) return ['final', '定型复查'];
   return ['after', '盘后名单'];
 }
-(function applyLiveStage(){
+function applyLiveStage(){
   if (!D || !D.meta || !D.meta.date) return;
   const f = d => d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
   const now = new Date(), yst = new Date(now.getTime() - 864e5);
@@ -1768,7 +1783,8 @@ function liveStage(){
     const [st, lb] = liveStage();
     D.meta.stage = st; D.meta.stage_label = lb;
   }
-})();
+}
+applyLiveStage();
 const FONT = '"PingFang SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif';
 const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 const ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
@@ -1813,12 +1829,16 @@ function renderEntryBrief(){
   const rows = [];
   const SR = D.strategy_radar || {};
   const STRAT = { t3:'龙回头', t4:'涨停回马枪', t5:'箱体回踩' };
-  const ebRow = (rank, name, code, pills, nums) => `
-    <div class="eb-row"><div class="eb-rank">${rank}</div>
+  /* [v1.16.1] live=盘中直答行 · link=点击进 plan.html 详细策略页 */
+  const ebRow = (rank, name, code, pills, nums, live = '', link = false) => `
+    <div class="eb-row${link ? ' link' : ''}"${link ? ` onclick="location.href='plan.html?code=${code}'"` : ''}>
+      <div class="eb-rank">${rank}</div>
       <div class="eb-l"><div class="eb-name">${name} <span class="code">${code}</span>${pills}</div>
-      <div class="eb-nums">${nums}</div></div></div>`;
+      <div class="eb-nums">${nums}</div>${live}</div>
+      ${link ? `<span class="eb-go">${ICON_CHEV}</span>` : ''}</div>`;
+  const LIVE_WAIT = '<span class="da-wait">交易时段打开本页 · 自动判定现在能不能买</span>';
   const pill = (txt, fg, bg) => `<span class="pill" style="background:${bg};color:${fg};font-size:11px;">${txt}</span>`;
-  /* ① 战法雷达正式信号(相位+形态双达标, 最高优先级) */
+  /* ① 战法雷达正式信号(相位+形态双达标, 最高优先级) · [v1.16.1]盘中直答=现价/形态是否破止损 */
   (['t3','t4','t5']).forEach(k => {
     const s = ((SR.strategies || {})[k]) || {};
     (s.signals || []).slice(0, 3).forEach(x => {
@@ -1827,10 +1847,12 @@ function renderEntryBrief(){
         + pill((x.mv || 0) >= 200 ? '大盘' : '中盘', 'var(--primary)', 'var(--primary-soft)'),
         `<span class="en">入场 <b>${x.entry || '明日开盘买入(今晚可挂隔夜单)'}</b></span>`
         + (x.stop_price ? `<span class="st">止损 <b>${fp(x.stop_price)}</b></span>` : '')
-        + `<span>收盘 <b>${fp(x.price)}</b></span>`));
+        + `<span>收盘 <b>${fp(x.price)}</b></span>`,
+        `<div class="eb-live da-live" data-code="${x.code}" data-strat="1" data-stop="${x.stop_price || ''}"><span class="da-wait">非交易时段 · 明日开盘按计划执行</span></div>`));
     });
   });
-  /* ② 选股候选([v1.16.0] S/A级=建议买入, B级=轻仓或放弃; 淘汰不进精华卡) */
+  /* ② 选股候选([v1.16.0] S/A级=建议买入, B级=轻仓或放弃; 淘汰不进精华卡)
+     [v1.16.1] 盘中直答(封板可排队/高开禁追/等回封) + 整行点击进详细策略页 */
   [...(D.candidates_4plus || []), ...(D.candidates_2to3 || []), ...(D.candidates_3to4 || [])].forEach(c => {
     const sel = c.sel || {};
     if (sel.verdict === 'skip') return;
@@ -1843,7 +1865,9 @@ function renderEntryBrief(){
       + pill(`仓位${sel.pos}${sel.downgrade ? ' · 相位降级' : ''}`, 'var(--primary)', 'var(--primary-soft)'),
       `<span>挂单价 <b>${fp(A.buy_price != null ? A.buy_price : c.next_zt)}</b></span>`
       + `<span>两年均值 <b>${sel.avg}</b></span>`
-      + (A.label ? `<span class="en">${A.label}</span>` : '')));
+      + (A.label ? `<span class="en">${A.label}</span>` : ''),
+      `<div class="eb-live da-live" data-code="${c.code}">${LIVE_WAIT}</div>`,
+      true));
   });
   /* ③ 可入场池·轻仓级(形态今日已触发, 相位闸门未开) */
   const lights = [];
@@ -1857,7 +1881,8 @@ function renderEntryBrief(){
     `<span class="en">入场 <b>${x.entry || '明日开盘买入(今晚可挂隔夜单)'}</b></span>`
     + (x.stop_price ? `<span class="st">止损 <b>${fp(x.stop_price)}</b></span>` : '')
     + `<span class="st">仓位 <b>${Math.round(x.pos_suggest ?? 1)}%</b></span>`
-    + `<span>收盘 <b>${fp(x.price)}</b></span>`)).join('');
+    + `<span>收盘 <b>${fp(x.price)}</b></span>`,
+    `<div class="eb-live da-live" data-code="${x.code}" data-strat="1" data-stop="${x.stop_price || ''}"><span class="da-wait">非交易时段 · 明日开盘按计划执行</span></div>`)).join('');
   const EB_TIMING = `<div class="eb-tip">执行时点: 战法信号=今日收盘确认 → <b>明日开盘买入</b>(当晚约20:00后可挂隔夜委托 · 新出形态当日不追买) · 打板候选=昨日名单经今日9:26竞价验证+10:30定型, 分级达标者<b>当日盘中执行</b></div>`;
   /* 渲染 */
   const cnt = $('ebCount');
@@ -1990,13 +2015,34 @@ function renderTimeline(){
     active: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
     done: ICON_CHECK,
   };
-  $('timeline').innerHTML = D.timeline.map((t, i) => `
+  /* [v1.16.1] 状态实时重算: 原直接用 data.js 构建时固化的 status(09:37构建→"竞价验证"定格,
+     12:41打开仍停在该阶段)。现与 liveStage 同口径按当前时钟推导, 30s定时器自动推进 */
+  const st = D.meta.stage, m = D.meta;
+  const dToday = (() => { const n = new Date();
+    return n.getFullYear() + String(n.getMonth()+1).padStart(2,'0') + String(n.getDate()).padStart(2,'0'); })();
+  const tl = (D.timeline || []).map(t => ({ ...t }));
+  tl.forEach(t => {
+    if (t.key === 'after') t.status = 'done';                    // 名单存在即已生成
+    else if (t.key === 'auction')
+      t.status = st === 'auction' ? 'active' : (st === 'final' || st === 'after' ? 'done' : '');
+    else if (t.key === 'final')
+      t.status = (st === 'final') ? 'done'
+        : (st === 'after' ? (m.date === dToday ? '' : 'done') : '');
+  });
+  $('timeline').innerHTML = tl.map((t, i) => `
     <div class="tl-node ${t.status}">
-      ${i < D.timeline.length-1 ? '<span class="tl-connector"></span>' : ''}
+      ${i < tl.length-1 ? '<span class="tl-connector"></span>' : ''}
       <div class="tl-top"><span class="tl-time">${t.time}</span><span class="tl-state">${stateIco[t.status]}</span></div>
       <div class="tl-title">${t.title}</div>
       <div class="tl-desc">${t.desc}</div>
     </div>`).join('');
+  /* 当前阶段提示行: 阶段+下一节点+自动推进说明(修复"一直停留"的困惑) */
+  const NEXT = { review: ['09:15', '竞价验证'], auction: ['10:30', '定型复查'],
+                 final: ['15:10', '盘后名单'], after: ['明日 09:15', '竞价验证'] };
+  const nx = NEXT[st] || ['—', '—'];
+  const el = $('tlNow');
+  if (el) el.innerHTML = `⏱ 当前阶段: <b>${m.stage_label || '—'}</b> · 下一节点 <b>${nx[0]} ${nx[1]}</b>
+    <span class="tl-now-sub">本页按当前时间自动推进（每30秒），数据快照为 ${m.built_at} 构建</span>`;
 }
 
 /* ── 操作总方针 + 候选卡 ── */
@@ -2107,6 +2153,9 @@ function daPanel(c){
         <span class="da-tag no">❌ 淘汰 · 不买</span>
         <span class="da-body">${sel.drop || '排雷未通过'}（尾盘板 / 炸板≥3 / A·B级确定性&lt;65）。<span class="da-sub">回测口径: 该类标的近3月胜率55.6%/均值-0.71%负期望</span></span>
       </div>
+      <div class="da-row" style="justify-content:flex-end;">
+        <a class="da-btn" style="text-decoration:none;display:inline-flex;align-items:center;" href="plan.html?code=${c.code}">查看淘汰明细 →</a>
+      </div>
     </div>`;
   }
   const ov = daOvernight(c);
@@ -2135,7 +2184,10 @@ function daPanel(c){
       <span class="da-tag" style="background:var(--sep);color:var(--secondary);">买入后</span>
       <span class="da-body">${holdBody}</span>
     </div>
-    <div class="da-row" style="justify-content:flex-end;">${daBtnHTML(c)}</div>
+    <div class="da-row" style="justify-content:flex-end;gap:8px;">
+      <a class="da-btn" style="text-decoration:none;display:inline-flex;align-items:center;" href="plan.html?code=${c.code}">详细策略 →</a>
+      ${daBtnHTML(c)}
+    </div>
   </div>`;
 }
 /* ── 我的打板仓渲染 (localStorage, 不上传) ── */
@@ -2238,18 +2290,34 @@ function daTradingBJ(){                                 // 北京交易时段: �
 function daTodayStr(){                                  // 北京日期 YYYYMMDD (匹配腾讯ts前8位)
   return daBJDate().replace(/-/g, '');
 }
+/* ── 战法信号盘中直答: 现价/形态是否仍有效(与打板候选的封板/回封逻辑不同) ── */
+function daLiveStratCell(el, q){
+  if (!q) return '<span class="da-wait">非交易时段 · 明日开盘按计划执行</span>';
+  const gap = q.px / q.pc - 1;
+  const stop = parseFloat(el.dataset.stop || 0);
+  if (stop && q.px <= stop)
+    return `<b style="color:var(--red);">⚠ 现价 ${q.px.toFixed(2)} 已破止损参考 ${stop.toFixed(2)} · 放弃跟踪</b>
+      <span class="da-sub">形态失效 · 明日不按此信号买入</span>`;
+  const near = stop ? (q.px / stop - 1) * 100 : null;
+  return `<b style="color:var(--primary);">现价 ${q.px.toFixed(2)}（${gap>=0?'+':''}${(gap*100).toFixed(1)}%）· 形态持有中</b>
+    <span class="da-sub">按计划<b>明日开盘买入</b>，当日不追买${near != null ? ' · 距止损 ' + near.toFixed(1) + '%' : ''}</span>`;
+}
 async function daTick(){
   if (!daTradingBJ()) return;                           // 非交易时段不拉行情(凌晨/收盘后不空转)
+  /* [v1.16.1] 行情代码从DOM收集(候选卡+精华卡+我的打板仓), 不再只扫候选数组 */
   const codes = [];
-  [...(D.candidates_4plus||[]), ...(D.candidates_2to3||[]), ...(D.candidates_3to4||[])].forEach(c => { if (!codes.includes(c.code)) codes.push(c.code); });
-  daBook().forEach(x => { if (!codes.includes(x.code)) codes.push(x.code); });
+  document.querySelectorAll('.da-live[data-code]').forEach(el => {
+    if (!codes.includes(el.dataset.code)) codes.push(el.dataset.code);
+  });
   if (!codes.length) return;
   const q = await qtFetch(codes);
   const today = daTodayStr();
   Object.keys(q).forEach(k => { if (!q[k].ts || !q[k].ts.startsWith(today)) delete q[k]; });  // 节假日旧数据剔除
   Object.assign(DA_Q, q);
   document.querySelectorAll('.da-live[data-code]').forEach(el => {
-    el.innerHTML = daLiveCell(el.dataset.code, DA_Q[el.dataset.code]);
+    el.innerHTML = el.dataset.strat
+      ? daLiveStratCell(el, DA_Q[el.dataset.code])
+      : daLiveCell(el.dataset.code, DA_Q[el.dataset.code]);
   });
   daBook().forEach(x => {
     const el = $('mv-' + x.code);
@@ -2263,6 +2331,40 @@ function initDaLive(){
   daTick();
   setInterval(daTick, 30000);
 }
+/* [v1.16.1] 概览·节奏面板: 独立函数供30s定时器复用(阶段标签/时间线随本地时钟推进) */
+function renderRhythmPanel(){
+  const m = D.meta;
+  const tl = (D.timeline || []).map(t => ({ ...t }));
+  const stNow = m.stage;
+  const dToday = (() => { const n = new Date();
+    return n.getFullYear() + String(n.getMonth()+1).padStart(2,'0') + String(n.getDate()).padStart(2,'0'); })();
+  tl.forEach(t => {
+    if (t.key === 'after') t.status = 'done';
+    else if (t.key === 'auction')
+      t.status = stNow === 'auction' ? 'active' : (stNow === 'final' || stNow === 'after' ? 'done' : '');
+    else if (t.key === 'final')
+      t.status = (stNow === 'final') ? 'done'
+        : (stNow === 'after' ? (m.date === dToday ? '' : 'done') : '');
+  });
+  const staleAfter = (stNow === 'after' && m.date !== dToday);
+  $('npRhBadge').textContent = m.stage_label || '—';
+  $('npRhBadge').className = 'np-badge blue';
+  $('npRhBody').innerHTML = `
+    <div class="np-stages">
+      ${tl.map(t => `<div class="np-stage ${t.status === 'done' ? 'done' : t.status === 'active' ? 'active' : ''} np-anim">
+        <div class="t">${t.time}</div><div class="n">${t.title}</div><div class="d">${t.desc}</div>
+      </div>`).join('')}
+    </div>
+    <div class="np-note">当前阶段: <b>${m.stage_label || '—'}</b>${staleAfter ? ' · <span style="color:var(--orange);">今日 15:10 盘后名单待生成</span>' : ''} · 名单始终是"次日预案"，盘中按 09:26 竞价验证结果决定是否执行，10:30 复查定型。</div>`;
+}
+/* [v1.16.1] 三段式阶段30s自动推进: 页面挂着不动也会随时间走(原来只在加载时算一次) */
+function stageTick(){
+  applyLiveStage();
+  renderHero();
+  renderTimeline();
+  renderRhythmPanel();
+}
+setInterval(stageTick, 30000);
 function candCard(c, planOpen){
   /* [v1.16.0] 选股卡: 梯队徽章 + 判定(买入/轻仓/淘汰) + 因子缺失兼容(S级旧快照) */
   const sel = c.sel || {};
@@ -3956,29 +4058,8 @@ function renderPanels(){
       `⏳ ${p.cond}差<b>${p.gap}${p.unit === 'pct' ? '%' : p.unit}</b>${p.warm ? '（预热·临近达标）' : ''}`).join(' · ')}</div>` : ''}
     <div class="np-note">信号有效 = 三条件同时满足，才有入场资格；市场分(三维加权)衡量强弱，二者已解耦。p12 需次日 9:25 竞价数据最终验证。失效日以观望为主，不逆势操作。</div>`;
 
-  // ③ 节奏 (v1.9.6 时间线状态实时重算, 与 liveStage 同口径)
-  const tl = (D.timeline || []).map(t => ({ ...t }));
-  const stNow = m.stage;
-  const dToday = (() => { const n = new Date();
-    return n.getFullYear() + String(n.getMonth()+1).padStart(2,'0') + String(n.getDate()).padStart(2,'0'); })();
-  tl.forEach(t => {
-    if (t.key === 'after') t.status = 'done';                    // 名单存在即已生成
-    else if (t.key === 'auction')
-      t.status = stNow === 'auction' ? 'active' : (stNow === 'final' || stNow === 'after' ? 'done' : '');
-    else if (t.key === 'final')
-      t.status = (stNow === 'final') ? 'done'
-        : (stNow === 'after' ? (m.date === dToday ? '' : 'done') : '');
-  });
-  const staleAfter = (stNow === 'after' && m.date !== dToday);   // 昨日名单已走完, 今日盘后名单待生成
-  $('npRhBadge').textContent = m.stage_label || '—';
-  $('npRhBadge').className = 'np-badge blue';
-  $('npRhBody').innerHTML = `
-    <div class="np-stages">
-      ${tl.map(t => `<div class="np-stage ${t.status === 'done' ? 'done' : t.status === 'active' ? 'active' : ''} np-anim">
-        <div class="t">${t.time}</div><div class="n">${t.title}</div><div class="d">${t.desc}</div>
-      </div>`).join('')}
-    </div>
-    <div class="np-note">当前阶段: <b>${m.stage_label || '—'}</b>${staleAfter ? ' · <span style="color:var(--orange);">今日 15:10 盘后名单待生成</span>' : ''} · 名单始终是"次日预案"，盘中按 09:26 竞价验证结果决定是否执行，10:30 复查定型。</div>`;
+  // ③ 节奏 (v1.9.6 时间线状态实时重算, 与 liveStage 同口径; [v1.16.1] 抽为独立函数供30s定时器复用)
+  renderRhythmPanel();
 
   // ③b 高分标的榜 (v1.13.0 · 独立于 SITE_DATA, 读 SCORE_DATA)
   const SCD = (typeof SCORE_DATA !== 'undefined') ? SCORE_DATA : null;

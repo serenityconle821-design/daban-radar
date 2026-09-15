@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>操作策略 · 观澜擒龙</title>
+<!-- v1.16.1 详细操作策略页: 候选卡/精华卡点击进入 (?code=XXXXXX)
+     内容: 今日判定(梯队/仓位/淘汰) + 盘中直答(实时行情) + 四步执行计划 + 因子明细 + 回测证据
+     数据: data.js(SITE_DATA) + 腾讯JSONP实时行情; 登记与主站共享 localStorage(glql_daban_v115) -->
+<style>
+:root {
+  --bg: rgba(116,116,128,.12); --card: rgba(255,255,255,.36); --card2: rgba(255,255,255,.32);
+  --primary: #007AFF; --primary-soft: rgba(0,122,255,.08);
+  --text: #1D1D1F; --secondary: #6E6E73; --tertiary: #929298;
+  --green: #34C759; --green-soft: rgba(52,199,89,.10);
+  --red: #FF3B30; --red-soft: rgba(255,59,48,.08);
+  --orange: #FF9500; --orange-soft: rgba(255,149,0,.10);
+  --gray-badge: #8E8E93; --sep: rgba(60,60,67,.10);
+  --radius: 16px;
+  --glass-card: rgba(255,255,255,.22);
+  --glass-nav: rgba(255,255,255,.55);
+  --specular-top: rgba(255,255,255,.92);
+  --specular-bottom: rgba(174,196,255,.20);
+  --hairline: rgba(15,23,42,.10);
+  --hairline-soft: rgba(15,23,42,.05);
+  --tint-ink: 15,23,42; --tint-sky: 56,96,190;
+  --blur-nav: saturate(180%) blur(24px);
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body {
+  background:#F2F2F7; color:var(--text);
+  font:17px/1.6 -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+body::before {
+  content:''; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(64% 54% at 18% 8%,  rgba(158,180,255,.75) 0%, transparent 64%),
+    radial-gradient(54% 50% at 92% 12%, rgba(186,210,255,.68) 0%, transparent 62%),
+    radial-gradient(60% 56% at 78% 88%, rgba(218,196,250,.60) 0%, transparent 64%),
+    radial-gradient(50% 44% at 8% 92%, rgba(190,224,252,.58) 0%, transparent 62%),
+    linear-gradient(180deg, #F5F6FA 0%, #EDF0F5 100%);
+}
+.page { max-width:760px; margin:0 auto; padding:0 16px 70px; }
+.topbar {
+  position:sticky; top:0; z-index:100;
+  background:var(--glass-nav);
+  -webkit-backdrop-filter:var(--blur-nav); backdrop-filter:var(--blur-nav);
+  box-shadow:inset 0 1px 0 var(--specular-top), inset 0 -1px 0 var(--specular-bottom),
+    0 0 0 .5px var(--hairline), 0 8px 20px -4px rgba(var(--tint-ink),.06);
+}
+.topbar-inner { max-width:760px; margin:0 auto; padding:10px 16px; display:flex; align-items:center; gap:12px; }
+.back-btn {
+  display:inline-flex; align-items:center; justify-content:center; flex:none;
+  width:44px; height:44px; border-radius:14px; text-decoration:none; color:var(--primary);
+  background:rgba(120,120,128,.12); cursor:pointer;
+  box-shadow:inset 0 1px 0 var(--specular-top), 0 0 0 .5px var(--hairline-soft);
+}
+.brand { display:flex; flex-direction:column; text-decoration:none; color:var(--text); min-width:0; }
+.brand b { font-size:15px; font-weight:800; letter-spacing:-.3px; }
+.brand span { font-size:11px; color:var(--secondary); }
+.card {
+  background:var(--card); border-radius:var(--radius); padding:20px; margin-top:16px;
+  box-shadow:inset 0 1px 0 var(--specular-top), inset 0 -1px 0 var(--specular-bottom),
+    0 0 0 .5px var(--hairline), 0 8px 20px -6px rgba(var(--tint-ink),.08);
+}
+.sec-h { font-size:15px; font-weight:800; display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+.sec-h .ico { width:28px; height:28px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; flex:none; }
+.pill { display:inline-flex; align-items:center; padding:2px 10px; border-radius:9px; font-size:12.5px; font-weight:700; }
+.pill.tS { background:var(--red-soft); color:var(--red); }
+.pill.tA { background:var(--primary-soft); color:var(--primary); }
+.pill.tB { background:var(--orange-soft); color:var(--orange); }
+.pill.tOut { background:var(--sep); color:var(--gray-badge); text-decoration:line-through; }
+/* 头卡 */
+.hd { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.hd-ring { flex:none; width:88px; height:88px; }
+.hd-name { font-size:24px; font-weight:800; letter-spacing:-.4px; display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+.hd-name .code { font-size:13px; font-weight:600; color:var(--secondary); font-variant-numeric:tabular-nums; }
+.hd-sub { font-size:12.5px; color:var(--secondary); margin-top:4px; }
+.kv { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:16px; }
+.kv .k { background:rgba(255,255,255,.32); border-radius:12px; padding:10px 8px; text-align:center; }
+.kv .k b { display:block; font-size:16px; font-variant-numeric:tabular-nums; }
+.kv .k span { font-size:10.5px; color:var(--secondary); }
+@media (max-width:480px){ .kv { grid-template-columns:repeat(2,1fr); } }
+/* 直答 */
+.live-box { border-radius:12px; background:var(--primary-soft); padding:12px 16px; font-size:13.5px; line-height:1.6; }
+.live-box b { font-size:14.5px; }
+.live-sub { display:block; font-size:11.5px; color:var(--secondary); margin-top:2px; }
+.da-wait { color:var(--secondary); font-size:12.5px; }
+/* 执行计划时间线 */
+.step { display:flex; gap:12px; }
+.step .s-l { flex:none; display:flex; flex-direction:column; align-items:center; }
+.step .s-dot { width:26px; height:26px; border-radius:50%; background:var(--primary-soft); color:var(--primary);
+  display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex:none; }
+.step .s-line { width:2px; flex:1; background:var(--sep); margin:4px 0; min-height:18px; }
+.step:last-child .s-line { display:none; }
+.step .s-b { padding-bottom:16px; min-width:0; }
+.step .s-t { font-size:14.5px; font-weight:800; }
+.step .s-t .when { font-size:11.5px; color:var(--primary); background:var(--primary-soft);
+  border-radius:7px; padding:1px 8px; margin-left:7px; font-weight:700; }
+.step .s-d { font-size:12.5px; color:var(--secondary); line-height:1.65; margin-top:3px; }
+.step .s-d b { color:var(--text); }
+/* 因子格 */
+.fg { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+@media (max-width:480px){ .fg { grid-template-columns:repeat(2,1fr); } }
+.f-cell { background:rgba(255,255,255,.32); border-radius:12px; padding:10px 6px; text-align:center; }
+.f-cell .fv { font-size:15px; font-weight:800; font-variant-numeric:tabular-nums; }
+.f-cell .fv.good { color:var(--green); } .f-cell .fv.bad { color:var(--red); }
+.f-cell .fl { font-size:11px; color:var(--secondary); margin-top:1px; }
+.f-cell .fs { font-size:10px; color:var(--tertiary); }
+/* 淘汰/降级条 */
+.drop-bar { margin-top:12px; display:flex; align-items:flex-start; gap:8px;
+  background:var(--red-soft); color:var(--red); border-radius:12px; padding:12px 16px;
+  font-size:13px; font-weight:600; line-height:1.6; }
+.down-bar { margin-top:12px; display:flex; align-items:flex-start; gap:8px;
+  background:var(--orange-soft); color:var(--orange); border-radius:12px; padding:12px 16px;
+  font-size:13px; font-weight:600; line-height:1.6; }
+/* 回测矩阵 */
+.mx-wrap { overflow-x:auto; }
+.mx { width:100%; border-collapse:collapse; font-size:12px; margin-top:6px; }
+.mx th, .mx td { padding:6px 8px; text-align:right; white-space:nowrap; }
+.mx th { color:var(--secondary); font-weight:700; border-bottom:1px solid var(--sep); }
+.mx td:first-child, .mx th:first-child { text-align:left; }
+.mx tr.hl td { background:var(--primary-soft); font-weight:800; }
+.mx .pos { color:var(--red); } .mx .neg { color:var(--green); } .mx .dead { color:var(--green); font-weight:800; }
+.bt-note { font-size:11.5px; color:var(--tertiary); margin-top:8px; line-height:1.65; }
+/* 操作按钮 */
+.btns { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:4px; }
+.da-btn { border:none; cursor:pointer; font:700 13px -apple-system,"PingFang SC",sans-serif; color:var(--primary);
+  background:var(--primary-soft); border-radius:12px; padding:12px 22px; min-height:44px;
+  text-decoration:none; display:inline-flex; align-items:center; transition:transform .15s; }
+.da-btn:active { transform:scale(.95); }
+.da-btn.del { color:var(--red); background:var(--red-soft); }
+.empty { text-align:center; padding:60px 20px; color:var(--secondary); font-size:14px; line-height:1.8; }
+.foot { text-align:center; font-size:11px; color:var(--tertiary); margin-top:26px; line-height:1.7; }
+</style>
+</head>
+<body>
+<div class="topbar"><div class="topbar-inner">
+  <a class="back-btn" href="index.html" aria-label="返回看板">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  </a>
+  <a class="brand" href="index.html"><b>观澜擒龙 · 操作策略</b><span id="brandMeta">选股系统 v1.16</span></a>
+</div></div>
+
+<div class="page">
+  <div id="app"><div class="empty">加载中…</div></div>
+  <p class="foot">信号为历史规则回测输出，不构成投资建议 · 打板为高风险操作，单票仓位 2-3% · 总敞口 ≤10%<br>观澜擒龙 选股系统 · 数据由 15:10 盘后管道自动生成</p>
+</div>
+
+<script src="data.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const D = (typeof SITE_DATA !== 'undefined') ? SITE_DATA : null;
+const DA_STORE_KEY = 'glql_daban_v115';                 // 与主站共享登记簿
+const DA_Q = {};
+const fp = v => (v == null || v === '') ? '—' : Number(v).toFixed(2);
+
+/* ── 隔夜单资格矩阵(T+1收盘卖裸期望%, 两年4995股·24万样本·含0.15%双边成本) ── */
+const OVN_MAT = {
+  1: { row: '1板',  v: [+0.31, +0.29, -0.33, -0.20, -0.47, -1.59] },
+  2: { row: '2板',  v: [+1.41, +0.32, -0.43, +0.07, -0.97, -2.67] },
+  3: { row: '3板',  v: [+1.49, +1.33, -0.48, +0.60, -0.03, -2.35] },
+  4: { row: '4板+', v: [+1.82, +0.37, +0.55, +0.75, -0.02, -2.56] },
+};
+const OVN_COLS = ['低开&gt;5%', '低开2~5%', '低开0~2%', '平开0~2%', '高开2~5%', '高开&gt;5%'];
+
+/* ── 腾讯JSONP行情(与主站同源同法) ── */
+function qtFetch(codes){
+  return new Promise(resolve => {
+    const mkt = c => /^[69]/.test(c) ? 'sh' : 'sz';
+    const s = document.createElement('script');
+    s.charset = 'GBK';
+    let done = false;
+    const fin = () => {
+      if (done) return; done = true;
+      const out = {};
+      codes.forEach(c => {
+        const v = window['v_' + mkt(c) + c];
+        if (typeof v === 'string'){
+          const f = v.split('~');
+          if (f.length > 48) out[c] = { px:+f[3], pc:+f[4], po:+f[5], ph:+f[33], pl:+f[34], ztp:+f[47], ts:f[30] };
+        }
+      });
+      s.remove(); resolve(out);
+    };
+    s.onload = fin; s.onerror = fin;
+    setTimeout(fin, 8000);
+    s.src = 'https://qt.gtimg.cn/q=' + codes.map(c => mkt(c) + c).join(',') + '&r=' + Date.now();
+    document.head.appendChild(s);
+  });
+}
+function daBJ(){ return new Date(Date.now() + 8 * 3600 * 1000); }
+function daTodayStr(){ const d = daBJ(); return d.getUTCFullYear() + '-' + ('0'+(d.getUTCMonth()+1)).slice(-2) + '-' + ('0'+d.getUTCDate()).slice(-2); }
+function daTradingBJ(){
+  const d = daBJ(), wd = d.getUTCDay();
+  if (wd === 0 || wd === 6) return false;
+  const hm = d.getUTCHours() * 60 + d.getUTCMinutes();
+  return hm >= 9*60 + 15 && hm < 15*60;
+}
+/* 盘中直答: 现在能不能买(与主站 daLiveCell 同口径) */
+function daLiveCell(code, q){
+  if (!q) return '<span class="da-wait">非交易时段 · 交易日盘中自动判定</span>';
+  const openRef = q.po > 0 ? q.po : q.px;
+  const sealed = q.px >= q.ztp - 0.001;
+  const nowGap = q.px / q.pc - 1;
+  if (sealed) return `<b style="color:var(--green);">✅ 已封板 ${q.px.toFixed(2)} · 可排队打板</b>
+    <span class="live-sub">排单挂 ${q.ztp.toFixed(2)}，成交后按「封板续持 · 断板就走」执行</span>`;
+  const gap = openRef / q.pc - 1;
+  if (gap > 0.05) return `<b style="color:var(--red);">❌ 高开 ${(gap*100).toFixed(1)}% · 禁止追买</b>
+    <span class="live-sub">高开&gt;5% 两年均值 -2.4%，排板/半路都不做</span>`;
+  if (gap > 0.02) return `<b style="color:var(--orange);">⚠️ 高开 ${(gap*100).toFixed(1)}% · 隔夜单应已撤</b>
+    <span class="live-sub">高开2-5%：不追，等回封（触 ${q.ztp.toFixed(2)}）再排</span>`;
+  return `<b style="color:var(--primary);">⏸ 现价 ${q.px.toFixed(2)}（${nowGap>=0?'+':''}${(nowGap*100).toFixed(1)}%）· 半路不追</b>
+    <span class="live-sub">等回封（触 ${q.ztp.toFixed(2)}）再排队打板；低开/平开回封是正期望区</span>`;
+}
+async function daTick(){
+  if (!daTradingBJ()) return;
+  const code = CUR && CUR.code;
+  if (!code) return;
+  const q = await qtFetch([code]);
+  const today = daTodayStr().replace(/-/g, '');
+  if (q[code] && (!q[code].ts || !q[code].ts.startsWith(today))) delete q[code];
+  Object.assign(DA_Q, q);
+  const el = $('liveBox');
+  if (el) el.innerHTML = daLiveCell(code, DA_Q[code]);
+}
+setInterval(daTick, 30000);
+
+/* ── 登记簿(与主站共享) ── */
+function daBook(){ try { return JSON.parse(localStorage.getItem(DA_STORE_KEY) || '[]'); } catch(e){ return []; } }
+function daSave(b){ try { localStorage.setItem(DA_STORE_KEY, JSON.stringify(b)); } catch(e){} }
+function daRegist(c){
+  if (daBook().some(x => x.code === c.code)) return;
+  const v = prompt(`登记「${c.name}」实际买入价（隔夜单默认按涨停价 ${c.next_zt} 成交，可改成实际成交价）：`, c.next_zt);
+  if (v === null) return;
+  const buy = parseFloat(v) || c.next_zt;
+  const book = daBook();
+  book.push({ code:c.code, name:c.name, lb:c.lb, next_zt:c.next_zt, buy, date: daTodayStr() });
+  daSave(book);
+  renderBtns();
+}
+function daRemove(code){
+  daSave(daBook().filter(x => x.code !== code));
+  renderBtns();
+}
+function renderBtns(){
+  const el = $('btnRow');
+  if (!el || !CUR) return;
+  if (CUR.sel && CUR.sel.verdict === 'skip'){       // 淘汰标的不提供登记
+    el.innerHTML = '<span style="font-size:12.5px;color:var(--secondary);">淘汰标的不提供买入登记 · 规则外的钱不赚</span>';
+    return;
+  }
+  el.innerHTML = daBook().some(x => x.code === CUR.code)
+    ? `<button class="da-btn del" onclick="daRemove('${CUR.code}')">移除登记</button>`
+    : `<button class="da-btn" onclick="daRegist(CUR)">已买入 · 登记（次日提示持有/止盈/离场）</button>`;
+}
+
+/* ── 渲染 ── */
+let CUR = null;
+function ringHTML(size, stroke, ratio, color, inner){
+  const r = (size - stroke) / 2, c = 2 * Math.PI * r;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="rgba(120,120,128,.14)" stroke-width="${stroke}"/>
+    <circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}"
+      stroke-linecap="round" stroke-dasharray="${(c * Math.max(0, Math.min(1, ratio))).toFixed(1)} ${c.toFixed(1)}"
+      transform="rotate(-90 ${size/2} ${size/2})"/>
+    <foreignObject width="${size}" height="${size}"><div xmlns="http://www.w3.org/1999/xhtml"
+      style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;">${inner}</div></foreignObject>
+  </svg>`;
+}
+function findCand(code){
+  return [...(D.candidates_4plus||[]), ...(D.candidates_2to3||[]), ...(D.candidates_3to4||[])]
+    .find(x => x.code === code);
+}
+function render(){
+  const code = new URLSearchParams(location.search).get('code');
+  if (!D){ $('app').innerHTML = '<div class="empty">数据未加载(data.js 缺失)</div>'; return; }
+  $('brandMeta').textContent = '选股系统 v' + (D.meta.version || '1.16') + ' · ' + (D.meta.date_label || '');
+  if (!code){ $('app').innerHTML = '<div class="empty">缺少 ?code= 参数<br><a href="index.html" style="color:var(--primary);">返回看板</a></div>'; return; }
+  const c = findCand(code);
+  if (!c){
+    $('app').innerHTML = `<div class="empty">未找到 ${code} 的候选记录<br>可能是当日名单已更新（15:10 重新生成）<br>
+      <a href="index.html" style="color:var(--primary);font-weight:700;">返回看板看最新名单 →</a></div>`;
+    return;
+  }
+  CUR = c;
+  const sel = c.sel || {}, skip = sel.verdict === 'skip';
+  const TIER_CLR = { S:'var(--red)', A:'var(--primary)', B:'var(--orange)' };
+  const color = skip ? 'var(--gray-badge)' : (TIER_CLR[sel.tier] || 'var(--primary)');
+  const SP = c.score_parts || {}, fNA = c.factors_missing;
+  const A = c.action || {};
+
+  /* 头卡 */
+  const scoreNum = skip ? '✕' : (c.score != null ? Math.round(c.score) : '—');
+  const inner = `<div style="text-align:center;"><b style="font-size:22px;color:${color};">${scoreNum}</b>
+    <div style="font-size:9.5px;color:var(--secondary);">${skip ? '淘汰' : '排雷分'}</div></div>`;
+  const headCard = `
+  <div class="card">
+    <div class="hd">
+      <div class="hd-ring">${ringHTML(88, 8, skip ? 0 : (c.score != null ? c.score/100 : 0), color, inner)}</div>
+      <div style="min-width:0;flex:1;">
+        <div class="hd-name">${c.name} <span class="code">${c.code}</span>
+          <span class="pill ${skip ? 'tOut' : 't' + sel.tier}">${skip ? sel.label + ' · 淘汰' : sel.label + ' · ' + sel.verdict_txt}</span></div>
+        <div class="hd-sub">${c.lb}板 · ${sel.full || ''} · ${c.industry || ''}${c.tag ? ' · ' + c.tag : ''}</div>
+      </div>
+    </div>
+    <div class="kv">
+      <div class="k"><b>${fp(A.buy_price != null ? A.buy_price : c.next_zt)}</b><span>隔夜挂单价(涨停价)</span></div>
+      <div class="k"><b style="color:${color};">${sel.win || '—'}</b><span>两年回测胜率</span></div>
+      <div class="k"><b>${sel.avg || '—'}</b><span>单笔均值</span></div>
+      <div class="k"><b>${sel.pos || '—'}</b><span>建议仓位${sel.downgrade ? ' · 已降级' : ''}</span></div>
+    </div>
+    ${skip ? `<div class="drop-bar">❌ ${sel.drop || '排雷未通过'} — 不挂隔夜单 · 盘中也不追。回测口径: 该类标的近3月胜率55.6%/均值-0.71%负期望。</div>` : ''}
+    ${(!skip && sel.downgrade) ? `<div class="down-bar">⚠️ ${sel.why || '情绪退潮/冰点'} → 仓位降为 <b>1% 轻仓或放弃</b>（环境差时胜率仅微降，规则不再一刀切禁止）</div>` : ''}
+  </div>`;
+
+  /* 直答卡 */
+  const liveCard = `
+  <div class="card">
+    <div class="sec-h"><span class="ico" style="background:var(--primary-soft);color:var(--primary);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
+      盘中直答 · 现在能不能买</div>
+    <div class="live-box" id="liveBox"><span class="da-wait">交易时段打开本页 · 每30秒自动判定</span></div>
+  </div>`;
+
+  /* 四步执行计划 */
+  const steps = skip ? [
+    { t: '本标的已被淘汰', when: '规则', d: `${sel.drop || ''}。今晚不挂隔夜单，明天盘中也不追 — 错过不可惜，规则外的钱不赚。` },
+    { t: '替代方案', when: '今晚', d: '回到看板看其他梯队标的（S级 4板+ / A级 2进3 / B级 3进4），按各梯队仓位规则执行。' },
+  ] : [
+    { t: '今晚挂隔夜单', when: '20:00后', d: `挂<b>涨停价 ${fp(A.buy_price != null ? A.buy_price : c.next_zt)}</b> 限价单（部分券商 20:00 后可挂夜单）。${sel.tier === 'S' ? 'S级高度即资格，分数不淘汰' : sel.tier === 'A' ? 'A级基准池，确定性≥65分' : 'B级仅轻仓参与'} · 仓位 <b>${sel.pos}</b>${sel.downgrade ? '（相位降级后）' : ''}。` },
+    { t: '明早竞价确认', when: '9:15-9:20', d: '盯集合竞价：<b>高开 &gt;2% → 撤单</b>（9:20 后无法撤单）；高开&gt;5% 两年均值 -2.4%，撤了也不追。低开/平开是正期望区，让单子成交。' },
+    { t: '盘中执行', when: '9:30-15:00', d: `隔夜单成交后拿住；未成交看「盘中直答」：已封板→可排队打板（挂 ${fp(c.next_zt)}）· 高开&gt;5%→禁止追 · 其余→半路不追，<b>等回封再排</b>。` },
+    { t: '买入后离场 · R3规则', when: '持有期每日', d: '<b>封板续持 · 断板就走</b>：收盘封板 → 继续持有；未封板日：开盘高开≥3% → 开盘卖 / 盘中冲高 +3% → 即刻卖 / 全天没到 → 收盘卖。不要被动拿到第二个开盘。' },
+  ];
+  const planCard = `
+  <div class="card">
+    <div class="sec-h"><span class="ico" style="background:var(--green-soft);color:var(--green);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+      四步执行计划</div>
+    ${steps.map((s, i) => `
+    <div class="step">
+      <div class="s-l"><div class="s-dot">${i+1}</div><div class="s-line"></div></div>
+      <div class="s-b"><div class="s-t">${s.t}<span class="when">${s.when}</span></div><div class="s-d">${s.d}</div></div>
+    </div>`).join('')}
+  </div>`;
+
+  /* 因子明细 */
+  const factors = [
+    { l:'换手率', v: fNA ? '—' : (c.turn ?? 0).toFixed(2) + '%', s: fNA ? '' : (SP.turn ?? 0).toFixed(1) + '/20', good: !fNA && c.turn < 10, bad: !fNA && c.turn >= 20 },
+    { l:'封单', v: fNA ? '—' : (c.seal ?? 0).toFixed(2) + '亿', s: fNA ? '' : (SP.seal ?? 0).toFixed(1) + '/15', good: !fNA && c.seal >= 1.5, bad: !fNA && c.seal < 0.4 },
+    { l:'首封时间', v: c.first || '—', s: fNA ? '' : (SP.first ?? 0).toFixed(1) + '/15', good: !fNA && c.first <= '10:30', bad: !fNA && c.first >= '13:30' },
+    { l:'炸板次数', v: fNA ? '—' : c.zbc + '次', s: fNA ? '' : (SP.zbc ?? 0).toFixed(1) + '/10', good: !fNA && c.zbc === 0, bad: !fNA && c.zbc >= 2 },
+    { l:'板级契合', v: fNA ? '高度即资格' : (SP.lb ?? 0).toFixed(1) + '/5', s: fNA ? 'S级豁免分数' : '档位契合加成' },
+    { l:'流通市值', v: (c.mv ?? 0).toFixed(2) + '亿', s: (c.mv ?? 0) >= 100 ? '大票' : '' },
+  ];
+  const factorCard = `
+  <div class="card">
+    <div class="sec-h"><span class="ico" style="background:var(--orange-soft);color:var(--orange);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+      因子明细 · 分数只排雷</div>
+    <div class="fg">${factors.map(f => `
+      <div class="f-cell"><div class="fv ${f.good?'good':''} ${f.bad?'bad':''}">${f.v}</div>
+      <div class="fl">${f.l}</div>${f.s ? `<div class="fs">${f.s}</div>` : ''}</div>`).join('')}
+    </div>
+    <p class="bt-note">${sel.tier === 'S'
+      ? 'S级豁免分数：4板+低分组收益反而比高分组高 — 高度即资格，分数不再排序。'
+      : '确定性评分与胜率不挂钩（≥75分70.0% vs &lt;75分68.8%），分数仅作&lt;65分排雷线。'} 淘汰线：尾盘板(首封≥13:00) / 炸板≥3次${sel.tier === 'S' ? '' : ' / 确定性&lt;65分'}。</p>
+  </div>`;
+
+  /* 回测证据 */
+  const matKey = (c.lb || 0) >= 4 ? 4 : (c.lb || 1);
+  const matRow = OVN_MAT[matKey];
+  const btCard = `
+  <div class="card">
+    <div class="sec-h"><span class="ico" style="background:var(--red-soft);color:var(--red);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span>
+      回测证据 · ${sel.label || ''}</div>
+    <div class="kv" style="grid-template-columns:repeat(3,1fr);">
+      <div class="k"><b style="color:${color};">${sel.win || '—'}</b><span>两年胜率(R3口径)</span></div>
+      <div class="k"><b>${sel.avg || '—'}</b><span>单笔均值</span></div>
+      <div class="k"><b style="font-size:12.5px;">${sel.recent || '—'}</b><span>近期表现</span></div>
+    </div>
+    <div class="mx-wrap">
+    <table class="mx">
+      <tr><th>连板\\次日竞价</th>${OVN_COLS.map(x => `<th>${x}</th>`).join('')}</tr>
+      ${Object.values(OVN_MAT).map(r => `
+        <tr class="${r === matRow ? 'hl' : ''}">
+          <td>${r.row}${r === matRow ? ' ◀' : ''}</td>
+          ${r.v.map(v => `<td class="${v > 0 ? 'pos' : (v < -2 ? 'dead' : 'neg')}">${v > 0 ? '+' : ''}${v.toFixed(2)}</td>`).join('')}
+        </tr>`).join('')}
+    </table>
+    </div>
+    <p class="bt-note">上表 = 入口裸期望（T+1收盘卖，单位%），两年4995股 · 24万可成交样本 · 含0.15%双边成本。红=正期望可持有，绿=负期望应离场。同口径下拿到 T+2 开盘再卖全线为负 — <b>隔夜单买入后不要被动拿到第二个开盘</b>。</p>
+  </div>`;
+
+  /* 按钮区 */
+  const btnCard = `
+  <div class="card">
+    <div class="btns" id="btnRow"></div>
+    <p class="bt-note" style="text-align:center;">登记后主站「我的打板仓」每天盘中自动提示 持有 / 止盈 / 离场</p>
+  </div>`;
+
+  $('app').innerHTML = headCard + liveCard + planCard + factorCard + btCard + btnCard;
+  renderBtns();
+  daTick();
+}
+render();
+</script>
+</body>
+</html>
