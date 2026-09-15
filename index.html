@@ -452,6 +452,10 @@ section { scroll-margin-top: 88px; }
   background:var(--primary-soft); border-radius:9px; padding:7px 14px; min-height:34px; transition:transform .15s, opacity .15s; }
 .da-btn:active { transform:scale(.95); }
 .da-btn.del { color:var(--red); background:var(--red-soft); padding:4px 11px; min-height:28px; }
+/* [v1.16.2] 公告红旗行(只标不拦): 红=核查/立案/处罚/新减持 · 橙=减持进行 · 灰=常规披露 */
+.da-tag.flag-red { background:var(--red-soft); color:var(--red); }
+.da-tag.flag-orange { background:var(--orange-soft); color:var(--orange); }
+.da-tag.flag-gray { background:rgba(120,120,128,.12); color:var(--secondary); }
 /* 直答指引条(候选区顶部) */
 .da-guide { margin-top:14px; border-radius:14px; background:rgba(255,255,255,.32); padding:14px 18px;
   box-shadow:inset 0 0 0 .5px var(--hairline-soft), inset 0 1px 0 var(--specular-top); }
