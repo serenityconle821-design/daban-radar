@@ -2180,6 +2180,7 @@ function daPanel(c){
       <span class="da-tag" style="background:var(--primary-soft);color:var(--primary);">盘中直答</span>
       <span class="da-body da-live" data-code="${c.code}"><span class="da-wait">交易时段打开本页 · 自动判定现在能不能买</span></span>
     </div>
+    <div class="flag-live" data-code="${c.code}">${flagRowHTML(c.code)}</div>
     <div class="da-row">
       <span class="da-tag" style="background:var(--sep);color:var(--secondary);">买入后</span>
       <span class="da-body">${holdBody}</span>
@@ -2326,10 +2327,59 @@ async function daTick(){
     el.innerHTML = `<div class="mv-txt" style="color:${v.c};">${v.t}</div><div class="mv-sub">${v.s}</div>`;
   });
 }
+/* ── [v1.16.2] 公告红旗: 东财公告接口实时拉取 · 只标不拦 ──
+   分级: 硬红旗=停牌核查/立案/处罚/问询 · 减持=连板期间新减持计划(真实卖压) · 常规=异动公告(连板必发·零增量)
+   设计: 不改变任何交易判定; 接口失败静默降级; 盘后也拉(公告多发于晚间, 异动公告通常20:00-22:00披露) */
+const FLAG_Q = {};
+const FLAG_RE_HARD = /(停牌核查|严重异常|立案|行政处罚|警示函|监管函|问询函|终止上市)/;
+const FLAG_RE_CUT  = /(减持计划|拟减持|权益变动触及)/;
+const FLAG_RE_ROUT = /(异常波动|风险提示)/;
+function flagRowHTML(code){
+  const f = FLAG_Q[code];
+  const row = (cls, lab, body) => `<div class="da-row"><span class="da-tag flag-${cls}">${lab}</span><span class="da-body">${body}</span></div>`;
+  if (!f) return row('gray', '🚩 公告', '<span class="da-wait">公告核查中…</span>');
+  if (f.fail) return row('gray', '🚩 公告', '<span class="da-wait">公告接口暂不可用 · 不影响判定</span>');
+  if (!f.items.length) return row('gray', '🚩 公告', '<span class="da-wait">近7日无红旗公告</span>');
+  const lv = f.items.some(x => x.cls === 'red') ? 'red' : (f.items.some(x => x.cls === 'orange') ? 'orange' : 'gray');
+  const lab = { red: '🚨 硬红旗', orange: '⚠️ 减持', gray: '📋 常规披露' }[lv];
+  const sub = { red: '核查/立案/处罚/新减持类 · 下单前点「详细策略」看公告原文',
+                orange: '连板期间减持披露 = 真实卖压 · 注意次日竞价承接',
+                gray: '连板必发的合规披露 · 非增量利空 · 不影响执行' }[lv];
+  return row(lv, lab, f.items.slice(0, 2).map(x => `<b>${x.t}</b>（${x.time}）`).join('<br>') + `<span class="da-sub">${sub}</span>`);
+}
+async function flagFetchOne(code){
+  const r = await fetch('https://np-anotice-stock.eastmoney.com/api/security/ann?sr=-1&page_size=50&page_index=1&ann_type=A&client_source=web&stock_list=' + code, { cache: 'no-store' });
+  const j = await r.json();
+  return (j && j.data && j.data.list) || [];
+}
+function flagClassify(list){
+  const cut = Date.now() - 7 * 864e5, out = [];
+  (list || []).forEach(x => {
+    const t = x.title || '', time = (x.display_time || '').slice(0, 10);
+    const ts = new Date(time.replace(/-/g, '/')).getTime();
+    if (!t || !time || isNaN(ts) || ts < cut) return;
+    let cls = null;
+    if (FLAG_RE_HARD.test(t)) cls = 'red';
+    else if (FLAG_RE_CUT.test(t)) cls = 'orange';
+    else if (FLAG_RE_ROUT.test(t)) cls = 'gray';
+    if (cls) out.push({ t, time, cls });
+  });
+  return out;
+}
+async function flagTick(){
+  const cands = [...(D.candidates_4plus||[]), ...(D.candidates_2to3||[]), ...(D.candidates_3to4||[])];
+  for (const code of [...new Set(cands.map(c => c.code))]){
+    try { FLAG_Q[code] = { items: flagClassify(await flagFetchOne(code)) }; }
+    catch(e){ if (!FLAG_Q[code]) FLAG_Q[code] = { items: [], fail: true }; }
+    document.querySelectorAll('.flag-live[data-code="' + code + '"]').forEach(el => { el.innerHTML = flagRowHTML(code); });
+  }
+}
 function initDaLive(){
   renderMine();
   daTick();
   setInterval(daTick, 30000);
+  flagTick();                          /* [v1.16.2] 公告红旗: 盘后也拉(晚间披露), 10分钟一轮 */
+  setInterval(flagTick, 600000);
 }
 /* [v1.16.1] 概览·节奏面板: 独立函数供30s定时器复用(阶段标签/时间线随本地时钟推进) */
 function renderRhythmPanel(){

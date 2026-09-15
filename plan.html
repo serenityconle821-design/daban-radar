@@ -124,6 +124,17 @@ body::before {
 .mx tr.hl td { background:var(--primary-soft); font-weight:800; }
 .mx .pos { color:var(--red); } .mx .neg { color:var(--green); } .mx .dead { color:var(--green); font-weight:800; }
 .bt-note { font-size:11.5px; color:var(--tertiary); margin-top:8px; line-height:1.65; }
+/* [v1.16.2] 公告红旗列表(只标不拦) */
+.f-row { display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid var(--sep); }
+.f-row:last-child { border-bottom:none; }
+.f-tag { flex:none; font-size:11px; font-weight:800; padding:3px 9px; border-radius:7px; white-space:nowrap; }
+.f-tag.fr { background:var(--red-soft); color:var(--red); }
+.f-tag.fo { background:var(--orange-soft); color:var(--orange); }
+.f-tag.fg { background:rgba(120,120,128,.12); color:var(--secondary); }
+.f-t { flex:1; min-width:0; font-size:13.5px; font-weight:600; line-height:1.5; }
+.f-d { flex:none; font-size:11.5px; color:var(--tertiary); font-variant-numeric:tabular-nums; }
+.f-link { flex:none; font-size:12px; font-weight:700; color:var(--primary); text-decoration:none; }
+.f-ok { padding:14px 0; font-size:14px; color:var(--green); font-weight:700; }
 /* 操作按钮 */
 .btns { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:4px; }
 .da-btn { border:none; cursor:pointer; font:700 13px -apple-system,"PingFang SC",sans-serif; color:var(--primary);
@@ -274,6 +285,40 @@ function findCand(code){
   return [...(D.candidates_4plus||[]), ...(D.candidates_2to3||[]), ...(D.candidates_3to4||[])]
     .find(x => x.code === code);
 }
+/* ── [v1.16.2] 公告红旗核查: 东财公告接口 · 近7日分级列表 · 只标不拦 ── */
+const FLAG_RE_HARD = /(停牌核查|严重异常|立案|行政处罚|警示函|监管函|问询函|终止上市)/;
+const FLAG_RE_CUT  = /(减持计划|拟减持|权益变动触及)/;
+const FLAG_RE_ROUT = /(异常波动|风险提示)/;
+async function flagLoad(code){
+  const box = $('flagBox');
+  if (!box) return;
+  try {
+    const r = await fetch('https://np-anotice-stock.eastmoney.com/api/security/ann?sr=-1&page_size=50&page_index=1&ann_type=A&client_source=web&stock_list=' + code, { cache: 'no-store' });
+    const j = await r.json();
+    const list = (j && j.data && j.data.list) || [];
+    const cut = Date.now() - 7 * 864e5, rows = [];
+    list.forEach(x => {
+      const t = x.title || '', time = (x.display_time || '').slice(0, 10);
+      const ts = new Date(time.replace(/-/g, '/')).getTime();
+      if (!t || !time || isNaN(ts) || ts < cut) return;
+      let cls = null, lab = '';
+      if (FLAG_RE_HARD.test(t)) { cls = 'fr'; lab = '🚨 硬红旗'; }
+      else if (FLAG_RE_CUT.test(t)) { cls = 'fo'; lab = '⚠️ 减持'; }
+      else if (FLAG_RE_ROUT.test(t)) { cls = 'fg'; lab = '📋 常规'; }
+      if (cls) rows.push({ t, time, cls, lab, art: x.art_code || '' });
+    });
+    if (!rows.length){ box.innerHTML = '<div class="f-ok">✅ 近7日无红旗公告</div>'; return; }
+    box.innerHTML = rows.map(x => `
+      <div class="f-row">
+        <span class="f-tag ${x.cls}">${x.lab}</span>
+        <span class="f-t">${x.t}</span>
+        <span class="f-d">${x.time}</span>
+        ${x.art ? `<a class="f-link" href="https://data.eastmoney.com/notices/detail/${code}/${x.art}.html" target="_blank" rel="noopener">原文 →</a>` : ''}
+      </div>`).join('');
+  } catch(e){
+    box.innerHTML = '<div style="padding:12px 0;" class="da-wait">公告接口暂不可用（只标不拦，不影响判定）</div>';
+  }
+}
 function render(){
   const code = new URLSearchParams(location.search).get('code');
   if (!D){ $('app').innerHTML = '<div class="empty">数据未加载(data.js 缺失)</div>'; return; }
@@ -323,6 +368,16 @@ function render(){
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
       盘中直答 · 现在能不能买</div>
     <div class="live-box" id="liveBox"><span class="da-wait">交易时段打开本页 · 每30秒自动判定</span></div>
+  </div>`;
+
+  /* [v1.16.2] 公告红旗核查卡(只标不拦) */
+  const flagCard = `
+  <div class="card">
+    <div class="sec-h"><span class="ico" style="background:var(--red-soft);color:var(--red);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg></span>
+      公告红旗核查 · 近7日</div>
+    <div id="flagBox"><span class="da-wait">公告核查中…</span></div>
+    <p class="bt-note">数据源: 东方财富公告接口(页面打开时实时拉取, 晚间新披露也会显示)。分级: 🚨 硬红旗(停牌核查/立案/处罚/问询 — 下单前务必读原文) · ⚠️ 减持(连板期间新减持计划 = 真实卖压) · 📋 常规披露(异动公告 = 连板必发的合规自查, 非增量利空)。<b>只标不拦</b> — 公告不改变任何交易判定, 与「高度定梯队+分数排雷」的回测口径保持一致。</p>
   </div>`;
 
   /* 四步执行计划 */
@@ -403,9 +458,10 @@ function render(){
     <p class="bt-note" style="text-align:center;">登记后主站「我的打板仓」每天盘中自动提示 持有 / 止盈 / 离场</p>
   </div>`;
 
-  $('app').innerHTML = headCard + liveCard + planCard + factorCard + btCard + btnCard;
+  $('app').innerHTML = headCard + liveCard + flagCard + planCard + factorCard + btCard + btnCard;
   renderBtns();
   daTick();
+  flagLoad(code);                       /* [v1.16.2] 公告红旗核查 */
 }
 render();
 </script>
