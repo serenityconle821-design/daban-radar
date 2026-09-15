@@ -216,14 +216,16 @@ function daLiveCell(code, q){
   const openRef = q.po > 0 ? q.po : q.px;
   const sealed = q.px >= q.ztp - 0.001;
   const nowGap = q.px / q.pc - 1;
+  const lx = p => (q.pc * (1 + p)).toFixed(2);          /* [v1.16.4] 线位价 = 昨收×(1+pct) */
+  const oTxt = q.po > 0 ? `开盘 ${q.po.toFixed(2)} · ` : '';
   if (sealed) return `<b style="color:var(--green);">✅ 已封板 ${q.px.toFixed(2)} · 可排队打板</b>
     <span class="live-sub">排单挂 ${q.ztp.toFixed(2)}，成交后按「封板续持 · 断板就走」执行</span>`;
   const gap = openRef / q.pc - 1;
-  if (gap > 0.05) return `<b style="color:var(--red);">❌ 高开 ${(gap*100).toFixed(1)}% · 禁止追买</b>
+  if (gap > 0.05) return `<b style="color:var(--red);">❌ 高开 ${(gap*100).toFixed(1)}%（${oTxt}≥ 禁追线 ${lx(0.05)}）· 禁止追买</b>
     <span class="live-sub">高开&gt;5% 两年均值 -2.4%，排板/半路都不做</span>`;
-  if (gap > 0.02) return `<b style="color:var(--orange);">⚠️ 高开 ${(gap*100).toFixed(1)}% · 隔夜单应已撤</b>
+  if (gap > 0.02) return `<b style="color:var(--orange);">⚠️ 高开 ${(gap*100).toFixed(1)}%（${oTxt}≥ 撤单线 ${lx(0.02)}）· 隔夜单应已撤</b>
     <span class="live-sub">高开2-5%：不追，等回封（触 ${q.ztp.toFixed(2)}）再排</span>`;
-  return `<b style="color:var(--primary);">⏸ 现价 ${q.px.toFixed(2)}（${nowGap>=0?'+':''}${(nowGap*100).toFixed(1)}%）· 半路不追</b>
+  return `<b style="color:var(--primary);">⏸ 现价 ${q.px.toFixed(2)}（${nowGap>=0?'+':''}${(nowGap*100).toFixed(1)}%${q.po > 0 ? ` · 开盘 ${q.po.toFixed(2)}` : ''}）· 半路不追</b>
     <span class="live-sub">等回封（触 ${q.ztp.toFixed(2)}）再排队打板；低开/平开回封是正期望区</span>`;
 }
 async function daTick(){
@@ -361,13 +363,20 @@ function render(){
     ${(!skip && sel.downgrade) ? `<div class="down-bar">⚠️ ${sel.why || '情绪退潮/冰点'} → 仓位降为 <b>1% 轻仓或放弃</b>（环境差时胜率仅微降，规则不再一刀切禁止）</div>` : ''}
   </div>`;
 
-  /* 直答卡 */
+  /* 直答卡 + [v1.16.4] 明日竞价价位尺(百分比直接换算价格) */
+  const pBase = c.price > 0 ? c.price : (c.next_zt > 0 ? c.next_zt / 1.1 : 0);
+  const pPct = p => pBase > 0 ? (pBase * (1 + p)).toFixed(2) : '—';
   const liveCard = `
   <div class="card">
     <div class="sec-h"><span class="ico" style="background:var(--primary-soft);color:var(--primary);">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
       盘中直答 · 现在能不能买</div>
     <div class="live-box" id="liveBox"><span class="da-wait">交易时段打开本页 · 每30秒自动判定</span></div>
+    ${skip ? '' : `
+    <div style="margin-top:12px;background:var(--bg);border-radius:12px;padding:11px 14px;font-size:13px;line-height:1.8;">
+      <b>明日价位尺</b>（基准 = 今收 ${fp(pBase)}，即明日昨收）：<b>+2% 撤单线 ${pPct(0.02)}</b> · <b>+3% 开盘卖线 ${pPct(0.03)}</b> · <b>+5% 禁追线 ${pPct(0.05)}</b> · 挂单价(明日涨停) <b>${fp(c.next_zt)}</b>
+      <div style="font-size:11.5px;color:var(--secondary);margin-top:5px;">竞价 9:15-9:20 盯撮合价：&lt; ${pPct(0.02)} → 让隔夜单成交 · ≥ ${pPct(0.02)} → 9:20 前撤单 · ≥ ${pPct(0.05)} → 撤了也不追 · 9:25 撮合定格即开盘价</div>
+    </div>`}
   </div>`;
 
   /* [v1.16.2] 公告红旗核查卡(只标不拦) */
@@ -386,9 +395,9 @@ function render(){
     { t: '替代方案', when: '今晚', d: '回到看板看其他梯队标的（S级 4板+ / A级 2进3 / B级 3进4），按各梯队仓位规则执行。' },
   ] : [
     { t: '今晚挂隔夜单', when: '20:00后', d: `挂<b>涨停价 ${fp(A.buy_price != null ? A.buy_price : c.next_zt)}</b> 限价单（部分券商 20:00 后可挂夜单）。${sel.tier === 'S' ? 'S级高度即资格，分数不淘汰' : sel.tier === 'A' ? 'A级基准池，确定性≥65分' : 'B级仅轻仓参与'} · 仓位 <b>${sel.pos}</b>${sel.downgrade ? '（相位降级后）' : ''}。` },
-    { t: '明早竞价确认', when: '9:15-9:20', d: '盯集合竞价：<b>高开 &gt;2% → 撤单</b>（9:20 后无法撤单）；高开&gt;5% 两年均值 -2.4%，撤了也不追。低开/平开是正期望区，让单子成交。' },
-    { t: '盘中执行', when: '9:30-15:00', d: `隔夜单成交后拿住；未成交看「盘中直答」：已封板→可排队打板（挂 ${fp(c.next_zt)}）· 高开&gt;5%→禁止追 · 其余→半路不追，<b>等回封再排</b>。` },
-    { t: '买入后离场 · R3规则', when: '持有期每日', d: '<b>封板续持 · 断板就走</b>：收盘封板 → 继续持有；未封板日：开盘高开≥3% → 开盘卖 / 盘中冲高 +3% → 即刻卖 / 全天没到 → 收盘卖。不要被动拿到第二个开盘。' },
+    { t: '明早竞价确认', when: '9:15-9:20', d: `盯集合竞价撮合价（基准 = 今收 <b>${fp(pBase)}</b>，即明日昨收）：<b>高开 &gt;2%（撮合价 ≥ ${fp(pPct(0.02))}）→ 撤单</b>（9:20 后无法撤）；高开&gt;5%（≥ ${fp(pPct(0.05))}）两年均值 -2.4%，撤了也不追。低开/平开是正期望区，让单子成交；9:25 撮合定格即开盘价。` },
+    { t: '盘中执行', when: '9:30-15:00', d: `隔夜单成交后拿住；未成交看「盘中直答」：已封板→可排队打板（挂 ${fp(c.next_zt)}）· 高开&gt;5%（开盘 ≥ ${fp(pPct(0.05))}）→禁止追 · 其余→半路不追，<b>等回封再排</b>。` },
+    { t: '买入后离场 · R3规则', when: '持有期每日', d: `<b>封板续持 · 断板就走</b>：收盘封板 → 继续持有；未封板日：开盘高开≥3%（首日离场线 ${fp(pPct(0.03))} = 今收×1.03，此后按各日昨收×1.03）→ 开盘卖 / 盘中冲高 +3%（止盈线 = 开盘成交价×1.03，平开约 ${fp(pPct(0.03))}）→ 即刻卖 / 全天没到 → 收盘卖。不要被动拿到第二个开盘。` },
   ];
   const planCard = `
   <div class="card">

@@ -1599,7 +1599,7 @@ tr.pt-excluded-row td { opacity:.52; }
         选股三步直答 — 高度定梯队 · 分数只排雷
       </div>
       <div class="dg-steps">
-        <b>① 今晚买谁？挂几只？</b> 看梯队：<b>S级（4板+）优先挂隔夜单</b>（两年胜率84.0%/+6.06 · 近3月7笔全胜）· A级（2进3）正常挂（74.3%/+2.93）· B级（3进4）轻仓1-2%或放弃（近3月42.9%）。挂涨停价限价单，次日按开盘价成交；明早 9:15-9:20 盯竞价，<b>高开&gt;2% 撤单</b>（9:20 后无法撤单）。<br>
+        <b>① 今晚买谁？挂几只？</b> 看梯队：<b>S级（4板+）优先挂隔夜单</b>（两年胜率84.0%/+6.06 · 近3月7笔全胜）· A级（2进3）正常挂（74.3%/+2.93）· B级（3进4）轻仓1-2%或放弃（近3月42.9%）。挂涨停价限价单，次日按开盘价成交；明早 9:15-9:20 盯竞价撮合价，<b>高开&gt;2% 撤单</b>（9:20 后无法撤单 · 9:25 撮合定格即开盘价）。<b>百分比已换算成价格</b>：各候选卡「明日价位尺」按今收直接标出 +2%撤单线 / +3%开盘卖线 / +5%禁追线 / 挂单价。<br>
         <b>② 带淘汰标记的能不能买？</b> ❌ 淘汰 · 不买：尾盘板（首封≥13:00）/ 炸板≥3次 / A·B级确定性&lt;65分（负期望区）。S级不看分数 — 回测4板+低分组收益反而更高，高度即资格。<br>
         <b>③ 买入后第二天怎么办？</b> 统一规则「<b>封板续持 · 断板就走</b>」：收盘封板→继续持有；未封板日 开盘≥+3%→开盘卖 / 盘中冲高+3%→即刻卖 / 全天没到→收盘卖。买入后点卡上「已买入·登记」，「我的打板仓」每天盘中直接给 持有/止盈/离场 提示。
       </div>
@@ -1615,7 +1615,7 @@ tr.pt-excluded-row td { opacity:.52; }
         </table>
         </div>
         <p style="font-size:11.5px;color:var(--secondary);margin-top:6px;line-height:1.65;">
-          上表=入口裸期望（T+1收盘卖，单位%）。同口径下买入后拿到 T+2 开盘再卖全线为负（-0.5%~-1.9%）——<b>隔夜单买入后不要被动拿到第二天开盘</b>。
+          上表=入口裸期望（T+1收盘卖，单位%）。表中高开/低开百分比均以「买入日收盘价（涨停价）」为基准换算，具体到个股的价格见各候选卡「明日价位尺」。同口径下买入后拿到 T+2 开盘再卖全线为负（-0.5%~-1.9%）——<b>隔夜单买入后不要被动拿到第二天开盘</b>。
           按「封板续持·断板就走」规则执行后的分年度结果（胜率/单笔均值）：3板+·平开±2% → 2024年 72.1%/+3.84 · 2025年 72.5%/+2.28 · 2026年 72.3%/+3.22；4板+·平开 → 92.2%/+10.63 · 80.2%/+4.28 · 82.4%/+4.22；2板·平开 → 77.4%/+3.04 · 71.9%/+2.91 · 74.7%/+2.85。三年全正、无单一年份驱动。
           最差一成交易约 -9%（P10），故单票仓位 2-3% 是真正的风控；盘中加止损线反而把期望打坏（-5%止损版本均值 -1.4%）。
         </p>
@@ -2163,11 +2163,14 @@ function daPanel(c){
     </div>`;
   }
   const ov = daOvernight(c);
+  /* [v1.16.4] 明日竞价价位尺: 基准=今收(=明日昨收), 高开百分比直接换算成价格 */
+  const pBase = c.price > 0 ? c.price : (c.next_zt > 0 ? c.next_zt / 1.1 : 0);
+  const pPct = p => pBase > 0 ? (pBase * (1 + p)).toFixed(2) : '—';
   const ovBody = ov.w
     ? `${sel.label}（${sel.full}）· 今晚挂隔夜单（挂涨停价 <b>${c.next_zt}</b> 限价单，次日按开盘价成交）· 仓位 <b>${sel.pos}</b>。
-       <span class="da-sub">前提：明早 9:15-9:20 盯竞价，<b>高开&gt;2% 撤单</b>（9:20 后不可撤）；成交后按下方规则执行 → 两年回测胜率 <b>${ov.w.w}%</b> · 单笔均值 <b>+${ov.w.r}%</b> · ${sel.recent}</span>`
+       <span class="da-sub">前提：明早 9:15-9:20 盯竞价撮合价，<b>高开&gt;2%（撮合价 ≥ ${pPct(0.02)}）撤单</b>（9:20 后不可撤）；成交后按下方规则执行 → 两年回测胜率 <b>${ov.w.w}%</b> · 单笔均值 <b>+${ov.w.r}%</b> · ${sel.recent}</span>`
     : `1板次日买入为负期望（两年回测均值 -0.3%），不挂隔夜单、盘中也不追。`;
-  const holdBody = `统一规则「<b>封板续持 · 断板就走</b>」：任意持有日收盘封板 → 继续持有；未封板日：开盘高开≥3% → 开盘卖 / 盘中冲高 +3% → 即刻卖 / 全天没到 → 收盘卖。
+  const holdBody = `统一规则「<b>封板续持 · 断板就走</b>」：任意持有日收盘封板 → 继续持有；未封板日：开盘高开≥3%（首日线 ${pPct(0.03)}）→ 开盘卖 / 盘中冲高 +3%（止盈线 = 开盘成交价×1.03）→ 即刻卖 / 全天没到 → 收盘卖。
     <span class="da-sub">2024/2025/2026 分年度全正期望；最差一成交易约 -9%，单票仓位 2-3% 才是真正的风控</span>`;
   return `
   <div class="da">
@@ -2175,6 +2178,12 @@ function daPanel(c){
       <span class="da-tag ${ov.cls}">${ov.txt}</span>
       <span class="da-body">${ovBody}</span>
     </div>
+    ${pBase > 0 ? `
+    <div class="da-row">
+      <span class="da-tag" style="background:var(--green-soft);color:var(--green);">明日价位尺</span>
+      <span class="da-body">基准=今收 <b>${pBase.toFixed(2)}</b>（明日昨收）：<b>+2% 撤单线 ${pPct(0.02)}</b> · <b>+3% 开盘卖线 ${pPct(0.03)}</b> · <b>+5% 禁追线 ${pPct(0.05)}</b> · 挂单价(明日涨停) <b>${c.next_zt}</b>
+        <span class="da-sub">竞价 9:15-9:20 盯撮合价：&lt; ${pPct(0.02)} → 让隔夜单成交 · ≥ ${pPct(0.02)} → 9:20 前撤单 · ≥ ${pPct(0.05)} → 撤了也不追 · 9:25 撮合定格即开盘价</span></span>
+    </div>` : ''}
     ${sel.downgrade ? `
     <div class="da-row">
       <span class="da-tag" style="background:var(--orange-soft);color:var(--orange);">相位降级</span>
@@ -2227,15 +2236,18 @@ function daVerdict(x, q){
   const gapOpen = openRef / q.pc - 1;
   const up3Hit = q.ph >= x.buy * 1.03;
   const gapNow = q.px / x.buy - 1;
+  const tp3 = (x.buy * 1.03).toFixed(2);                /* [v1.16.4] 止盈线 = 买入价×1.03 */
+  const exit3 = (q.pc * 1.03).toFixed(2);               /* [v1.16.4] 高开离场线 = 昨收×1.03 */
+  const oTxt = q.po > 0 ? `开盘 ${q.po.toFixed(2)} · ` : '';
   if (sealed) return { t:'🟢 封板续持', c:'var(--green)',
-    s:`已封板（${q.px.toFixed(2)}）· 继续持有，明天重复本规则` };
+    s:`已封板（${q.px.toFixed(2)} ≥ ${q.ztp.toFixed(2)}）· 继续持有，明天重复本规则` };
   if (gapOpen >= 0.03) return { t:'🔴 高开≥3% · 开盘离场', c:'var(--red)',
-    s:`今日开盘 +${(gapOpen*100).toFixed(1)}% · 断板规则要求开盘卖出；若尚未卖出，逢反弹离场` };
+    s:`今日开盘 +${(gapOpen*100).toFixed(1)}%（${oTxt}离场线 ${exit3} = 昨收×1.03）· 断板规则要求开盘卖出；若尚未卖出，逢反弹离场` };
   if (up3Hit) return { t:'🟠 冲高+3% · 即刻止盈', c:'var(--orange)',
-    s:`今日最高 ${q.ph.toFixed(2)} 已触及买入价×1.03 · 卖出` };
+    s:`今日最高 ${q.ph.toFixed(2)} 已触及止盈线 ${tp3}（买入价×1.03）· 卖出` };
   const toGo = (x.buy * 1.03 / q.px - 1) * 100;
   return { t:'⚪ 未触发 · 尾盘卖', c:'var(--secondary)',
-    s:`现价 ${q.px.toFixed(2)}（浮盈 ${(gapNow*100).toFixed(1)}%）· 距+3%止盈还差 ${toGo.toFixed(1)}% · 14:50 未触发则收盘卖` };
+    s:`现价 ${q.px.toFixed(2)}（浮盈 ${(gapNow*100).toFixed(1)}%）· 距止盈线 ${tp3} 还差 ${toGo.toFixed(1)}% · 14:50 未触发则收盘卖` };
 }
 /* ── 候选卡盘中直答: 现在能不能买 ── */
 function daLiveCell(code, q){
@@ -2243,14 +2255,16 @@ function daLiveCell(code, q){
   const openRef = q.po > 0 ? q.po : q.px;
   const sealed = q.px >= q.ztp - 0.001;
   const nowGap = q.px / q.pc - 1;
+  const lx = p => (q.pc * (1 + p)).toFixed(2);          /* [v1.16.4] 线位价 = 昨收×(1+pct) */
+  const oTxt = q.po > 0 ? `开盘 ${q.po.toFixed(2)} · ` : '';
   if (sealed) return `<b style="color:var(--green);">✅ 已封板 ${q.px.toFixed(2)} · 可排队打板</b>
     <span class="da-sub">排单挂 ${q.ztp.toFixed(2)}，成交后按「封板续持 · 断板就走」执行</span>`;
   const gap = openRef / q.pc - 1;
-  if (gap > 0.05) return `<b style="color:var(--red);">❌ 高开 ${(gap*100).toFixed(1)}% · 禁止追买</b>
+  if (gap > 0.05) return `<b style="color:var(--red);">❌ 高开 ${(gap*100).toFixed(1)}%（${oTxt}≥ 禁追线 ${lx(0.05)}）· 禁止追买</b>
     <span class="da-sub">高开&gt;5% 两年均值 -2.4%，排板/半路都不做</span>`;
-  if (gap > 0.02) return `<b style="color:var(--orange);">⚠️ 高开 ${(gap*100).toFixed(1)}% · 隔夜单应已撤</b>
+  if (gap > 0.02) return `<b style="color:var(--orange);">⚠️ 高开 ${(gap*100).toFixed(1)}%（${oTxt}≥ 撤单线 ${lx(0.02)}）· 隔夜单应已撤</b>
     <span class="da-sub">高开2-5%：不追，等回封（触 ${q.ztp.toFixed(2)}）再排</span>`;
-  return `<b style="color:var(--primary);">⏸ 现价 ${q.px.toFixed(2)}（${nowGap>=0?'+':''}${(nowGap*100).toFixed(1)}%）· 半路不追</b>
+  return `<b style="color:var(--primary);">⏸ 现价 ${q.px.toFixed(2)}（${nowGap>=0?'+':''}${(nowGap*100).toFixed(1)}%${q.po > 0 ? ` · 开盘 ${q.po.toFixed(2)}` : ''}）· 半路不追</b>
     <span class="da-sub">等回封（触 ${q.ztp.toFixed(2)}）再排队打板；低开/平开回封是正期望区</span>`;
 }
 /* ── 腾讯批量行情 (script注入, GBK, 无跨域问题) ── */
