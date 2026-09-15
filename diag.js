@@ -1,4 +1,7 @@
-/* diag.js v1.4.1 — 诊断中心逻辑 (v1.4.0 P2: 野人哥卡片决策映射·操作建议可直接执行)
+/* diag.js v1.4.2 — 诊断中心逻辑 (v1.4.0 P2: 野人哥卡片决策映射·操作建议可直接执行)
+   v1.4.2 (站点v1.16.3): calcAdvice五档plan全面指令化 — 消灭"再评估/再考虑/再介入/等空头信号衰减"
+           模糊词, 统一"条件→动作"格式; 空仓等待档给唯一入场资格(放量阳线收盘站上压力①+次日回踩
+           不破)+假突破止损+目标; 减仓避险档空仓者锚定"收盘站回支撑"才重新评估; 全部收盘价口径
    v1.4.1: 野人两板块操作建议注入均线具体数值(MA5/MA10/MA20/止损价); calcAdvice五档plan改为
            目标位动作映射(不同价位→加仓/减仓/离场, 全部锚定具体价格)
    数据: 腾讯JSONP(GBK, K线/行情/搜索) + fund_data.js快照(个股累积历史) + 新浪60日(非候选池历史) + push2delay(资金流当日) + DC(大宗)
@@ -595,17 +598,19 @@ function calcAdvice(sigs, score, lvl, fund, k, ind) {
   const sf = (x) => fmtNum(x, 2);
   const supP = sup ? sup.p : null;
   const resP = res1 ? res1.p : null;
+/* v1.4.2 (站点v1.16.3): 五档plan全面指令化 — 消灭"再评估/再考虑/再介入/等信号衰减"等模糊词,
+     统一"条件→动作"格式: 空仓者给出唯一入场资格+止损+目标; 持有者给出分批价位+离场线; 全部收盘价口径 */
   let plan;
   if (action === '积极关注') {
-    plan = basis + '。持有者：回踩' + (supP ? sf(supP) : '支撑位') + '不破可持有，冲高至' + sf(t1) + '减仓1/3，收盘跌破' + stop + '离场；空仓者：回踩' + (supP ? sf(supP) : '支撑位') + '企稳可分批介入 ≤2.5%，冲高不追。';
+    plan = basis + '。持有者：回踩' + (supP ? sf(supP) : '支撑位') + '不破→持有；冲高至' + sf(t1) + '→减仓1/3；收盘跌破' + stop + '→离场。空仓者：入场=回踩' + (supP ? sf(supP) : '支撑位') + '±1%缩量企稳(不再创新低)→分批介入≤2.5%；已远离支撑不追，等下一次回踩；目标' + sf(t1) + '，止损' + stop + '。';
   } else if (action === '轻仓试错') {
-    plan = basis + '。持有者：不追加，冲高至' + sf(t1) + '减仓1/3，跌破' + stop + '止损；空仓者：仅回踩' + (supP ? sf(supP) : '支撑位') + '企稳时轻仓 ≤1%验证，浮盈不加仓，破位即走。';
+    plan = basis + '。持有者：不追加；冲高至' + sf(t1) + '→减仓1/3；收盘跌破' + stop + '→止损离场。空仓者：唯一入场点=回踩' + (supP ? sf(supP) : '支撑位') + '缩量企稳(不再创新低)→轻仓≤1%验证；追高即违规；浮盈不加仓；收盘破' + stop + '即走。';
   } else if (action === '减仓避险') {
-    plan = basis + '。持有者：逢反弹降仓，冲高至' + (resP ? sf(resP) : sf(t1)) + '附近减半，收盘跌破' + stop + '清仓观望；空仓者：不抄底，等空头信号衰减。';
+    plan = basis + '。持有者：反弹至' + (resP ? sf(resP) : sf(t1)) + '→减半；收盘跌破' + stop + '→清仓离场，不观望。空仓者：禁入，不抄底；收盘重新站回' + (supP ? sf(supP) : '支撑位') + '之前不评估任何买点；站回后重新诊断，按当日新档位执行。';
   } else if (action === '空仓等待') {
-    plan = basis + '。空仓者：等待放量阳线站上' + (resP ? sf(resP) : '压力位') + '再评估；持有者：反弹至' + (resP ? sf(resP) : sf(t1)) + '减仓，收盘跌破' + stop + '清仓。';
+    plan = basis + '。空仓者：现价不买。唯一入场资格=放量阳线收盘站上' + (resP ? sf(resP) : '压力位') + '且次日回踩不破→轻仓介入≤1%；止损=收盘跌回' + (resP ? sf(resP) : '压力位') + '下方(假突破)；目标=' + sf(t1) + '；突破前任何价格都不是买点。持有者：反弹至' + (resP ? sf(resP) : sf(t1)) + '→分批减仓；收盘跌破' + stop + '→清仓。';
   } else {
-    plan = basis + '。持有者：维持仓位，区间[' + (supP ? sf(supP) : '—') + ', ' + (resP ? sf(resP) : sf(t1)) + ']内高抛低吸，收盘跌破' + stop + '离场；空仓者：放量突破' + (resP ? sf(resP) : '压力位') + '再介入。';
+    plan = basis + '。持有者：维持仓位；触及' + (resP ? sf(resP) : sf(t1)) + '→高抛1/3；回踩' + (supP ? sf(supP) : '支撑位') + '不破→低吸接回；收盘跌破' + stop + '→离场。空仓者：不追价；入场资格=放量突破' + (resP ? sf(resP) : '压力位') + '且收盘站稳→轻仓介入≤2%；止损=收盘跌回' + (resP ? sf(resP) : '压力位') + '下方；目标=' + sf(t2) + '。';
   }
   return { action, cls, plan, bull, bear, net, pv, fundTxt, fundDir, nearRes: !!(nearRes && res1), entry, entryTxt, stop, stopTxt, t1, t2, rr: rrRaw > 0 ? R2(rrRaw) : 0, rrOk: rrRaw > 0 };
 }
