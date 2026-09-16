@@ -1888,10 +1888,12 @@ function renderEntryBrief(){
     + `<span>收盘 <b>${fp(x.price)}</b></span>`,
     `<div class="eb-live da-live" data-code="${x.code}" data-strat="1" data-stop="${x.stop_price || ''}"><span class="da-wait">非交易时段 · 明日开盘按计划执行</span></div>`)).join('');
   const EB_TIMING = `<div class="eb-tip">执行时点: 战法信号=今日收盘确认 → <b>明日开盘买入</b>(当晚约20:00后可挂隔夜委托 · 新出形态当日不追买) · 打板候选=昨日名单经今日9:26竞价验证+10:30定型, 分级达标者<b>当日盘中执行</b></div>`;
+  /* [v1.16.5] 排序口径自解释: 名单排序=高度→首封早(回测首封早是正因子), 分数仅排雷不排序 */
+  const EB_ORDER = `<div class="eb-tip">排序口径: S级在前 → 同梯队按<b>首封时间早</b>排(回测首封早是正因子) · 分数仅用于排雷(<65分淘汰A/B级), <b>不用于排序</b>(≥75分胜率70.0% vs <75分68.8%, 不单调)。仓位规则: 单票2-3% · 打板总敞口≤10% → 本名单<b>最多执行3-4只</b>, 其余为备选。</div>`;
   /* 渲染 */
   const cnt = $('ebCount');
   if (rows.length){
-    $('entryBrief').innerHTML = rows.join('') + (lights.length ? `
+    $('entryBrief').innerHTML = EB_ORDER + rows.join('') + (lights.length ? `
       <div class="eb-tip">另: ${lights.length}只战法候选形态已触发但相位闸门未开, 列为轻仓试探级(见"战法"区)</div>` : '') + EB_TIMING;
     cnt.textContent = rows.length + '只建议';
     cnt.className = 'eb-count';
@@ -2369,18 +2371,33 @@ const FLAG_Q = {};
 const FLAG_RE_HARD = /(停牌核查|严重异常|立案|行政处罚|警示函|监管函|问询函|终止上市)/;
 const FLAG_RE_CUT  = /(减持计划|拟减持|权益变动触及)/;
 const FLAG_RE_ROUT = /(异常波动|风险提示)/;
+function flagSnap(code){
+  /* [v1.16.5] 构建时快照(web_build.py直连东财拉取, 写入data.js候选anns字段) —
+     浏览器实时fetch被CORS拦截时回落此快照, "接口暂不可用"状态从此不存在 */
+  const cs = [...(D.candidates_4plus||[]), ...(D.candidates_2to3||[]), ...(D.candidates_3to4||[])];
+  const c = cs.find(x => x.code === code);
+  return (c && Array.isArray(c.anns)) ? c.anns : null;
+}
 function flagRowHTML(code){
-  const f = FLAG_Q[code];
+  const q = FLAG_Q[code];
+  let items = null;
+  if (q && !q.fail) items = q.items;            /* ① 实时拉取成功(最新, 最高优先) */
+  else if (q && q.fail){                         /* ② 实时失败(CORS/断网) → 回落快照 */
+    const snap = flagSnap(code);
+    if (snap) items = snap;
+  } else {                                       /* ③ 实时未返回 → 先显示快照, 到货后覆盖 */
+    const snap = flagSnap(code);
+    if (snap) items = snap;
+  }
   const row = (cls, lab, body) => `<div class="da-row"><span class="da-tag flag-${cls}">${lab}</span><span class="da-body">${body}</span></div>`;
-  if (!f) return row('gray', '🚩 公告', '<span class="da-wait">公告核查中…</span>');
-  if (f.fail) return row('gray', '🚩 公告', '<span class="da-wait">公告接口暂不可用 · 不影响判定</span>');
-  if (!f.items.length) return row('gray', '🚩 公告', '<span class="da-wait">近7日无红旗公告</span>');
-  const lv = f.items.some(x => x.cls === 'red') ? 'red' : (f.items.some(x => x.cls === 'orange') ? 'orange' : 'gray');
+  if (items === null) return row('gray', '🚩 公告', '<span class="da-wait">公告核查中…</span>');
+  if (!items.length) return row('gray', '🚩 公告', '<span class="da-wait">近7日无红旗公告</span>');
+  const lv = items.some(x => x.cls === 'red') ? 'red' : (items.some(x => x.cls === 'orange') ? 'orange' : 'gray');
   const lab = { red: '🚨 硬红旗', orange: '⚠️ 减持', gray: '📋 常规披露' }[lv];
   const sub = { red: '核查/立案/处罚/新减持类 · 下单前点「详细策略」看公告原文',
                 orange: '连板期间减持披露 = 真实卖压 · 注意次日竞价承接',
                 gray: '连板必发的合规披露 · 非增量利空 · 不影响执行' }[lv];
-  return row(lv, lab, f.items.slice(0, 2).map(x => `<b>${x.t}</b>（${x.time}）`).join('<br>') + `<span class="da-sub">${sub}</span>`);
+  return row(lv, lab, items.slice(0, 2).map(x => `<b>${x.t}</b>（${x.time}）`).join('<br>') + `<span class="da-sub">${sub}</span>`);
 }
 async function flagFetchOne(code){
   const r = await fetch('https://np-anotice-stock.eastmoney.com/api/security/ann?sr=-1&page_size=50&page_index=1&ann_type=A&client_source=web&stock_list=' + code, { cache: 'no-store' });
@@ -2520,12 +2537,21 @@ function renderCands(){
   $('c4List').innerHTML = c4.length
     ? c4.map((c, i) => candCard(c, i === 0)).join('')
     : '<div class="card" style="color:var(--secondary);">今日无 4板及以上核心标的 — S级空缺也是答案（不强行降级追2板高标）</div>';
+  /* [v1.16.5] 空态充实化: 「为什么空→触发条件→当前主路径」三行结构, 不再一行灰字留大片空白 */
+  const emptyCard = (why, cond, path) => `<div class="card" style="color:var(--secondary);padding:20px 24px;">
+    <div style="font-weight:700;color:var(--text);font-size:15px;">今日无符合条件的候选</div>
+    <div style="margin-top:8px;line-height:1.7;font-size:13.5px;">${why}<br>${cond}</div>
+    <div style="margin-top:10px;padding:9px 12px;border-radius:10px;background:var(--primary-soft);color:var(--primary);font-size:13px;font-weight:600;">当前主路径 → ${path}</div></div>`;
   $('c23List').innerHTML = c23.length
     ? c23.map((c, i) => candCard(c, i === 0)).join('')
-    : '<div class="card" style="color:var(--secondary);">今日无符合条件的 2进3 候选</div>';
+    : emptyCard('今日涨停池中无 2板 标的（或全部被排雷淘汰）。2板是 A级池的唯一入口，市场今日未产出。',
+                '触发条件：今日 2板收盘 → 明晚 15:10 入 A级名单（2进3）。',
+                (c4.length ? 'S级 4板+ 隔夜单（见上方 S级区）' : '空仓等待 · 明晚 15:10 看新名单'));
   $('c34List').innerHTML = c34.length
     ? c34.map((c, i) => candCard(c, i === 0)).join('')
-    : '<div class="card" style="color:var(--secondary);">今日无符合条件的 3进4 候选</div>';
+    : emptyCard('今日涨停池中无 3板 标的。B级 = 昨日 3板今日冲 4板，是高波动档位——空窗期反而省心（近3月晋级胜率仅 42.9%）。',
+                '触发条件：今日 3板收盘 → 明晚入 B级名单（轻仓 1-2% 或放弃）。',
+                (c4.length || c23.length ? 'S级隔夜单 + A级回封排队（见上方）' : '空仓等待 · 明晚 15:10 看新名单'));
   /* 梯队副标题: 实时可买/淘汰统计 */
   const sS = SC.S || {}, sA = SC.A || {}, sB = SC.B || {};
   $('c4Sub').textContent = `两年胜率 84.0% · 单笔 +6.06% · 近3月 7笔全胜 · 分数不淘汰（低分组收益反而更高） · 今日 ${sS.buy || 0}/${sS.total || 0} 可挂` + (sS.out ? ` · 淘汰 ${sS.out} 只（尾盘板/炸板≥3）` : '');
@@ -2603,7 +2629,10 @@ function renderDragons(){
       + bList.map(d => dragonCard(d)).join('')
       + (wList.length ? grpTitle(`弱势降级观察 ${wList.length} 只 · 市场环境不足, 不入场`, 'var(--orange)') : '')
       + wList.map(d => dragonCard(d)).join('')
-    : '<div class="card" style="color:var(--secondary);padding:18px;">今日无连板股回踩MA信号 · 龙回头策略在连板股数量较多时效果更佳</div>';
+    : `<div class="card" style="color:var(--secondary);padding:20px 24px;">
+        <div style="font-weight:700;color:var(--text);font-size:15px;">今日无连板股回踩MA信号</div>
+        <div style="margin-top:8px;line-height:1.7;font-size:13.5px;">连板股今日未回踩 MA5/MA10（回踩=盘中触及不破）。当前情绪周期连板股多在加速段，未到回踩时点——这是择时信号缺席，不是系统故障。</div>
+        <div style="margin-top:10px;padding:9px 12px;border-radius:10px;background:var(--primary-soft);color:var(--primary);font-size:13px;font-weight:600;">当前主路径 → 高度梯队选股（S级隔夜单 / A级回封排队，见「今日建议入场」）</div></div>`;
   // 回测对比(优化版)
   const bt = (D.backtest || {}).dragon;
   if (bt) {
@@ -4191,7 +4220,7 @@ function renderPanels(){
       )).join('')}
     </div>
     <div class="np-note">选股系统: 高度定梯队(S=4板+ / A=2进3 / B=3进4) + 排雷(尾盘板/炸板≥3/A·B级<65分) · 隔夜单挂涨停价限价 · 高开>2%撤 — 点击「查看详情」展开。</div>`
-    : '<div class="np-note">今日无符合条件的候选标的 · 等待下一轮 15:10 盘后扫描。</div>';
+    : '<div class="np-note">今日涨停池未产出合格候选(S/A/B梯队均空) — 连板生态今日断档, 属正常周期现象。明晚 15:10 盘后扫描后更新 · 空仓等待也是操作。</div>';
 
   // ⑤ 龙回头
   const aList = dr.filter(d => d.tier === 'strong');
@@ -4212,7 +4241,7 @@ function renderPanels(){
         '止损 ' + fp(d.stop_loss),
         d.tier === 'strong' ? 'var(--green)' : 'var(--primary)'
       )).join('')}
-    </div>` : '<div class="np-note">今日无连板股回踩MA信号 · 该策略在连板股数量较多时效果更佳。</div>'}
+    </div>` : '<div class="np-note">今日无连板股回踩MA信号 — 连板股均在加速段未回踩, 择时信号缺席属正常 · 当前主路径走高度梯队选股(S级隔夜单/A级回封排队)。</div>'}
     <div class="np-note">A级: 连板≥3回踩MA + 上影&lt;5% · 止损-2% · 买入次日高开≥7%卖 · 仓位≤18.5%；B级: 连板=2 · 止损-2.5% · 买入次日高开≥3%卖 · 仓位≤10%。</div>`;
 
   // ⑤b 五大战法雷达 (v1.9.8 导航直达 + 相位闸门状态)
