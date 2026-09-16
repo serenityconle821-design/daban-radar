@@ -2231,6 +2231,15 @@ function daVerdict(x, q){
   const today = daBJDate();
   if (x.date === today) return { t:'🆕 今日登记', c:'var(--primary)', s:'明日起按「封板续持 · 断板就走」执行，盘中来本页看提示' };
   if (!q) return { t:'💤 非交易时段', c:'var(--secondary)', s:'交易日盘中打开本页，自动给出 持有/止盈/离场' };
+  /* [v1.16.4fix] 旧行情(昨日数据): 至少给出昨收封板状态, 不再误报"非交易时段" */
+  const todayStr = daTodayStr();
+  const isStale = q.ts && !q.ts.startsWith(todayStr);
+  if (isStale){
+    const sealed = q.px >= q.ztp - 0.001;
+    return sealed
+      ? { t:'🟢 昨日封板', c:'var(--green)', s:`昨日收盘 ${q.px.toFixed(2)}（封板）· 今日9:30开盘后自动判定续持/离场` }
+      : { t:'💤 等今日开盘', c:'var(--secondary)', s:`昨日收盘 ${q.px.toFixed(2)}（未封板）· 今日按R3执行：开盘≥3%开盘卖 / 冲高+3%止盈 / 尾盘卖` };
+  }
   const openRef = q.po > 0 ? q.po : q.px;               // 竞价期 po 可能未定, 回退现价
   const sealed = q.px >= q.ztp - 0.001;
   const gapOpen = openRef / q.pc - 1;
@@ -2322,16 +2331,24 @@ function daLiveStratCell(el, q){
     <span class="da-sub">按计划<b>明日开盘买入</b>，当日不追买${near != null ? ' · 距止损 ' + near.toFixed(1) + '%' : ''}</span>`;
 }
 async function daTick(){
-  if (!daTradingBJ()) return;                           // 非交易时段不拉行情(凌晨/收盘后不空转)
-  /* [v1.16.1] 行情代码从DOM收集(候选卡+精华卡+我的打板仓), 不再只扫候选数组 */
+  /* [v1.16.4fix] 行情代码双源收集: DOM(.da-live) + daBook(我的打板仓)
+     修复: 持仓标的不在今日候选列表时, 代码不在DOM中→不拉行情→永远显示"非交易时段" */
   const codes = [];
   document.querySelectorAll('.da-live[data-code]').forEach(el => {
     if (!codes.includes(el.dataset.code)) codes.push(el.dataset.code);
   });
+  daBook().forEach(x => { if (!codes.includes(x.code)) codes.push(x.code); });
   if (!codes.length) return;
   const q = await qtFetch(codes);
   const today = daTodayStr();
-  Object.keys(q).forEach(k => { if (!q[k].ts || !q[k].ts.startsWith(today)) delete q[k]; });  // 节假日旧数据剔除
+  const bookCodes = daBook().map(x => x.code);
+  /* 时间戳过滤: 候选卡只保留今日数据(隔日旧数据会误导买入决策);
+     持仓标的保留旧数据(盘后/凌晨至少能看到昨收, daVerdict会标注"昨日") */
+  Object.keys(q).forEach(k => {
+    if (!q[k].ts || !q[k].ts.startsWith(today)) {
+      if (!bookCodes.includes(k)) delete q[k];
+    }
+  });
   Object.assign(DA_Q, q);
   document.querySelectorAll('.da-live[data-code]').forEach(el => {
     el.innerHTML = el.dataset.strat
