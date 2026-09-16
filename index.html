@@ -1601,7 +1601,8 @@ tr.pt-excluded-row td { opacity:.52; }
       <div class="dg-steps">
         <b>① 今晚买谁？挂几只？</b> 看梯队：<b>S级（4板+）优先挂隔夜单</b>（两年胜率84.0%/+6.06 · 近3月7笔全胜）· A级（2进3）正常挂（74.3%/+2.93）· B级（3进4）轻仓1-2%或放弃（近3月42.9%）。挂涨停价限价单，次日按开盘价成交；明早 9:15-9:20 盯竞价撮合价，<b>高开&gt;2% 撤单</b>（9:20 后无法撤单 · 9:25 撮合定格即开盘价）。<b>百分比已换算成价格</b>：各候选卡「明日价位尺」按今收直接标出 +2%撤单线 / +3%开盘卖线 / +5%禁追线 / 挂单价。<br>
         <b>② 带淘汰标记的能不能买？</b> ❌ 淘汰 · 不买：尾盘板（首封≥13:00）/ 炸板≥3次 / A·B级确定性&lt;65分（负期望区）。S级不看分数 — 回测4板+低分组收益反而更高，高度即资格。<br>
-        <b>③ 买入后第二天怎么办？</b> 统一规则「<b>封板续持 · 断板就走</b>」：收盘封板→继续持有；未封板日 开盘≥+3%→开盘卖 / 盘中冲高+3%→即刻卖 / 全天没到→收盘卖。买入后点卡上「已买入·登记」，「我的打板仓」每天盘中直接给 持有/止盈/离场 提示。
+        <b>③ 买入后第二天怎么办？</b> 统一规则「<b>封板续持 · 断板就走</b>」：收盘封板→继续持有；未封板日 开盘≥+3%→开盘卖 / 盘中冲高+3%→即刻卖 / 全天没到→收盘卖。买入后点卡上「已买入·登记」，「我的打板仓」每天盘中直接给 持有/止盈/离场 提示。<br>
+        <b>④ 买入当天（T日）盘中怎么执行？</b> 时间轴：<b>9:25</b> 竞价定格开盘价，隔夜单自动成交（高开≥撤单线须9:20前撤）→ <b>9:30后</b> 没隔夜单的不追开盘价，等首次冲板在<b>封板瞬间挂涨停价排队</b>（提前追=追涨；已封死照样排队等让位）→ <b>排不到</b>：14:45前撤单换备选，不追高 → <b>买入后炸板</b>：绝不加仓摊平（炸板=分歧验证），巨单秒回封→持有；反复炸≥2次/封单萎缩→当日减半；尾盘未回封→当日按R3执行。完整手册见上方「今日建议入场」区的执行手册。
       </div>
       <details>
         <summary>📊 回测证据：隔夜单资格矩阵 + 持有规则分年度验证（两年 4995股 · 24万可成交样本 · 含0.15%双边成本）</summary>
@@ -1887,7 +1888,17 @@ function renderEntryBrief(){
     + `<span class="st">仓位 <b>${Math.round(x.pos_suggest ?? 1)}%</b></span>`
     + `<span>收盘 <b>${fp(x.price)}</b></span>`,
     `<div class="eb-live da-live" data-code="${x.code}" data-strat="1" data-stop="${x.stop_price || ''}"><span class="da-wait">非交易时段 · 明日开盘按计划执行</span></div>`)).join('');
-  const EB_TIMING = `<div class="eb-tip">执行时点: 战法信号=今日收盘确认 → <b>明日开盘买入</b>(当晚约20:00后可挂隔夜委托 · 新出形态当日不追买) · 打板候选=昨日名单经今日9:26竞价验证+10:30定型, 分级达标者<b>当日盘中执行</b></div>`;
+  /* [v1.16.6] 盘中执行时序直答: 覆盖「何时买/等板还是已板/排不到怎么办/炸板处置」四问 */
+  const EB_TIMING = `<div class="eb-tip">执行时点: 战法信号=今日收盘确认 → <b>明日开盘买入</b>(当晚约20:00后可挂隔夜委托 · 新出形态当日不追买) · 打板候选=昨日名单经今日9:26竞价验证+10:30定型, 分级达标者<b>当日盘中执行</b></div>
+  <details style="margin-top:8px;">
+    <summary style="cursor:pointer;font-weight:700;color:var(--primary);font-size:13.5px;padding:6px 0;">⏱ 当日盘中怎么买？等封板还是已封板？排不到/炸板怎么办？（点开看执行手册）</summary>
+    <div style="padding:6px 2px 2px;line-height:1.75;font-size:13px;">
+      <b style="color:var(--text);">① 什么时间买：</b>9:25 集合竞价撮合定格=开盘价（9:15-9:20 价格可撤可诱多，9:20 后不可撤）。<b>挂了隔夜单的什么都不用做，9:25 自动按开盘价成交</b>（除非高开≥撤单线，须 9:20 前撤单）。没挂隔夜单的：9:30 开盘后<b>不追开盘价</b>，等标的首次冲板。
+      <br><b style="color:var(--text);">② 等还没封板、还是已封板：</b><b>在「封板瞬间」挂涨停价排队</b>——打板买的是「封死」这个动作的确定性，不是买便宜。封板前价格在 +5%~+9.9% 之间波动，提前追=追涨，冲不过 +5% 禁追线的直接放弃。已经封死的：照样挂涨停价排队（有人撤单/开板让位时按涨停价成交）。
+      <br><b style="color:var(--text);">③ 排不到怎么办：</b>排队单挂着不撤，14:45 前仍未成交就撤单走人，<b>换名单里的备选标的</b>（按排序口径顺位递补），绝不为「买不到」去追高或买计划外标的。少买一只不亏钱，追错一只才是真亏。
+      <br><b style="color:var(--red);">④ 开盘买入后炸板 — 绝不加仓摊平：</b>炸板=分歧验证，加仓=在分歧里放大敞口（反面教材：中新赛克 12.4% 仓位扛单）。处置只分三档：<b>巨单秒回封</b> → 持有，等收盘按「封板续持」判定；<b>反复炸板≥2次 / 封单持续萎缩</b> → 当日减半；<b>尾盘仍未回封（断板）</b> → 当日按R3执行：冲高+3%即卖 / 全天没到收盘卖，不隔夜扛不确定性。
+    </div>
+  </details>`;
   /* [v1.16.5] 排序口径自解释: 名单排序=高度→首封早(回测首封早是正因子), 分数仅排雷不排序 */
   const EB_ORDER = `<div class="eb-tip">排序口径: S级在前 → 同梯队按<b>首封时间早</b>排(回测首封早是正因子) · 分数仅用于排雷(<65分淘汰A/B级), <b>不用于排序</b>(≥75分胜率70.0% vs <75分68.8%, 不单调)。仓位规则: 单票2-3% · 打板总敞口≤10% → 本名单<b>最多执行3-4只</b>, 其余为备选。</div>`;
   /* 渲染 */
@@ -4102,8 +4113,23 @@ function renderFooter(){
 
 /* ── 渐入 ── */
 function fadeAll(){
-  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting){ e.target.classList.add('vis'); io.unobserve(e.target); }}), { threshold: .06 });
-  document.querySelectorAll('.fade').forEach(el => io.observe(el));
+  /* [v1.16.6] 根因修复·大面积空白: 原 threshold:.06 按「元素自身高度的6%」计算触发量,
+     候选区在手机上高约2万px → 需露出1200px才触发, 而手机视口仅~700px → 永远达不到
+     阈值 → 区块永久opacity:0 = 手机端大面积空白(桌面视口大所以正常)。
+     改为 threshold:0 (顶部露出即触发) + 定时器/滚动双兜底(防部分手机浏览器IO不回调)。 */
+  const io = ('IntersectionObserver' in window) ? new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting){ e.target.classList.add('vis'); io.unobserve(e.target); }
+  }), { threshold: 0, rootMargin: '0px 0px -24px 0px' }) : null;
+  document.querySelectorAll('.fade').forEach(el => io ? io.observe(el) : el.classList.add('vis'));
+  /* 兜底: 任何原因(IO失效/极端比例/后台恢复)导致视口内区块未渐入 → 强制可见 */
+  const forceVis = () => {
+    document.querySelectorAll('.fade:not(.vis)').forEach(el => {
+      const r = el.getBoundingClientRect();
+      if (r.top < innerHeight && r.bottom > 0) el.classList.add('vis');
+    });
+  };
+  setTimeout(forceVis, 1200);
+  addEventListener('scroll', () => requestAnimationFrame(forceVis), { passive: true });
 }
 
 /* ── 顶部导航栏: 面板渲染 ── */
