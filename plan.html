@@ -6,7 +6,8 @@
 <title>操作策略 · 观澜擒龙</title>
 <!-- v1.16.1 详细操作策略页: 候选卡/精华卡点击进入 (?code=XXXXXX)
      内容: 今日判定(梯队/仓位/淘汰) + 盘中直答(实时行情) + 四步执行计划 + 因子明细 + 回测证据
-     数据: data.js(SITE_DATA) + 腾讯JSONP实时行情; 登记与主站共享 localStorage(glql_daban_v115) -->
+     数据: data.js(SITE_DATA) + 腾讯JSONP实时行情; 登记与主站共享 localStorage(glql_daban_v115)
+     [v1.16.9] 隔夜单改挂「昨收+5%」限价: 不用盯竞价 · 9:30未成交(=高开>5%)撤单; 死亡区间仅适用盘中排队 -->
 <style>
 :root {
   --bg: rgba(116,116,128,.12); --card: rgba(255,255,255,.36); --card2: rgba(255,255,255,.32);
@@ -211,8 +212,10 @@ function daTradingBJ(){
   return hm >= 9*60 + 15 && hm < 15*60;
 }
 /* 盘中直答: 现在能不能买(与主站 daLiveCell 同口径)
-   [v1.16.8] 死亡区间: 高开0-5%排队=涨停价成交·胜率33.1% → 回封不追·已封板也不排;
-   可排队仅: 低开/平开回封 与 高开>5%已封板(≥7%约30%成交·一字基本排不到) */
+   [v1.16.9] 隔夜单挂「昨收+5%」限价: 开盘≤+5%自动按开盘价成交(高开2-5%为正期望档·
+   三梯队胜率73-82%), 开盘>+5%不成交·9:30撤单; 死亡区间(高开0-5%排队=涨停价成交·
+   胜率33.1%)仅适用盘中排队打板, 未挂隔夜单者该档回封不追·已封板也不排;
+   可排队仅: 低开/平开回封(成交~90%) 与 高开>5%已封板(≥7%约30%成交·一字基本排不到) */
 function daLiveCell(code, q){
   if (!q) return '<span class="da-wait">非交易时段 · 交易日盘中自动判定</span>';
   const openRef = q.po > 0 ? q.po : q.px;
@@ -221,24 +224,23 @@ function daLiveCell(code, q){
   const lx = p => (q.pc * (1 + p)).toFixed(2);          /* [v1.16.4] 线位价 = 昨收×(1+pct) */
   const oTxt = q.po > 0 ? `开盘 ${q.po.toFixed(2)} · ` : '';
   const gap = openRef / q.pc - 1;
-  const dead = gap > 0.001 && gap < 0.05;               /* [v1.16.8] 死亡区间: 高开0-5% */
+  const dead = gap > 0.001 && gap < 0.05;               /* 死亡区间: 高开0-5%(仅适用盘中排队打板) */
+  const fill5 = gap <= 0.050001;                        /* [v1.16.9] 开盘≤+5% → 隔夜单已按开盘价成交 */
   if (sealed){
-    if (dead) return `<b style="color:var(--orange);">⚠️ 已封板 ${q.px.toFixed(2)} · 但开盘高开${(gap*100).toFixed(1)}%属死亡区间 · 不排</b>
-      <span class="live-sub">高开0-5%触板买入回测胜率仅33.1% · 回封排队同样是涨停价成交 · 放弃</span>`;
+    if (fill5) return `<b style="color:var(--green);">✅ 已封板 ${q.px.toFixed(2)} · 隔夜单已按开盘价成交（开盘${(gap*100).toFixed(1)}% ≤ +5%限价 ${lx(0.05)}）· 继续持有</b>
+      <span class="live-sub">按「封板续持 · 断板就走」执行${dead ? ' · 未挂隔夜单者不排：高开0-5%盘中排队=涨停价成交·该组胜率仅33.1%' : ' · 未挂隔夜单者可排队打板（低开/平开回封正期望·成交~90%）'}</span>`;
     const yizi = (q.pl || 0) >= q.ztp - 0.001;
     const fp = yizi ? '今日未开过板·基本排不到(排到=开板瞬间成交)'
       : (gap >= 0.07 ? '开盘≥7%·仅约30%能排到' : '');
-    return `<b style="color:var(--green);">✅ 已封板 ${q.px.toFixed(2)} · 可排队打板</b>
-      <span class="live-sub">${fp ? fp + ' · ' : ''}排单挂 ${q.ztp.toFixed(2)}，成交后按「封板续持 · 断板就走」执行</span>`;
+    return `<b style="color:var(--orange);">⚠️ 已封板 ${q.px.toFixed(2)} · 开盘高开${(gap*100).toFixed(1)}% &gt; +5%限价 ${lx(0.05)} · 隔夜单未成交（9:30已撤）</b>
+      <span class="live-sub">${fp ? fp + ' · ' : ''}排队打板非纪律（高开5-9%档胜率57-70%）· 要排挂 ${q.ztp.toFixed(2)} · 不排也完全OK</span>`;
   }
-  if (gap > 0.05) return `<b style="color:var(--red);">❌ 高开 ${(gap*100).toFixed(1)}%（${oTxt}≥ 禁追线 ${lx(0.05)}）· 禁止追买</b>
-    <span class="live-sub">高开&gt;5% 两年均值 -2.4%，排板/半路都不做</span>`;
-  if (gap > 0.02) return `<b style="color:var(--red);">❌ 高开 ${(gap*100).toFixed(1)}%（${oTxt}≥ 撤单线 ${lx(0.02)}）· 隔夜单应已撤</b>
-    <span class="live-sub">高开0-5%为死亡区间(回测胜率33.1%) · 回封也不追，排板同样放弃</span>`;
-  if (dead) return `<b style="color:var(--orange);">⚠️ 高开 ${(gap*100).toFixed(1)}%（${oTxt}）· 隔夜单按开盘价成交(≤2%不撤) · 盘中不追</b>
-    <span class="live-sub">高开0-5%为死亡区间 · 回封也不排（排队=涨停价成交·该组胜率33.1%）</span>`;
-  return `<b style="color:var(--primary);">⏸ 现价 ${q.px.toFixed(2)}（${nowGap>=0?'+':''}${(nowGap*100).toFixed(1)}%${q.po > 0 ? ` · 开盘 ${q.po.toFixed(2)}` : ''}）· 半路不追</b>
-    <span class="live-sub">低开/平开 · 等回封（触 ${q.ztp.toFixed(2)}）再排队打板 · 低开回封是正期望主样本(成交~90%)</span>`;
+  if (!fill5) return `<b style="color:var(--red);">❌ 高开 ${(gap*100).toFixed(1)}%（${oTxt}&gt; +5%限价 ${lx(0.05)}）· 隔夜单未成交 · 9:30撤单 · 禁止追买</b>
+    <span class="live-sub">高开&gt;5%为毒药档（5-9%胜率降至57-70%·≥9%仅42%且一字基本排不到）· 排板/半路都不做</span>`;
+  if (dead) return `<b style="color:var(--primary);">✅ 开盘高开${(gap*100).toFixed(1)}%（${oTxt}≤ +5%限价）· 隔夜单已按开盘价成交 · 持有</b>
+    <span class="live-sub">现价 ${q.px.toFixed(2)} · 高开2-5%为正期望档（三梯队胜率73-82%）· 断板按R3出场（开盘高开≥3%开盘卖/冲高+3%止盈/收盘卖）· 未挂隔夜单者半路不追·回封也不排（排队=涨停价成交·胜率33.1%）</span>`;
+  return `<b style="color:var(--primary);">✅ 开盘${(gap*100).toFixed(1)}%（${oTxt}≤ +5%限价 ${lx(0.05)}）· 隔夜单已按开盘价成交 · 持有</b>
+    <span class="live-sub">现价 ${q.px.toFixed(2)}（${nowGap>=0?'+':''}${(nowGap*100).toFixed(1)}%）· 等回封（触 ${q.ztp.toFixed(2)}）· 未挂隔夜单者可等回封排队打板（低开回封成交~90%）· 断板按R3出场</span>`;
 }
 async function daTick(){
   if (!daTradingBJ()) return;
@@ -258,9 +260,9 @@ function daBook(){ try { return JSON.parse(localStorage.getItem(DA_STORE_KEY) ||
 function daSave(b){ try { localStorage.setItem(DA_STORE_KEY, JSON.stringify(b)); } catch(e){} }
 function daRegist(c){
   if (daBook().some(x => x.code === c.code)) return;
-  const v = prompt(`登记「${c.name}」实际买入价（隔夜单默认按涨停价 ${c.next_zt} 成交，可改成实际成交价）：`, c.next_zt);
+  const v = prompt(`登记「${c.name}」实际买入价（隔夜单按开盘价成交，默认按挂单价 ${c.cap5 || c.next_zt} 估，请改成实际成交价）：`, c.cap5 || c.next_zt);
   if (v === null) return;
-  const buy = parseFloat(v) || c.next_zt;
+  const buy = parseFloat(v) || c.cap5 || c.next_zt;
   const book = daBook();
   book.push({ code:c.code, name:c.name, lb:c.lb, next_zt:c.next_zt, buy, date: daTodayStr() });
   daSave(book);
@@ -366,7 +368,7 @@ function render(){
       </div>
     </div>
     <div class="kv">
-      <div class="k"><b>${fp(A.buy_price != null ? A.buy_price : c.next_zt)}</b><span>隔夜挂单价(涨停价)</span></div>
+      <div class="k"><b>${fp(A.buy_price != null ? A.buy_price : (c.price > 0 ? (c.price*1.05).toFixed(2) : c.next_zt))}</b><span>隔夜挂单价(昨收+5%限价)</span></div>
       <div class="k"><b style="color:${color};">${sel.win || '—'}</b><span>两年回测胜率</span></div>
       <div class="k"><b>${sel.avg || '—'}</b><span>单笔均值</span></div>
       <div class="k"><b>${sel.pos || '—'}</b><span>建议仓位${sel.downgrade ? ' · 已降级' : ''}</span></div>
@@ -386,8 +388,8 @@ function render(){
     <div class="live-box" id="liveBox"><span class="da-wait">交易时段打开本页 · 每30秒自动判定</span></div>
     ${skip ? '' : `
     <div style="margin-top:12px;background:var(--bg);border-radius:12px;padding:11px 14px;font-size:13px;line-height:1.8;">
-      <b>明日价位尺</b>（基准 = 今收 ${fp(pBase)}，即明日昨收）：<b>+2% 撤单线 ${pPct(0.02)}</b> · <b>+3% 开盘卖线 ${pPct(0.03)}</b> · <b>+5% 禁追线 ${pPct(0.05)}</b> · 挂单价(明日涨停) <b>${fp(c.next_zt)}</b>
-      <div style="font-size:11.5px;color:var(--secondary);margin-top:5px;">竞价 9:15-9:20 盯撮合价：&lt; ${pPct(0.02)} → 让隔夜单成交 · ≥ ${pPct(0.02)} → 9:20 前撤单 · ≥ ${pPct(0.05)} → 撤了也不追 · 9:25 撮合定格即开盘价</div>
+      <b>明日价位尺</b>（基准 = 今收 ${fp(pBase)}，即明日昨收）：<b>+5% 挂单限价线 ${pPct(0.05)}</b>（今晚挂单价）· <b>+3% 开盘卖线 ${pPct(0.03)}</b> · 明日涨停 <b>${fp(c.next_zt)}</b>（盘中排队打板用）
+      <div style="font-size:11.5px;color:var(--secondary);margin-top:5px;">[v1.16.9] 不用盯竞价：开盘价 ≤ ${pPct(0.05)} → 隔夜单自动按开盘价成交 · 开盘价 &gt; ${pPct(0.05)} → 不成交，9:30 撤单即可（撤了也不追）· 高开5-9%胜率降至57-70%、≥9%仅42%且一字基本排不到</div>
     </div>`}
   </div>`;
 
@@ -406,9 +408,9 @@ function render(){
     { t: '本标的已被淘汰', when: '规则', d: `${sel.drop || ''}。今晚不挂隔夜单，明天盘中也不追 — 错过不可惜，规则外的钱不赚。` },
     { t: '替代方案', when: '今晚', d: '回到看板看其他梯队标的（S级 4板+ / A级 2进3 / B级 3进4），按各梯队仓位规则执行。' },
   ] : [
-    { t: '今晚挂隔夜单', when: '20:00后', d: `挂<b>涨停价 ${fp(A.buy_price != null ? A.buy_price : c.next_zt)}</b> 限价单（部分券商 20:00 后可挂夜单）。${sel.tier === 'S' ? 'S级高度即资格，分数不淘汰' : sel.tier === 'A' ? 'A级基准池，确定性≥65分' : 'B级仅轻仓参与'} · 仓位 <b>${sel.pos}</b>${sel.downgrade ? '（相位降级后）' : ''}。` },
-    { t: '明早竞价确认', when: '9:15-9:20', d: `盯集合竞价撮合价（基准 = 今收 <b>${fp(pBase)}</b>，即明日昨收）：<b>高开 &gt;2%（撮合价 ≥ ${fp(pPct(0.02))}）→ 撤单</b>（9:20 后无法撤）；高开&gt;5%（≥ ${fp(pPct(0.05))}）两年均值 -2.4%，撤了也不追。低开/平开是正期望区，让单子成交；9:25 撮合定格即开盘价。` },
-    { t: '盘中执行', when: '9:30-15:00', d: `隔夜单成交后拿住；未成交看「盘中直答」：已封板→可排队打板（挂 ${fp(c.next_zt)}）· 高开&gt;5%（开盘 ≥ ${fp(pPct(0.05))}）→禁止追 · 其余→半路不追，<b>等回封再排</b>。` },
+    { t: '今晚挂隔夜单', when: '20:00后', d: `挂<b>「昨收+5%」${fp(A.buy_price != null ? A.buy_price : (c.price > 0 ? (c.price*1.05).toFixed(2) : c.next_zt))}</b> 限价单（部分券商 20:00 后可挂夜单；次日按开盘价成交·开盘高于此价不成交）。${sel.tier === 'S' ? 'S级高度即资格，分数不淘汰' : sel.tier === 'A' ? 'A级基准池，确定性≥65分' : 'B级仅轻仓参与'} · 仓位 <b>${sel.pos}</b>${sel.downgrade ? '（相位降级后）' : ''}。` },
+    { t: '明早开盘确认', when: '9:30', d: `<b>不用盯 9:15-9:20 竞价</b>。9:25 撮合定格即开盘价：<b>开盘价 ≤ ${fp(pPct(0.05))} → 隔夜单自动按开盘价成交，什么都不用做</b>；开盘价 &gt; ${fp(pPct(0.05))}（高开&gt;5%）→ 不成交，<b>9:30 看一眼撤单即可</b>（撤了也不追）。+5% 限价自动屏蔽毒药档：高开 5-9% 胜率降至 57-70%、≥9% 仅 42% 且一字基本排不到。` },
+    { t: '盘中执行', when: '9:30-15:00', d: `隔夜单成交后拿住；未成交（=开盘高开&gt;5%）→ 9:30 撤单后<b>排板/半路都不做</b>（高开&gt;5% 两年均值 -2.4%）。未挂隔夜单者看「盘中直答」：低开/平开 → 半路不追<b>等回封再排</b>（挂 ${fp(c.next_zt)}·正期望主样本·成交~90%）· 高开0-5%死亡区间回封也不追 · 已封板非死亡区间可排队。` },
     { t: '买入后离场 · R3规则', when: '持有期每日', d: `<b>封板续持 · 断板就走</b>：收盘封板 → 继续持有；未封板日：开盘高开≥3%（首日离场线 ${fp(pPct(0.03))} = 今收×1.03，此后按各日昨收×1.03）→ 开盘卖 / 盘中冲高 +3%（止盈线 = 开盘成交价×1.03，平开约 ${fp(pPct(0.03))}）→ 即刻卖 / 全天没到 → 收盘卖。不要被动拿到第二个开盘。` },
   ];
   const planCard = `
