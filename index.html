@@ -2272,7 +2272,12 @@ function daVerdict(x, q){
   return { t:'⚪ 未触发 · 尾盘卖', c:'var(--secondary)',
     s:`现价 ${q.px.toFixed(2)}（浮盈 ${(gapNow*100).toFixed(1)}%）· 距止盈线 ${tp3} 还差 ${toGo.toFixed(1)}% · 14:50 未触发则收盘卖` };
 }
-/* ── 候选卡盘中直答: 现在能不能买 ── */
+/* ── 候选卡盘中直答: 现在能不能买 ──
+   [v1.16.8] 对齐v1.9审计P1-6开盘强度分层: 排队打板=按涨停价成交 → 高开0-5%为
+   死亡区间(该组触板买入回测胜率33.1%), 未封板回封不追·已封板同样不排;
+   可排队仅两类: 低开/平开回封(正期望主样本·成交~90%) 与 高开>5%已封板
+   (开盘越接近涨停越难成交: ≥7%约30%·一字未开板基本排不到)。
+   隔夜单路径(按开盘价成交)不变: ≤2%让成交 · >2%撤单 · >5%禁追。 */
 function daLiveCell(code, q){
   if (!q) return '<span class="da-wait">非交易时段 · 交易日盘中自动判定</span>';
   const openRef = q.po > 0 ? q.po : q.px;
@@ -2280,15 +2285,25 @@ function daLiveCell(code, q){
   const nowGap = q.px / q.pc - 1;
   const lx = p => (q.pc * (1 + p)).toFixed(2);          /* [v1.16.4] 线位价 = 昨收×(1+pct) */
   const oTxt = q.po > 0 ? `开盘 ${q.po.toFixed(2)} · ` : '';
-  if (sealed) return `<b style="color:var(--green);">✅ 已封板 ${q.px.toFixed(2)} · 可排队打板</b>
-    <span class="da-sub">排单挂 ${q.ztp.toFixed(2)}，成交后按「封板续持 · 断板就走」执行</span>`;
   const gap = openRef / q.pc - 1;
+  const dead = gap > 0.001 && gap < 0.05;               /* [v1.16.8] 死亡区间: 高开0-5% */
+  if (sealed){
+    if (dead) return `<b style="color:var(--orange);">⚠️ 已封板 ${q.px.toFixed(2)} · 但开盘高开${(gap*100).toFixed(1)}%属死亡区间 · 不排</b>
+      <span class="da-sub">高开0-5%触板买入回测胜率仅33.1% · 回封排队同样是涨停价成交 · 放弃</span>`;
+    const yizi = (q.pl || 0) >= q.ztp - 0.001;
+    const fp = yizi ? '今日未开过板·基本排不到(排到=开板瞬间成交)'
+      : (gap >= 0.07 ? '开盘≥7%·仅约30%能排到' : '');
+    return `<b style="color:var(--green);">✅ 已封板 ${q.px.toFixed(2)} · 可排队打板</b>
+      <span class="da-sub">${fp ? fp + ' · ' : ''}排单挂 ${q.ztp.toFixed(2)}，成交后按「封板续持 · 断板就走」执行</span>`;
+  }
   if (gap > 0.05) return `<b style="color:var(--red);">❌ 高开 ${(gap*100).toFixed(1)}%（${oTxt}≥ 禁追线 ${lx(0.05)}）· 禁止追买</b>
     <span class="da-sub">高开&gt;5% 两年均值 -2.4%，排板/半路都不做</span>`;
-  if (gap > 0.02) return `<b style="color:var(--orange);">⚠️ 高开 ${(gap*100).toFixed(1)}%（${oTxt}≥ 撤单线 ${lx(0.02)}）· 隔夜单应已撤</b>
-    <span class="da-sub">高开2-5%：不追，等回封（触 ${q.ztp.toFixed(2)}）再排</span>`;
+  if (gap > 0.02) return `<b style="color:var(--red);">❌ 高开 ${(gap*100).toFixed(1)}%（${oTxt}≥ 撤单线 ${lx(0.02)}）· 隔夜单应已撤</b>
+    <span class="da-sub">高开0-5%为死亡区间(回测胜率33.1%) · 回封也不追，排板同样放弃</span>`;
+  if (dead) return `<b style="color:var(--orange);">⚠️ 高开 ${(gap*100).toFixed(1)}%（${oTxt}）· 隔夜单按开盘价成交(≤2%不撤) · 盘中不追</b>
+    <span class="da-sub">高开0-5%为死亡区间 · 回封也不排（排队=涨停价成交·该组胜率33.1%）</span>`;
   return `<b style="color:var(--primary);">⏸ 现价 ${q.px.toFixed(2)}（${nowGap>=0?'+':''}${(nowGap*100).toFixed(1)}%${q.po > 0 ? ` · 开盘 ${q.po.toFixed(2)}` : ''}）· 半路不追</b>
-    <span class="da-sub">等回封（触 ${q.ztp.toFixed(2)}）再排队打板；低开/平开回封是正期望区</span>`;
+    <span class="da-sub">低开/平开 · 等回封（触 ${q.ztp.toFixed(2)}）再排队打板 · 低开回封是正期望主样本(成交~90%)</span>`;
 }
 /* ── 腾讯批量行情 (script注入, GBK, 无跨域问题) ── */
 function qtFetch(codes){
