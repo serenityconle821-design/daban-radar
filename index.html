@@ -539,6 +539,19 @@ section { scroll-margin-top: 88px; }
 .act-price b { font-size:14.5px; color:var(--text); font-variant-numeric:tabular-nums; }
 .act-price .stop { color:var(--red); }
 .act-price .stop b { color:var(--red); }
+/* [v1.17.1] 明日买入价标签: 挂单价前置醒目胶囊 */
+.ap-tag { display:inline-flex; align-items:center; padding:3px 9px; border-radius:8px; margin-right:2px;
+  background:var(--primary-soft); color:var(--primary); font-size:11.5px; font-weight:800; letter-spacing:.5px; white-space:nowrap; }
+/* [v1.17.1] 盘中回封可排队汇总条 */
+.queue-bar {
+  display:flex; align-items:flex-start; gap:10px; margin:14px 0 2px; padding:13px 16px;
+  border-radius:14px; background:var(--green-soft); font-size:13.5px; line-height:1.65;
+}
+.queue-bar .qb-ico { flex:none; margin-top:1px; }
+.queue-bar b.qb-name { color:var(--text); }
+.queue-bar .qb-code { color:var(--secondary); font-size:12px; font-variant-numeric:tabular-nums; }
+.queue-bar .qb-price { color:var(--green); font-weight:800; font-variant-numeric:tabular-nums; }
+.queue-bar .qb-sub { display:block; font-size:11.5px; color:var(--secondary); margin-top:3px; }
 
 /* ── 监控表 ── */
 .tbl { width:100%; border-collapse:collapse; font-size:14px; }
@@ -1622,6 +1635,8 @@ tr.pt-excluded-row td { opacity:.52; }
         </p>
       </details>
     </div>
+    <!-- [v1.17.1] 盘中「低开/平开·等回封可排队」实时汇总条 (交易日盘中自动点亮) -->
+    <div class="queue-bar" id="daQueueBar" style="display:none;"></div>
     <!-- v1.16.0 S级 · 4板+ 选股池 (高度即护城河) -->
     <div class="sec-title" style="margin:34px 0 4px;">
       <span class="ico" style="background:var(--red-soft); color:var(--red);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.2H22l-6 4.6 2.3 7.2-6.3-4.5-6.3 4.5L8 13.8l-6-4.6h7.6z"/></svg></span>
@@ -2401,6 +2416,39 @@ async function daTick(){
     const v = daVerdict(x, DA_Q[x.code]);
     el.innerHTML = `<div class="mv-txt" style="color:${v.c};">${v.t}</div><div class="mv-sub">${v.s}</div>`;
   });
+  renderQueueBar();
+}
+/* ── [v1.17.1] 盘中「低开/平开·等回封可排队」汇总条 ──
+   条件: 四梯队候选(含M级·淘汰除外) × 开盘≤平开(隔夜单已成交口径外的排队正期望档) × 当前未封板
+   与 daLiveCell 同口径: 低开/平开回封排队 成交~90% 正期望; 高开票不列(撤单禁追/死亡区间) */
+function renderQueueBar(){
+  const bar = $('daQueueBar');
+  if (!bar) return;
+  if (!daTradingBJ() || !Object.keys(DA_Q).length){ bar.style.display = 'none'; return; }
+  const tiers = [
+    ...(D.candidates_4plus||[]), ...(D.candidates_2to3||[]),
+    ...(D.candidates_3to4||[]), ...(D.candidates_1to2||[]),
+  ].filter(c => (c.sel||{}).verdict !== 'skip');
+  const rows = [];
+  tiers.forEach(c => {
+    const q = DA_Q[c.code];
+    if (!q) return;
+    const openRef = q.po > 0 ? q.po : q.px;
+    const sealed = q.px >= q.ztp - 0.001;
+    const gap = openRef / q.pc - 1;
+    if (sealed || gap > 0.001) return;              /* 只要 低开/平开 且 未封板 */
+    rows.push({c, q, gap});
+  });
+  if (!rows.length){ bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  bar.innerHTML = `<svg class="qb-ico" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    <div>
+      <b style="color:var(--green);">盘中可排队打板 · ${rows.length} 只（开盘低开/平开 · 等回封）</b>
+      <span class="qb-sub">未挂隔夜单者：等首次冲板在<b>封板瞬间挂涨停价排队</b>（低开回封成交~90% · 正期望档）· 已挂隔夜单者已按开盘价成交·持有中 · 高开&gt;5%的票不在此列（9:30撤单·禁止追买）· 排不到 14:45 前撤单换备选</span>
+      <div style="margin-top:8px;">${rows.map(({c, q, gap}) => `
+        <span style="margin-right:14px;white-space:nowrap;display:inline-block;margin-bottom:4px;"><b class="qb-name">${c.name}</b> <span class="qb-code">${c.code}</span>
+        现<span class="qb-price">${q.px.toFixed(2)}</span>（开盘${(gap*100).toFixed(1)}%）· 回封挂<span class="qb-price">${q.ztp.toFixed(2)}</span></span>`).join('')}</div>
+    </div>`;
 }
 /* ── [v1.16.2] 公告红旗: 东财公告接口实时拉取 · 只标不拦 ──
    分级: 硬红旗=停牌核查/立案/处罚/问询 · 减持=连板期间新减持计划(真实卖压) · 常规=异动公告(连板必发·零增量)
@@ -2533,7 +2581,7 @@ function candCard(c, planOpen){
       <span class="act-chip ${A.key}">${ACT_ICO[A.key] || ''}${A.label}</span>
       <span class="act-desc">${A.desc}</span>
       <span class="act-price">
-        <span>挂单价 <b>${fp(A.buy_price)}</b></span>
+        <span><span class="ap-tag">明日买入价</span> ≤ <b>${fp(A.buy_price)}</b></span>
       </span>
     </div>` : '';
   const dropBar = skip ? `
