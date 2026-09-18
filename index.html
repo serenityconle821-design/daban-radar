@@ -1599,7 +1599,7 @@ tr.pt-excluded-row td { opacity:.52; }
         选股三步直答 — 高度定梯队 · 分数只排雷
       </div>
       <div class="dg-steps">
-        <b>① 今晚买谁？挂几只？</b> 看梯队：<b>S级（4板+）优先挂隔夜单</b>（两年胜率76.5%/+4.66 · 近3月80.3%）· A级（2进3）正常挂（70.8%/+2.88）· B级（3进4）轻仓1-2%或放弃（近3月均值+2.24%）。挂<b>「昨收+5%」限价单</b>（次日按开盘价成交·开盘高于限价不成交）；<b>不用盯竞价，9:30 开盘后未成交（=高开&gt;5%）撤单即可</b>。<b>百分比已换算成价格</b>：各候选卡「明日价位尺」按今收直接标出 +5%挂单限价线 / +3%开盘卖线 / 涨停价（盘中排队用）。<br>
+        <b>① 今晚买谁？挂几只？</b> 看梯队：<b>S级（4板+）优先挂隔夜单</b>（两年胜率76.5%/+4.66 · 近3月80.3%）· A级（2进3）正常挂（70.8%/+2.88）· B级（3进4）轻仓1-2%或放弃（近3月均值+2.24%）· M级（首板动量·新）纯观察或轻仓1%（回测69.2%/+1.19·仅13笔样本积累中，不抢主线仓位）。挂<b>「昨收+5%」限价单</b>（次日按开盘价成交·开盘高于限价不成交）；<b>不用盯竞价，9:30 开盘后未成交（=高开&gt;5%）撤单即可</b>。<b>百分比已换算成价格</b>：各候选卡「明日价位尺」按今收直接标出 +5%挂单限价线 / +3%开盘卖线 / 涨停价（盘中排队用）。<br>
         <b>② 带淘汰标记的能不能买？</b> ❌ 淘汰 · 不买：尾盘板（首封≥13:00）/ 炸板≥3次 / A·B级确定性&lt;65分（负期望区）。S级不看分数 — 回测4板+低分组收益反而更高，高度即资格。<br>
         <b>③ 买入后第二天怎么办？</b> 统一规则「<b>封板续持 · 断板就走</b>」：收盘封板→继续持有；未封板日 开盘≥+3%→开盘卖 / 盘中冲高+3%→即刻卖 / 全天没到→收盘卖。买入后点卡上「已买入·登记」，「我的打板仓」每天盘中直接给 持有/止盈/离场 提示。<br>
         <b>④ 买入当天（T日）盘中怎么执行？</b> 时间轴：<b>9:25</b> 竞价定格开盘价，隔夜单（昨收+5%限价）自动按开盘价成交（高开&gt;5% 不成交，9:30 撤单即可）→ <b>9:30后</b> 没隔夜单的不追开盘价，等首次冲板在<b>封板瞬间挂涨停价排队</b>（提前追=追涨；已封死照样排队等让位）→ <b>排不到</b>：14:45前撤单换备选，不追高 → <b>买入后炸板</b>：绝不加仓摊平（炸板=分歧验证），巨单秒回封→持有；反复炸≥2次/封单萎缩→当日减半；尾盘未回封→当日按R3执行。完整手册见上方「今日建议入场」区的执行手册。
@@ -1643,6 +1643,14 @@ tr.pt-excluded-row td { opacity:.52; }
     </div>
     <p class="sec-sub">两年胜率 76.6% / +4.38% 但近3月均值仅 +2.24% · 轻仓1-2%或放弃 · 靠盈亏比不靠胜率</p>
     <div id="c34List"></div>
+
+    <!-- v1.17.0 M级 · 首板动量 观察档 (淘股吧大佬思路: 当日最强首板·次日赌续强) -->
+    <div class="sec-title" style="margin:34px 0 4px;">
+      <span class="ico" style="background:var(--green-soft); color:var(--green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+      <span>M级 · 首板动量 · 观察档</span>
+    </div>
+    <p class="sec-sub" id="c12Sub">当日首板分数Top3 · 回测 69.2% / +1.19%（挂「昨收+5%」限价·R3出场）· 轻仓1%或纯观察</p>
+    <div id="c12List"></div>
   </section>
 
   <!-- ═══ 龙回头策略 ═══ -->
@@ -1858,15 +1866,16 @@ function renderEntryBrief(){
     });
   });
   /* ② 选股候选([v1.16.0] S/A级=建议买入, B级=轻仓或放弃; 淘汰不进精华卡)
-     [v1.16.1] 盘中直答(封板可排队/高开禁追/等回封) + 整行点击进详细策略页 */
-  [...(D.candidates_4plus || []), ...(D.candidates_2to3 || []), ...(D.candidates_3to4 || [])].forEach(c => {
+     [v1.16.1] 盘中直答(封板可排队/高开禁追/等回封) + 整行点击进详细策略页
+     [v1.17.0] M级(首板动量观察档)并入精华卡(light档) */
+  [...(D.candidates_4plus || []), ...(D.candidates_2to3 || []), ...(D.candidates_3to4 || []), ...(D.candidates_1to2 || [])].forEach(c => {
     const sel = c.sel || {};
     if (sel.verdict === 'skip') return;
-    const isS = sel.tier === 'S', isA = sel.tier === 'A';
+    const isS = sel.tier === 'S', isA = sel.tier === 'A', isM = sel.tier === 'M';
     if (!isS && !isA && sel.verdict !== 'light') return;
     const A = c.action || {};
     rows.push(ebRow(c.rank, c.name, c.code,
-      pill(`${sel.label} · ${isS ? '隔夜单' : isA ? '隔夜单或回封排队' : '轻仓或放弃'} · 胜率${sel.win}`, isS ? 'var(--red)' : isA ? 'var(--green)' : 'var(--orange)', isS ? 'var(--red-soft)' : isA ? 'var(--green-soft)' : 'var(--orange-soft)')
+      pill(`${sel.label} · ${isS ? '隔夜单' : isA ? '隔夜单或回封排队' : isM ? '首板观察' : '轻仓或放弃'} · 胜率${sel.win}`, isS ? 'var(--red)' : isA ? 'var(--green)' : 'var(--orange)', isS ? 'var(--red-soft)' : isA ? 'var(--green-soft)' : 'var(--orange-soft)')
       + pill(`${c.lb}板 · ${sel.full} · ${c.industry || ''}`, 'var(--secondary)', 'var(--sep)')
       + pill(`仓位${sel.pos}${sel.downgrade ? ' · 相位降级' : ''}`, 'var(--primary)', 'var(--primary-soft)'),
       `<span>挂单价 <b>${fp(A.buy_price != null ? A.buy_price : c.next_zt)}</b></span>`
@@ -2123,17 +2132,19 @@ function strataStrip(c){
    R3持有规则: 封板续持·断板就走 (2024/2025/2026 分年度全正期望)
    行情: 腾讯 qt.gtimg.cn 批量拉取(script注入GBK), 仅交易日盘中30s刷新 */
 const DA_Q = {};                                        // 实时行情缓存 code → {px,pc,po,ph,pl,ztp,ts}
-const DA_WIN = { 2:{w:70.8,r:2.88}, 3:{w:76.6,r:4.38}, 4:{w:76.5,r:4.66} };  // [v1.16.9] 挂+5%限价口径 R3执行后 胜率%/均值%
+const DA_WIN = { 1:{w:69.2,r:1.19}, 2:{w:70.8,r:2.88}, 3:{w:76.6,r:4.38}, 4:{w:76.5,r:4.66} };  // [v1.16.9] 挂+5%限价口径 R3执行后 胜率%/均值% (1=M级首板·n=13样本积累中)
 const DA_STORE_KEY = 'glql_daban_v115';
 
 function daOvernight(c){
-  /* [v1.16.0] 隔夜单资格由选股梯队判定: S级=全胜档可挂 · A级=正常挂 · B级=轻仓 · 淘汰=不挂 */
+  /* [v1.16.0] 隔夜单资格由选股梯队判定: S级=全胜档可挂 · A级=正常挂 · B级=轻仓 · 淘汰=不挂
+     [v1.17.0] M级=首板动量观察档: 轻仓1%或纯观察(样本积累中) */
   const sel = (c && c.sel) || {};
   if (sel.verdict === 'skip') return { cls:'no', txt:'❌ 淘汰不挂', w:null, drop:sel.drop };
   const w = DA_WIN[sel.tier === 'S' ? 4 : (c.lb || 2)] || DA_WIN[2];
   if (sel.tier === 'S') return { cls:'ok', txt:'✅ S级可挂', w:DA_WIN[4] };
   if (sel.tier === 'A')  return { cls:'ok', txt:'✅ A级可挂', w:DA_WIN[2] };
   if (sel.tier === 'B')  return { cls:'warn', txt:'⚠️ B级轻仓挂', w:DA_WIN[3] };
+  if (sel.tier === 'M')  return { cls:'warn', txt:'👀 M级观察·轻仓1%或纯观察', w:DA_WIN[1] };
   return { cls:'no', txt:'❌ 不挂', w:null };
 }
 function daBook(){
@@ -2141,7 +2152,7 @@ function daBook(){
 }
 function daSave(b){ try { localStorage.setItem(DA_STORE_KEY, JSON.stringify(b)); } catch(e){} }
 function daRegist(code){
-  const all = [...(D.candidates_4plus||[]), ...(D.candidates_2to3||[]), ...(D.candidates_3to4||[])];
+  const all = [...(D.candidates_4plus||[]), ...(D.candidates_2to3||[]), ...(D.candidates_3to4||[]), ...(D.candidates_1to2||[])];
   const c = all.find(x => x.code === code);
   if (!c || daBook().some(x => x.code === code)) return;
   const v = prompt(`登记「${c.name}」实际买入价（隔夜单按开盘价成交，默认按挂单价 ${c.cap5 || c.next_zt} 估，请改成实际成交价）：`, c.cap5 || c.next_zt);
@@ -2446,7 +2457,7 @@ function flagClassify(list){
   return out;
 }
 async function flagTick(){
-  const cands = [...(D.candidates_4plus||[]), ...(D.candidates_2to3||[]), ...(D.candidates_3to4||[])];
+  const cands = [...(D.candidates_4plus||[]), ...(D.candidates_2to3||[]), ...(D.candidates_3to4||[]), ...(D.candidates_1to2||[])];
   for (const code of [...new Set(cands.map(c => c.code))]){
     try { FLAG_Q[code] = { items: flagClassify(await flagFetchOne(code)) }; }
     catch(e){ if (!FLAG_Q[code]) FLAG_Q[code] = { items: [], fail: true }; }
@@ -2558,9 +2569,11 @@ function candCard(c, planOpen){
 function renderCands(){
   renderMaster();
   /* [v1.16.0] 选股系统: S级(4板+) / A级(2进3) / B级(3进4) 三梯队渲染, 淘汰垫底
-     移动端节奏: 每组首卡(未淘汰排序第一)展开完整直答, 其余折叠 */
+     移动端节奏: 每组首卡(未淘汰排序第一)展开完整直答, 其余折叠
+     [v1.17.0] 新增M级(首板动量观察档): 当日首板分数top3, 淘汰垫底 */
   const SLC = D.selection || {}, SC = SLC.counts || {};
-  const c4 = D.candidates_4plus || [], c23 = D.candidates_2to3 || [], c34 = D.candidates_3to4 || [];
+  const c4 = D.candidates_4plus || [], c23 = D.candidates_2to3 || [], c34 = D.candidates_3to4 || [],
+        c12 = D.candidates_1to2 || [];
   $('c4List').innerHTML = c4.length
     ? c4.map((c, i) => candCard(c, i === 0)).join('')
     : '<div class="card" style="color:var(--secondary);">今日无 4板及以上核心标的 — S级空缺也是答案（不强行降级追2板高标）</div>';
@@ -2579,10 +2592,18 @@ function renderCands(){
     : emptyCard('今日涨停池中无 3板 标的。B级 = 昨日 3板今日冲 4板，是高波动档位——空窗期反而省心（近3月均值仅 +2.24%）。',
                 '触发条件：今日 3板收盘 → 明晚入 B级名单（轻仓 1-2% 或放弃）。',
                 (c4.length || c23.length ? 'S级 + A级挂「昨收+5%」限价隔夜单（见上方）' : '空仓等待 · 明晚 15:10 看新名单'));
+  /* [v1.17.0] M级·首板动量观察档: 样本期短(9/4起)·样本积累中, 副标题常驻提示 */
+  $('c12List').innerHTML = c12.length
+    ? c12.map((c, i) => candCard(c, i === 0)).join('')
+    : emptyCard('今日首板池无 score≥55 的标的（或全部被排雷淘汰）。M级只取当日最强首板 Top3，宁缺毋滥。',
+                '触发条件：今日首板收盘 且 快照分数≥55 → 明晚入 M级观察名单（轻仓1%或纯观察）。',
+                'S/A/B 级隔夜单（见上方） · M级为补充观察位，不抢主线路径');
   /* 梯队副标题: 实时可买/淘汰统计 */
-  const sS = SC.S || {}, sA = SC.A || {}, sB = SC.B || {};
+  const sS = SC.S || {}, sA = SC.A || {}, sB = SC.B || {}, sM = SC.M || {};
   $('c4Sub').textContent = `两年胜率 76.5% · 单笔 +4.66%（挂「昨收+5%」限价口径）· 近3月 80.3% · 分数不淘汰（低分组收益反而更高） · 今日 ${sS.buy || 0}/${sS.total || 0} 可挂` + (sS.out ? ` · 淘汰 ${sS.out} 只（尾盘板/炸板≥3）` : '');
   $('c23Sub').textContent = `两年胜率 70.8% · 单笔 +2.88% · 2024-2026 分年度全正 · 确定性<65分淘汰 · 今日 ${sA.buy || 0}/${sA.total || 0} 可买` + (sA.out ? ` · 淘汰 ${sA.out} 只` : '');
+  const m12n = 13, m12w = 69.2, m12a = 1.19;
+  $('c12Sub').textContent = `当日首板分数Top3 · 回测 ${m12w}% / +${m12a}%（n=${m12n}·挂「昨收+5%」限价·R3出场）· 轻仓1%或纯观察 · ⚠ 样本积累中(9/4起) · 今日 ${sM.light || 0}/${sM.total || 0} 观察` + (sM.out ? ` · 淘汰 ${sM.out} 只` : '');
 }
 
 /* ── 龙回头(分层优化v2) ── */
@@ -4192,7 +4213,8 @@ function npRow(nm, v1, v2, v3, color){
 }
 function renderPanels(){
   const m = D.meta || {}, sg = D.signal || {}, mk = D.market || {};
-  const c4 = D.candidates_4plus || [], c23 = D.candidates_2to3 || [], c34 = D.candidates_3to4 || [], dr = D.dragons || [];
+  const c4 = D.candidates_4plus || [], c23 = D.candidates_2to3 || [], c34 = D.candidates_3to4 || [],
+        c12 = D.candidates_1to2 || [], dr = D.dragons || [];
   const B = D.backtest || {}, g = B.golden || {}, dbt = B.dragon || {};
   const opt = dbt.optimized || {}, vs = dbt.vs_daban || {};
   const aT = opt.a_tier || {}, bT = opt.b_tier || {};
@@ -4200,9 +4222,9 @@ function renderPanels(){
 
   $('brandMeta').textContent = 'v' + m.version + ' · ' + (m.date_label || '') + ' · ' + (m.stage_label || '');
 
-  // ① 概览([v1.16.0] 选股梯队统计: S级优先展示)
+  // ① 概览([v1.16.0] 选股梯队统计: S级优先展示; [v1.17.0] M级观察数并入)
   const _selc = (D.selection || {}).counts || {};
-  const cands = c4.length + c23.length + c34.length;
+  const cands = c4.length + c23.length + c34.length + c12.length;
   const ok4 = c4.filter(c => c.sel && c.sel.verdict !== 'skip');
   const okA = c23.filter(c => c.sel && c.sel.verdict !== 'skip');
   const top = ok4[0] || okA[0] || c34.concat(c23, c4).sort((a,b) => (b.score||0) - (a.score||0))[0];
@@ -4215,6 +4237,7 @@ function renderPanels(){
       ${npStat(sg.p12 == null ? '—' : sg.p12 + '%', '1进2晋级率', sg.p12 >= 50 ? 'var(--green)' : sg.p12 >= 20 ? 'var(--primary)' : 'var(--orange)')}
       ${npStat((( _selc.S||{}).buy||0) + '只', 'S级可挂 · 4板+', ((_selc.S||{}).buy ? 'var(--red)' : 'var(--secondary)'))}
       ${npStat((((_selc.A||{}).buy||0) + '/' + ((_selc.B||{}).light||0)), 'A级买/B级轻', 'var(--primary)')}
+      ${npStat(((_selc.M||{}).light||0) + '只', 'M级首板观察', ((_selc.M||{}).light ? 'var(--green)' : 'var(--secondary)'))}
       ${npStat(dr.length + '只', '龙回头信号')}
     </div>
     <div class="np-note">${top

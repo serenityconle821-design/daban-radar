@@ -298,7 +298,7 @@ function ringHTML(size, stroke, ratio, color, inner){
   </svg>`;
 }
 function findCand(code){
-  return [...(D.candidates_4plus||[]), ...(D.candidates_2to3||[]), ...(D.candidates_3to4||[])]
+  return [...(D.candidates_4plus||[]), ...(D.candidates_2to3||[]), ...(D.candidates_3to4||[]), ...(D.candidates_1to2||[])]
     .find(x => x.code === code);
 }
 /* ── [v1.16.2] 公告红旗核查: 东财公告接口 · 近7日分级列表 · 只标不拦 ── */
