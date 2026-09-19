@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>观澜擒龙</title>
 <style>
+/* v1.18.0 T+1合规口径落地(2026-09-19): 买入日断板只能持有·次日起R3 → 旧口径(当日可卖)胜率70%+作废
+   · 梯队重排: M级=首板精选(55.5%/+1.13·n=607·四梯队胜率第一·轻仓1-2%) → S级=4板+(48.4%/+2.18·n=225·
+     均值最高·2-3%仓·挂「昨收+5%」限价·分数不淘汰) → A级=2进3(48.8%/+0.25·n=326·PF1.07边缘·降轻仓1-2%或放弃)
+     → B级=3进4(44.4%/-0.88·n=171·负期望·已停用不展示个股卡·仅停用说明)
+   · 大概率失效的不前置: B级停用; 战法T4(红)/T5(黄)成本审计否决移入否决区, 正式信号仅T3+P1 */
 /* v1.16.0 选股系统: 打板区改造为「高度梯队+分数排雷」选股引擎(依据 bt_env/bt_env2/bt_env3/bt_score 全量回测)
    · 梯队: S级=4板+(挂「昨收+5%」限价·2-3%仓·两年76.5%/+4.66·近3月80.3%·分数不淘汰) / A级=2进3(同挂·2-3%仓·70.8%/+2.88)
      / B级=3进4(轻仓1-2%或放弃·两年76.6%/+4.38但近3月均值+2.24%)
@@ -1612,7 +1617,7 @@ tr.pt-excluded-row td { opacity:.52; }
         选股三步直答 — 高度定梯队 · 分数只排雷
       </div>
       <div class="dg-steps">
-        <b>① 今晚买谁？挂几只？</b> 看梯队：<b>S级（4板+）优先挂隔夜单</b>（两年胜率76.5%/+4.66 · 近3月80.3%）· A级（2进3）正常挂（70.8%/+2.88）· B级（3进4）轻仓1-2%或放弃（近3月均值+2.24%）· M级（首板动量·新）纯观察或轻仓1%（回测69.2%/+1.19·仅13笔样本积累中，不抢主线仓位）。挂<b>「昨收+5%」限价单</b>（次日按开盘价成交·开盘高于限价不成交）；<b>不用盯竞价，9:30 开盘后未成交（=高开&gt;5%）撤单即可</b>。<b>百分比已换算成价格</b>：各候选卡「明日价位尺」按今收直接标出 +5%挂单限价线 / +3%开盘卖线 / 涨停价（盘中排队用）。<br>
+        <b>① 今晚买谁？挂几只？</b> 看梯队（T+1合规口径）：<b>M级（首板精选·梯队第一）轻仓1-2%</b>（55.5%/+1.13 · n=607 · 四梯队胜率第一）· <b>S级（4板+）挂隔夜单·仓位2-3%</b>（48.4%/+2.18 · 均值四梯队最高·靠盈亏比）· A级（2进3）轻仓1-2%或放弃（48.8%/+0.25 · 边缘正期望·0.5%生产滑点下转负）· B级（3进4）<b>已停用</b>（44.4%/-0.88 负期望·不挂单不参与）。挂<b>「昨收+5%」限价单</b>（次日按开盘价成交·开盘高于限价不成交）；<b>不用盯竞价，9:30 开盘后未成交（=高开&gt;5%）撤单即可</b>。<b>百分比已换算成价格</b>：各候选卡「明日价位尺」按今收直接标出 +5%挂单限价线 / +3%开盘卖线 / 涨停价（盘中排队用）。<br>
         <b>② 带淘汰标记的能不能买？</b> ❌ 淘汰 · 不买：尾盘板（首封≥13:00）/ 炸板≥3次 / A·B级确定性&lt;65分（负期望区）。S级不看分数 — 回测4板+低分组收益反而更高，高度即资格。<br>
         <b>③ 买入后第二天怎么办？</b> 统一规则「<b>封板续持 · 断板就走</b>」：收盘封板→继续持有；未封板日 开盘≥+3%→开盘卖 / 盘中冲高+3%→即刻卖 / 全天没到→收盘卖。买入后点卡上「已买入·登记」，「我的打板仓」每天盘中直接给 持有/止盈/离场 提示。<br>
         <b>④ 买入当天（T日）盘中怎么执行？</b> 时间轴：<b>9:25</b> 竞价定格开盘价，隔夜单（昨收+5%限价）自动按开盘价成交（高开&gt;5% 不成交，9:30 撤单即可）→ <b>9:30后</b> 没隔夜单的不追开盘价，等首次冲板在<b>封板瞬间挂涨停价排队</b>（提前追=追涨；已封死照样排队等让位）→ <b>排不到</b>：14:45前撤单换备选，不追高 → <b>买入后炸板</b>：绝不加仓摊平（炸板=分歧验证），巨单秒回封→持有；反复炸≥2次/封单萎缩→当日减半；尾盘未回封→当日按R3执行。完整手册见上方「今日建议入场」区的执行手册。
@@ -1637,35 +1642,39 @@ tr.pt-excluded-row td { opacity:.52; }
     </div>
     <!-- [v1.17.1] 盘中「低开/平开·等回封可排队」实时汇总条 (交易日盘中自动点亮) -->
     <div class="queue-bar" id="daQueueBar" style="display:none;"></div>
+    <!-- v1.18.0 T+1合规重排: 买入日断板只能持有·次日起R3 → 旧口径(当日可卖)胜率70%+作废
+         合规大样本(n=1329): M 55.5%/+1.13(n=607·PF1.34) > A 48.8%/+0.25(n=326·PF1.07·边缘降轻仓)
+         > S 48.4%/+2.18(n=225·PF1.41·均值最高) ; B 44.4%/-0.88(n=171·PF0.84 负期望→停用) -->
+    <!-- M级 · 首板动量 精选档 (T+1合规四梯队胜率第一) -->
+    <div class="sec-title" style="margin:34px 0 4px;">
+      <span class="ico" style="background:var(--green-soft); color:var(--green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+      <span>M级 · 首板动量 · 精选档</span>
+    </div>
+    <p class="sec-sub" id="c12Sub">T+1合规口径 胜率 55.5% / 单笔 +1.13%（n=607 · PF1.34 · 四梯队第一 · 挂「昨收+5%」限价×R3）· 轻仓1-2%</p>
+    <div id="c12List"></div>
+
     <!-- v1.16.0 S级 · 4板+ 选股池 (高度即护城河) -->
     <div class="sec-title" style="margin:34px 0 4px;">
       <span class="ico" style="background:var(--red-soft); color:var(--red);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.2H22l-6 4.6 2.3 7.2-6.3-4.5-6.3 4.5L8 13.8l-6-4.6h7.6z"/></svg></span>
       <span>S级 · 4板及以上 · 高度即资格</span>
     </div>
-    <p class="sec-sub" id="c4Sub">两年胜率 76.5% · 单笔 +4.66%（挂「昨收+5%」限价口径）· 近3月 80.3% · 分数不淘汰（低分组收益反而更高）</p>
+    <p class="sec-sub" id="c4Sub">T+1合规口径 胜率 48.4% / 单笔 +2.18%（n=225 · PF1.41 · 均值四梯队最高 · 靠盈亏比）· 分数不淘汰（高度即资格）</p>
     <div id="c4List"></div>
 
     <div class="sec-title" style="margin:34px 0 4px;">
       <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
-      <span>A级 · 2进3 基准池</span>
+      <span>A级 · 2进3 边缘档 · 轻仓</span>
     </div>
-    <p class="sec-sub" id="c23Sub">两年胜率 70.8% · 单笔 +2.88% · 2024-2026 分年度全正 · 确定性&lt;65分淘汰</p>
+    <p class="sec-sub" id="c23Sub">T+1合规口径 胜率 48.8% / 单笔 +0.25%（n=326 · PF1.07 边缘正期望·0.5%生产滑点下转负）· 降轻仓1-2%或放弃 · 确定性&lt;65分淘汰</p>
     <div id="c23List"></div>
 
-    <div class="sec-title" style="margin:34px 0 4px;">
-      <span class="ico" style="background:var(--orange-soft); color:var(--orange);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span>
-      <span>B级 · 3进4 轻仓档</span>
+    <!-- v1.18.0 B级 · 3进4 已停用 (T+1合规负期望 → 不再展示个股卡) -->
+    <div class="sec-title" style="margin:34px 0 4px; opacity:.72;">
+      <span class="ico" style="background:var(--sep); color:var(--secondary);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></span>
+      <span>B级 · 3进4 已停用</span>
     </div>
-    <p class="sec-sub">两年胜率 76.6% / +4.38% 但近3月均值仅 +2.24% · 轻仓1-2%或放弃 · 靠盈亏比不靠胜率</p>
+    <p class="sec-sub" id="c34Sub">T+1合规口径 44.4% / -0.88%（n=171 · PF0.84 负期望）· 已停用不参与 · 下方仅停用说明</p>
     <div id="c34List"></div>
-
-    <!-- v1.17.0 M级 · 首板动量 观察档 (淘股吧大佬思路: 当日最强首板·次日赌续强) -->
-    <div class="sec-title" style="margin:34px 0 4px;">
-      <span class="ico" style="background:var(--green-soft); color:var(--green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
-      <span>M级 · 首板动量 · 观察档</span>
-    </div>
-    <p class="sec-sub" id="c12Sub">当日首板分数Top3 · 回测 69.2% / +1.19%（挂「昨收+5%」限价·R3出场）· 轻仓1%或纯观察</p>
-    <div id="c12List"></div>
   </section>
 
   <!-- ═══ 龙回头策略 ═══ -->
@@ -1751,7 +1760,7 @@ tr.pt-excluded-row td { opacity:.52; }
         <span class="ico" style="background:var(--red-soft); color:var(--red);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6.01A9.99 9.99 0 0 0 4 18"/><path d="M15.52 15.52A6 6 0 0 0 12 6a6 6 0 0 0-3.52 9.52"/><circle cx="12" cy="12" r="1.6"/></svg></span>
         <span>五大战法雷达 · 回测融合</span>
       </div>
-      <p class="sec-sub">近两年 4991股 × 484交易日 回测 + 二轮参数优化 · T3龙回头 / T4涨停回马枪 / T5箱体回踩 采纳运行 · <b>P1冰点锤子线</b>采纳(抖音6大看涨形态回测唯合格项, 全市场共振≥10只才开仓) · T1阶梯上行 / T2双涨停背离 回测否决 · <b>买入时点: 今日收盘确认形态 → 明日开盘买入</b>(当晚可挂隔夜委托, 约20:00后券商受理 · 当日新出的形态当日不追买)</p>
+      <p class="sec-sub">近两年 4991股 × 484交易日 回测 + 二轮参数优化 + <b>成本审计(0.5%双边滑点+止损双确认)</b> · <b>T3龙回头</b> 采纳(绿色·三档成本均正期望) / <b>P1冰点锤子线</b> 采纳(共振≥10只才开仓) · T4涨停回马枪 <b>成本审计红旗否决</b> / T5箱体回踩 <b>黄旗边缘否决</b> · T1阶梯上行 / T2双涨停背离 回测否决 · <b>买入时点: 今日收盘确认形态 → 明日开盘买入</b>(当晚可挂隔夜委托, 约20:00后券商受理 · 当日新出的形态当日不追买)</p>
       <div id="stratMeta"></div>
       <div id="stratGrid"></div>
       <div id="stratVeto"></div>
@@ -1845,8 +1854,8 @@ function renderHero(){
   if (sg.p12 != null) bd.push(`<span class="badge ${sg.p12>=50?'green':sg.p12>=20?'blue':'gray'}"><span class="dot"></span>1进2 ${sg.p12}%</span>`);
   /* v1.16.0 选股: 梯队可买统计(替代旧候选计数) */
   const _sel = D.selection || {}, _sc = _sel.counts || {};
-  const _sBuy = (_sc.S||{}).buy||0, _aBuy = (_sc.A||{}).buy||0, _bL = (_sc.B||{}).light||0;
-  bd.push(`<span class="badge ${(_sBuy||_aBuy)?'green':'gray'}"><span class="dot"></span>选股 S${_sBuy}·A${_aBuy}·B轻${_bL} 可买</span>`);
+  const _sBuy = (_sc.S||{}).buy||0, _aL = (_sc.A||{}).light||0, _mL = (_sc.M||{}).light||0;
+  bd.push(`<span class="badge ${(_sBuy||_mL||_aL)?'green':'gray'}"><span class="dot"></span>选股 S${_sBuy}·A轻${_aL}·M轻${_mL} 可买</span>`);
   $('heroBadges').innerHTML = bd.join('');
 }
 
@@ -1867,8 +1876,9 @@ function renderEntryBrief(){
   const LIVE_WAIT = '<span class="da-wait">交易时段打开本页 · 自动判定现在能不能买</span>';
   const pill = (txt, fg, bg) => `<span class="pill" style="background:${bg};color:${fg};font-size:11px;">${txt}</span>`;
   /* ① 战法雷达正式信号(相位+形态双达标, 最高优先级) · [v1.16.1]盘中直答=现价/形态是否破止损
-     v1.16.7: P1冰点锤子线开闸时同样为正式信号(共振≥10只, 全市场冰点抄底) */
-  (['t3','t4','t5','p1']).forEach(k => {
+     v1.16.7: P1冰点锤子线开闸时同样为正式信号(共振≥10只, 全市场冰点抄底)
+     v1.18.0: T4涨停回马枪/T5箱体回踩 成本审计否决(red/yellow) → 移出正式信号循环 */
+  (['t3','p1']).forEach(k => {
     const s = ((SR.strategies || {})[k]) || {};
     (s.signals || []).slice(0, 3).forEach(x => {
       rows.push(ebRow('✓', x.name, x.code,
@@ -1880,17 +1890,17 @@ function renderEntryBrief(){
         `<div class="eb-live da-live" data-code="${x.code}" data-strat="1" data-stop="${x.stop_price || ''}"><span class="da-wait">非交易时段 · 明日开盘按计划执行</span></div>`));
     });
   });
-  /* ② 选股候选([v1.16.0] S/A级=建议买入, B级=轻仓或放弃; 淘汰不进精华卡)
-     [v1.16.1] 盘中直答(封板可排队/高开禁追/等回封) + 整行点击进详细策略页
-     [v1.17.0] M级(首板动量观察档)并入精华卡(light档) */
-  [...(D.candidates_4plus || []), ...(D.candidates_2to3 || []), ...(D.candidates_3to4 || []), ...(D.candidates_1to2 || [])].forEach(c => {
+  /* ② 选股候选([v1.18.0] T+1合规重排: M级(胜率第一)前置 → S级(隔夜单) → A级(轻仓);
+     B级已停用(verdict=skip 自动过滤), 淘汰不进精华卡
+     [v1.16.1] 盘中直答(封板可排队/高开禁追/等回封) + 整行点击进详细策略页 */
+  [...(D.candidates_1to2 || []), ...(D.candidates_4plus || []), ...(D.candidates_2to3 || []), ...(D.candidates_3to4 || [])].forEach(c => {
     const sel = c.sel || {};
     if (sel.verdict === 'skip') return;
     const isS = sel.tier === 'S', isA = sel.tier === 'A', isM = sel.tier === 'M';
-    if (!isS && !isA && sel.verdict !== 'light') return;
+    if (!isS && !isA && !isM) return;
     const A = c.action || {};
     rows.push(ebRow(c.rank, c.name, c.code,
-      pill(`${sel.label} · ${isS ? '隔夜单' : isA ? '隔夜单或回封排队' : isM ? '首板观察' : '轻仓或放弃'} · 胜率${sel.win}`, isS ? 'var(--red)' : isA ? 'var(--green)' : 'var(--orange)', isS ? 'var(--red-soft)' : isA ? 'var(--green-soft)' : 'var(--orange-soft)')
+      pill(`${sel.label} · ${isS ? '隔夜单·均值最高' : isA ? '轻仓或放弃·边缘档' : '首板精选·胜率第一'} · 胜率${sel.win}`, isS ? 'var(--red)' : isA ? 'var(--orange)' : 'var(--green)', isS ? 'var(--red-soft)' : isA ? 'var(--orange-soft)' : 'var(--green-soft)')
       + pill(`${c.lb}板 · ${sel.full} · ${c.industry || ''}`, 'var(--secondary)', 'var(--sep)')
       + pill(`仓位${sel.pos}${sel.downgrade ? ' · 相位降级' : ''}`, 'var(--primary)', 'var(--primary-soft)'),
       `<span>挂单价 <b>${fp(A.buy_price != null ? A.buy_price : c.next_zt)}</b></span>`
@@ -1899,9 +1909,9 @@ function renderEntryBrief(){
       `<div class="eb-live da-live" data-code="${c.code}">${LIVE_WAIT}</div>`,
       true));
   });
-  /* ③ 可入场池·轻仓级(形态今日已触发, 相位闸门未开) */
+  /* ③ 可入场池·轻仓级(形态今日已触发, 相位闸门未开) — v1.18.0: 仅T3(T4/T5已审计否决) */
   const lights = [];
-  (['t3','t4','t5']).forEach(k => {
+  (['t3']).forEach(k => {
     const s = ((SR.strategies || {})[k]) || {};
     (s.watch || []).forEach(x => lights.push([x, k]));
   });
@@ -1924,8 +1934,8 @@ function renderEntryBrief(){
       <br><b style="color:var(--red);">④ 开盘买入后炸板 — 绝不加仓摊平：</b>炸板=分歧验证，加仓=在分歧里放大敞口（反面教材：中新赛克 12.4% 仓位扛单）。处置只分三档：<b>巨单秒回封</b> → 持有，等收盘按「封板续持」判定；<b>反复炸板≥2次 / 封单持续萎缩</b> → 当日减半；<b>尾盘仍未回封（断板）</b> → 当日按R3执行：冲高+3%即卖 / 全天没到收盘卖，不隔夜扛不确定性。
     </div>
   </details>`;
-  /* [v1.16.5] 排序口径自解释: 名单排序=高度→首封早(回测首封早是正因子), 分数仅排雷不排序 */
-  const EB_ORDER = `<div class="eb-tip">排序口径: S级在前 → 同梯队按<b>首封时间早</b>排(回测首封早是正因子) · 分数仅用于排雷(<65分淘汰A/B级), <b>不用于排序</b>(≥75分胜率70.0% vs <75分68.8%, 不单调)。仓位规则: 单票2-3% · 打板总敞口≤10% → 本名单<b>最多执行3-4只</b>, 其余为备选。</div>`;
+  /* [v1.18.0] 排序口径自解释: T+1合规重排 M级(胜率第一)在前; 分数仅排雷不排序 */
+  const EB_ORDER = `<div class="eb-tip">排序口径: M级(T+1合规胜率55.5%·第一) → S级(均值+2.18%最高) → A级(边缘·轻仓) → 同梯队按<b>首封时间早</b>排(回测首封早是正因子) · B级已停用 · 分数仅用于排雷(<65分淘汰A/B级), <b>不用于排序</b>。仓位规则: 单票1-3% · 打板总敞口≤10% → 本名单<b>最多执行3-4只</b>, 其余为备选。</div>`;
   /* 渲染 */
   const cnt = $('ebCount');
   if (rows.length){
@@ -2147,19 +2157,18 @@ function strataStrip(c){
    R3持有规则: 封板续持·断板就走 (2024/2025/2026 分年度全正期望)
    行情: 腾讯 qt.gtimg.cn 批量拉取(script注入GBK), 仅交易日盘中30s刷新 */
 const DA_Q = {};                                        // 实时行情缓存 code → {px,pc,po,ph,pl,ztp,ts}
-const DA_WIN = { 1:{w:69.2,r:1.19}, 2:{w:70.8,r:2.88}, 3:{w:76.6,r:4.38}, 4:{w:76.5,r:4.66} };  // [v1.16.9] 挂+5%限价口径 R3执行后 胜率%/均值% (1=M级首板·n=13样本积累中)
+const DA_WIN = { 1:{w:55.5,r:1.13}, 2:{w:48.8,r:0.25}, 3:{w:44.4,r:-0.88}, 4:{w:48.4,r:2.18} };  // [v1.18.0] T+1合规口径(买入日只持有·次日起R3) 挂+5%限价 胜率%/均值% (1=M级首板精选·n=607; 3=B级已停用负期望)
 const DA_STORE_KEY = 'glql_daban_v115';
 
 function daOvernight(c){
-  /* [v1.16.0] 隔夜单资格由选股梯队判定: S级=全胜档可挂 · A级=正常挂 · B级=轻仓 · 淘汰=不挂
-     [v1.17.0] M级=首板动量观察档: 轻仓1%或纯观察(样本积累中) */
+  /* [v1.18.0] 隔夜单资格由选股梯队判定(T+1合规): M级=精选档轻仓1-2% · S级=可挂2-3%仓 · A级=轻仓1-2%或放弃 · B级=停用 · 淘汰=不挂 */
   const sel = (c && c.sel) || {};
   if (sel.verdict === 'skip') return { cls:'no', txt:'❌ 淘汰不挂', w:null, drop:sel.drop };
   const w = DA_WIN[sel.tier === 'S' ? 4 : (c.lb || 2)] || DA_WIN[2];
-  if (sel.tier === 'S') return { cls:'ok', txt:'✅ S级可挂', w:DA_WIN[4] };
-  if (sel.tier === 'A')  return { cls:'ok', txt:'✅ A级可挂', w:DA_WIN[2] };
-  if (sel.tier === 'B')  return { cls:'warn', txt:'⚠️ B级轻仓挂', w:DA_WIN[3] };
-  if (sel.tier === 'M')  return { cls:'warn', txt:'👀 M级观察·轻仓1%或纯观察', w:DA_WIN[1] };
+  if (sel.tier === 'S') return { cls:'ok', txt:'✅ S级可挂·2-3%仓', w:DA_WIN[4] };
+  if (sel.tier === 'A')  return { cls:'warn', txt:'⚠️ A级轻仓·1-2%或放弃', w:DA_WIN[2] };
+  if (sel.tier === 'B')  return { cls:'no', txt:'⛔ B级已停用·不参与', w:DA_WIN[3] };
+  if (sel.tier === 'M')  return { cls:'warn', txt:'👀 M级精选·轻仓1-2%', w:DA_WIN[1] };
   return { cls:'no', txt:'❌ 不挂', w:null };
 }
 function daBook(){
@@ -2635,23 +2644,25 @@ function renderCands(){
     : emptyCard('今日涨停池中无 2板 标的（或全部被排雷淘汰）。2板是 A级池的唯一入口，市场今日未产出。',
                 '触发条件：今日 2板收盘 → 明晚 15:10 入 A级名单（2进3）。',
                 (c4.length ? 'S级 4板+ 隔夜单（见上方 S级区）' : '空仓等待 · 明晚 15:10 看新名单'));
-  $('c34List').innerHTML = c34.length
-    ? c34.map((c, i) => candCard(c, i === 0)).join('')
-    : emptyCard('今日涨停池中无 3板 标的。B级 = 昨日 3板今日冲 4板，是高波动档位——空窗期反而省心（近3月均值仅 +2.24%）。',
-                '触发条件：今日 3板收盘 → 明晚入 B级名单（轻仓 1-2% 或放弃）。',
-                (c4.length || c23.length ? 'S级 + A级挂「昨收+5%」限价隔夜单（见上方）' : '空仓等待 · 明晚 15:10 看新名单'));
-  /* [v1.17.0] M级·首板动量观察档: 样本期短(9/4起)·样本积累中, 副标题常驻提示 */
+  /* [v1.18.0] B级(3进4)停用: T+1合规负期望(44.4%/-0.88%/PF0.84·n=171) → 不再渲染个股卡 */
+  $('c34List').innerHTML = `<div class="card" style="color:var(--secondary);padding:18px 24px;">
+    <div style="font-weight:700;color:var(--text);font-size:15px;">B级（3进4）已停用 · 不参与交易</div>
+    <div style="margin-top:8px;line-height:1.7;font-size:13.5px;">T+1合规回测负期望：胜率 44.4% · 单笔 -0.88% · PF 0.84（n=171）。
+    此前「轻仓1-2%或放弃」的建议基于旧违规口径（买入日断板当日可卖），T+1 下不可执行，结论作废。
+    今日 3板 标的仅记录在名单数据（${c34.length} 只），不产生任何买入建议。</div>
+    <div style="margin-top:10px;padding:9px 12px;border-radius:10px;background:var(--primary-soft);color:var(--primary);font-size:13px;font-weight:600;">当前主路径 → M级首板精选（胜率第一）· S级 4板+ 隔夜单 · A级轻仓（见上方）</div></div>`;
+  /* [v1.17.0→v1.18.0] M级·首板动量精选档: T+1合规大样本 n=607 证实正期望(55.5%/+1.13/PF1.34) */
   $('c12List').innerHTML = c12.length
     ? c12.map((c, i) => candCard(c, i === 0)).join('')
     : emptyCard('今日首板池无 score≥55 的标的（或全部被排雷淘汰）。M级只取当日最强首板 Top3，宁缺毋滥。',
-                '触发条件：今日首板收盘 且 快照分数≥55 → 明晚入 M级观察名单（轻仓1%或纯观察）。',
-                'S/A/B 级隔夜单（见上方） · M级为补充观察位，不抢主线路径');
-  /* 梯队副标题: 实时可买/淘汰统计 */
+                '触发条件：今日首板收盘 且 快照分数≥55 → 明晚入 M级名单（轻仓1-2%）。',
+                'M级为四梯队胜率第一档（55.5%/+1.13·n=607）· 配合 S/A级隔夜单');
+  /* 梯队副标题: 实时可买/淘汰统计 ([v1.18.0] T+1合规口径) */
   const sS = SC.S || {}, sA = SC.A || {}, sB = SC.B || {}, sM = SC.M || {};
-  $('c4Sub').textContent = `两年胜率 76.5% · 单笔 +4.66%（挂「昨收+5%」限价口径）· 近3月 80.3% · 分数不淘汰（低分组收益反而更高） · 今日 ${sS.buy || 0}/${sS.total || 0} 可挂` + (sS.out ? ` · 淘汰 ${sS.out} 只（尾盘板/炸板≥3）` : '');
-  $('c23Sub').textContent = `两年胜率 70.8% · 单笔 +2.88% · 2024-2026 分年度全正 · 确定性<65分淘汰 · 今日 ${sA.buy || 0}/${sA.total || 0} 可买` + (sA.out ? ` · 淘汰 ${sA.out} 只` : '');
-  const m12n = 13, m12w = 69.2, m12a = 1.19;
-  $('c12Sub').textContent = `当日首板分数Top3 · 回测 ${m12w}% / +${m12a}%（n=${m12n}·挂「昨收+5%」限价·R3出场）· 轻仓1%或纯观察 · ⚠ 样本积累中(9/4起) · 今日 ${sM.light || 0}/${sM.total || 0} 观察` + (sM.out ? ` · 淘汰 ${sM.out} 只` : '');
+  $('c4Sub').textContent = `T+1合规口径 胜率 48.4% · 单笔 +2.18%（n=225·PF1.41·均值四梯队最高·靠盈亏比）· 分数不淘汰（高度即资格） · 今日 ${sS.buy || 0}/${sS.total || 0} 可挂` + (sS.out ? ` · 淘汰 ${sS.out} 只（尾盘板/炸板≥3）` : '');
+  $('c23Sub').textContent = `T+1合规口径 胜率 48.8% · 单笔 +0.25%（n=326·PF1.07 边缘正期望·降轻仓1-2%或放弃）· 确定性<65分淘汰 · 今日 ${sA.light || 0}/${sA.total || 0} 轻仓` + (sA.out ? ` · 淘汰 ${sA.out} 只` : '');
+  $('c12Sub').textContent = `T+1合规口径 胜率 55.5% · 单笔 +1.13%（n=607·PF1.34·四梯队第一·挂「昨收+5%」限价×R3）· 轻仓1-2% · 今日 ${sM.light || 0}/${sM.total || 0} 观察` + (sM.out ? ` · 淘汰 ${sM.out} 只` : '');
+  $('c34Sub').textContent = `T+1合规口径 44.4% / -0.88%（n=171·PF0.84 负期望）· 已停用 · 今日 ${sB.total || 0} 只 3板 标的不产生买入建议`;
 }
 
 /* ── 龙回头(分层优化v2) ── */
@@ -3071,7 +3082,7 @@ function stratCard(key, s, phTxt){
         ${tags ? `<div class="strat-tags">${tags}</div>` : ''}
       </div>
       <div class="strat-core">
-        <div class="sc-cell"><div class="v" style="color:${wrColor};">${wr.toFixed(2)}%</div><div class="l">回测胜率</div></div>
+        <div class="sc-cell"><div class="v" style="color:${wrColor};">${wr.toFixed(2)}%</div><div class="l">审计胜率</div></div>
         <div class="sc-cell"><div class="v" style="color:var(--green);">+${ar.toFixed(2)}%</div><div class="l">单笔均收</div></div>
         <button class="strat-toggle" type="button">${ICON_CHEV}<span class="tg-lb">详情</span></button>
       </div>
@@ -3135,7 +3146,8 @@ function renderStrategy(){
       <div class="ns-top-grid">${topCards}</div>` : ''}
     </div>`;
   }
-  $('stratGrid').innerHTML = ['t3','t4','t5','p1'].filter(k => SR.strategies[k]).map(k => stratCard(k, SR.strategies[k], M.phase_txt)).join('');
+  /* [v1.18.0] 正式战法卡仅 t3(T3审计绿) + p1(P1共振闸门); T4/T5 移入否决区 */
+  $('stratGrid').innerHTML = ['t3','p1'].filter(k => SR.strategies[k]).map(k => stratCard(k, SR.strategies[k], M.phase_txt)).join('');
   // 折叠详情交互 (事件委托, 只绑定一次)
   const grid = $('stratGrid');
   if (!grid.dataset.tgBound){
@@ -3150,7 +3162,8 @@ function renderStrategy(){
       if (lb) lb.textContent = card.classList.contains('open') ? '收起' : '详情';
     });
   }
-  $('stratVeto').innerHTML = ['t1','t2'].filter(k => SR.strategies[k]).map(k => {
+  /* [v1.18.0] 否决区: T1/T2(回测否决) + T4(成本审计红旗) + T5(黄旗边缘) */
+  $('stratVeto').innerHTML = ['t1','t2','t4','t5'].filter(k => SR.strategies[k]).map(k => {
     const v = SR.strategies[k];
     return `<div class="strat-card" style="background:var(--bg);opacity:.75;">
       <div class="strat-head">
@@ -4270,12 +4283,13 @@ function renderPanels(){
 
   $('brandMeta').textContent = 'v' + m.version + ' · ' + (m.date_label || '') + ' · ' + (m.stage_label || '');
 
-  // ① 概览([v1.16.0] 选股梯队统计: S级优先展示; [v1.17.0] M级观察数并入)
+  // ① 概览([v1.18.0] T+1合规重排: M级胜率第一优先, B级停用不参与首选)
   const _selc = (D.selection || {}).counts || {};
   const cands = c4.length + c23.length + c34.length + c12.length;
+  const okM = c12.filter(c => c.sel && c.sel.verdict !== 'skip');
   const ok4 = c4.filter(c => c.sel && c.sel.verdict !== 'skip');
   const okA = c23.filter(c => c.sel && c.sel.verdict !== 'skip');
-  const top = ok4[0] || okA[0] || c34.concat(c23, c4).sort((a,b) => (b.score||0) - (a.score||0))[0];
+  const top = okM[0] || ok4[0] || okA[0];
   $('npOvBadge').textContent = sg.pass ? '信号有效' : '信号失效';
   $('npOvBadge').className = 'np-badge ' + (sg.pass ? 'ok' : 'no');
   $('npOvBody').innerHTML = `
@@ -4284,12 +4298,12 @@ function renderPanels(){
       ${npStat((mk.score10 ?? 0).toFixed(1) + '/10', '市场环境 · ' + (mk.level_txt || ''), (mk.level === 'strong' || mk.level === 'active') ? 'var(--green)' : (mk.level === 'cautious' ? 'var(--orange)' : 'var(--secondary)'))}
       ${npStat(sg.p12 == null ? '—' : sg.p12 + '%', '1进2晋级率', sg.p12 >= 50 ? 'var(--green)' : sg.p12 >= 20 ? 'var(--primary)' : 'var(--orange)')}
       ${npStat((( _selc.S||{}).buy||0) + '只', 'S级可挂 · 4板+', ((_selc.S||{}).buy ? 'var(--red)' : 'var(--secondary)'))}
-      ${npStat((((_selc.A||{}).buy||0) + '/' + ((_selc.B||{}).light||0)), 'A级买/B级轻', 'var(--primary)')}
-      ${npStat(((_selc.M||{}).light||0) + '只', 'M级首板观察', ((_selc.M||{}).light ? 'var(--green)' : 'var(--secondary)'))}
+      ${npStat(((_selc.M||{}).light||0) + '只', 'M级首板精选·胜率第一', ((_selc.M||{}).light ? 'var(--green)' : 'var(--secondary)'))}
+      ${npStat(((_selc.A||{}).light||0) + '只', 'A级轻仓·边缘档', ((_selc.A||{}).light ? 'var(--orange)' : 'var(--secondary)'))}
       ${npStat(dr.length + '只', '龙回头信号')}
     </div>
     <div class="np-note">${top
-      ? `梯队首选: <b>${top.name}</b>（${(top.sel||{}).label || ''} · ${top.lb}板 · 挂单价 ${top.cap5 || top.next_zt || '—'}（昨收+5%）· 两年胜率 ${(top.sel||{}).win || '—'}）· `
+      ? `梯队首选: <b>${top.name}</b>（${(top.sel||{}).label || ''} · ${top.lb}板 · 挂单价 ${top.cap5 || top.next_zt || '—'}（昨收+5%）· T+1合规胜率 ${(top.sel||{}).win || '—'}）· `
       : '今日无符合条件的候选 · 规则下观望为主 · '}
       每日三段式节奏: 15:10 名单生成 → 09:26 竞价验证 → 10:30 定型复查</div>`;
 
@@ -4407,7 +4421,7 @@ function renderPanels(){
       ${npStat(nForm + '只', '酝酿池')}
     </div>
     <div class="np-rows">
-      ${['t3','t4','t5','p1'].filter(k => stg[k]).map(k => {
+      ${['t3','p1'].filter(k => stg[k]).map(k => {
         const s = stg[k], open = !s.phase_gated;
         if (k === 'p1'){                          // v1.16.7 P1: 事件闸门(全市场共振), 非相位闸门
           const g = s.gate || {};
