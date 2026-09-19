@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>观澜擒龙</title>
 <style>
+/* v1.19.0 信息架构聚焦荐股(2026-09-19): 荐股=核心功能第一入口
+   · 导航: 顶栏+侧边「候选」→「荐股」置顶高亮(tnav-hot); 清除高分榜/诊断/三时段/体检过期NEW标签
+   · 荐股区新增主标题「荐股·今晚买什么」; 选股三步直答/回测证据默认折叠(details)
+   · 淘汰标的默认折叠: 各梯队组尾「已淘汰N只」灰条, 点击展开明细
+   · 战法雷达改名「成本审计采纳版」: 否决战法(T1/T2/T4/T5/P2-P6)不再页面展示, 仅T3+P1 */
 /* v1.18.0 T+1合规口径落地(2026-09-19): 买入日断板只能持有·次日起R3 → 旧口径(当日可卖)胜率70%+作废
    · 梯队重排: M级=首板精选(55.5%/+1.13·n=607·四梯队胜率第一·轻仓1-2%) → S级=4板+(48.4%/+2.18·n=225·
      均值最高·2-3%仓·挂「昨收+5%」限价·分数不淘汰) → A级=2进3(48.8%/+0.25·n=326·PF1.07边缘·降轻仓1-2%或放弃)
@@ -406,6 +411,21 @@ section { scroll-margin-top: 88px; }
   padding:8px 12px; font-size:12.5px; font-weight:600;
 }
 .sel-drop svg { flex:none; }
+/* [v1.19.0] 淘汰标的折叠块: 组尾灰条, 默认收起, 点击展开淘汰卡明细 */
+.drop-fold { margin-top:10px; border-radius:12px; background:rgba(120,120,128,.07); }
+.drop-fold > summary {
+  cursor:pointer; list-style:none; user-select:none; display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  padding:11px 14px; font-size:12.5px; font-weight:600; color:var(--secondary);
+}
+.drop-fold > summary::-webkit-details-marker { display:none; }
+.drop-fold > summary:hover { color:var(--text); }
+.drop-fold > summary svg { flex:none; opacity:.75; }
+.drop-fold > summary .df-caret {
+  margin-left:auto; font-size:11.5px; font-weight:700; color:var(--primary);
+  background:var(--primary-soft); padding:2px 9px; border-radius:9px;
+}
+.drop-fold[open] > summary .df-caret { display:none; }
+.drop-fold .df-body { padding:0 6px 10px; display:grid; gap:10px; }
 .sel-down {
   margin-top:10px; display:flex; align-items:center; gap:8px;
   background:var(--orange-soft); color:var(--orange); border-radius:10px;
@@ -464,7 +484,16 @@ section { scroll-margin-top: 88px; }
 /* 直答指引条(候选区顶部) */
 .da-guide { margin-top:14px; border-radius:14px; background:rgba(255,255,255,.32); padding:14px 18px;
   box-shadow:inset 0 0 0 .5px var(--hairline-soft), inset 0 1px 0 var(--specular-top); }
-.da-guide .dg-head { font-size:14.5px; font-weight:800; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+/* [v1.19.0] da-guide改为details折叠容器: summary=标题行可点击, 内容默认收起 */
+.da-guide > .dg-head { font-size:14.5px; font-weight:800; display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  cursor:pointer; list-style:none; user-select:none; }
+.da-guide > .dg-head::-webkit-details-marker { display:none; }
+.da-guide > .dg-head .dg-fold-tip { font-size:11.5px; font-weight:600; color:var(--primary);
+  background:var(--primary-soft); padding:2px 8px; border-radius:9px; }
+.da-guide > .dg-head .dg-caret { width:14px; height:14px; margin-left:auto; transition:transform .3s ease; }
+.da-guide[open] > .dg-head .dg-caret { transform:rotate(180deg); }
+.da-guide[open] > .dg-head .dg-fold-tip { display:none; }
+.da-guide > .dg-head:hover { opacity:.72; }
 .da-guide .dg-steps { margin-top:8px; font-size:13px; color:var(--text); line-height:1.7; }
 .da-guide .dg-steps b { color:var(--primary); }
 .da-guide details { margin-top:8px; }
@@ -645,7 +674,6 @@ section { scroll-margin-top: 88px; }
 .strat-sig .s-trig { font-size:12px; color:var(--secondary); line-height:1.55; margin-top:3px; }
 .strat-sig .s-r { text-align:right; flex:none; }
 .strat-sig .s-p { font-size:16px; font-weight:800; font-variant-numeric:tabular-nums; }
-.strat-veto { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
 /* v1.9.4 无信号横幅 + 观察池/酝酿池 (退潮/冰点相位仍有内容) */
 .strat-nosig { border-radius:14px; background:var(--card); border:1px dashed var(--sep); padding:14px 16px 15px; margin-bottom:13px; }
 .ns-reason { font-size:13px; color:var(--secondary); line-height:1.62; }
@@ -805,6 +833,10 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 .tnav-item svg { width:15px; height:15px; }
 .tnav-item:hover { background:var(--bg); color:var(--text); }
 .tnav-item.on { background:var(--primary); color:#fff; }
+/* v1.19.0 荐股核心入口高亮: primary-soft 底 + 主色文字, 常驻轻强调(非选中态) */
+.tnav-hot { background:var(--primary-soft); color:var(--primary); font-weight:700; }
+.tnav-hot:hover { background:rgba(0,122,255,.16); color:var(--primary); }
+.tnav-hot.on { background:var(--primary); color:#fff; }
 .tnav-item .arr { width:12px; height:12px; transition: transform .32s cubic-bezier(.32,.72,.35,1); }
 .tnav-item.on .arr { transform: rotate(180deg); }
 
@@ -1157,9 +1189,8 @@ tr.pt-excluded-row td { opacity:.52; }
   .tl-connector { display:none; }
   .signal-grid { grid-template-columns: 1fr; }
   .charts, .grp-grid, .rule-grid { grid-template-columns: 1fr; }
-  /* 战法雷达: KPI 5列→3列, 否决双卡→单列 */
+  /* 战法雷达: KPI 5列→3列 */
   .strat-kpi { grid-template-columns: repeat(3, 1fr); }
-  .strat-veto { grid-template-columns: 1fr; }
   /* 出场双卡 721-900px 仍双列时, 动态矩阵表(643px)列宽仅~340px 需内部滚动 → 平板直接单列 */
   .exit-grid { grid-template-columns: 1fr; }
   .emo-grid { grid-template-columns: repeat(3, 1fr); }
@@ -1324,8 +1355,12 @@ tr.pt-excluded-row td { opacity:.52; }
         <div class="brand-meta" id="brandMeta">加载中…</div>
       </div>
     </div>
-    <!-- v1.13.1 全版块导航: 16入口顺序对齐页面section流; 面板按钮(data-target展开) + 版块直达(data-sec滚动) + 页面链接 -->
+    <!-- v1.19.0 荐股置顶: 候选→荐股(核心功能·高亮), 移除过期NEW标签 -->
     <div class="topnav">
+      <button class="tnav-item tnav-hot" data-target="np-cands">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4zm0 2c-4 0-8 2-8 5v3h16v-3c0-3-4-5-8-5z"/></svg>
+        荐股<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
       <button class="tnav-item" data-target="np-overview">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         概览<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -1341,11 +1376,7 @@ tr.pt-excluded-row td { opacity:.52; }
       <!-- v1.13.0 高分标的榜: 全市场诊断评分≥75榜单 (观察名单定位) -->
       <button class="tnav-item" data-target="np-score">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/><line x1="12" y1="2" x2="12" y2="9.24"/></svg>
-        高分榜<span style="font-size:10px;color:var(--primary);font-weight:800;">NEW</span><svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
-      <button class="tnav-item" data-target="np-cands">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4zm0 2c-4 0-8 2-8 5v3h16v-3c0-3-4-5-8-5z"/></svg>
-        候选<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        高分榜<svg class="arr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <button class="tnav-item" data-target="np-dragon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6 M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
@@ -1393,7 +1424,7 @@ tr.pt-excluded-row td { opacity:.52; }
       <!-- v1.13.0 持仓体检入口: 上传持仓截图→OCR解析→六条算术校验→三组分组体检报告(port.html) -->
       <a class="tnav-item tnav-link" href="./port.html" style="text-decoration:none;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-        体检<span style="font-size:10px;color:var(--primary);font-weight:800;">NEW</span>
+        体检
       </a>
     </div>
   </div>
@@ -1476,12 +1507,12 @@ tr.pt-excluded-row td { opacity:.52; }
     </div></div></div>
   </div>
 
-  <!-- 面板⑤b 五大战法雷达(v1.9.8) -->
+  <!-- 面板⑤b 战法雷达(v1.9.8 · v1.19.0改名: 只展示审计采纳战法) -->
   <div class="np-wrap" id="np-strategy">
     <div class="np-clip"><div class="np-body"><div class="np-card">
       <div class="np-head">
         <div class="h-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6.01A9.99 9.99 0 0 0 4 18"/><path d="M15.52 15.52A6 6 0 0 0 12 6a6 6 0 0 0-3.52 9.52"/><circle cx="12" cy="12" r="1.6"/></svg></div>
-        <div class="np-title">五大战法雷达</div>
+        <div class="np-title">战法雷达 · 采纳版</div>
         <span class="np-badge" id="npStBadge">—</span>
         <button class="np-goto" data-goto="sec-strategy">查看详情<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></button>
       </div>
@@ -1606,16 +1637,25 @@ tr.pt-excluded-row td { opacity:.52; }
     </div>
   </section>
 
-  <!-- ═══ 候选股 ═══ -->
+  <!-- ═══ 荐股 (v1.19.0 核心功能区置顶突出) ═══ -->
   <section id="sec-candidates" class="fade">
+    <!-- v1.19.0 荐股区主标题: 核心功能第一入口 -->
+    <div class="sec-title" style="margin:6px 0 2px;">
+      <span class="ico" style="background:var(--primary-soft); color:var(--primary);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4zm0 2c-4 0-8 2-8 5v3h16v-3c0-3-4-5-8-5z"/></svg></span>
+      <span>荐股 · 今晚买什么</span>
+      <span class="pill" style="background:var(--primary-soft);color:var(--primary);font-size:11.5px;margin-left:2px;">T+1合规口径 · 每晚15:10更新</span>
+    </div>
+    <p class="sec-sub">M级首板精选（胜率第一）· S级4板+隔夜单 · A级轻仓 · B级停用 · 全部挂「昨收+5%」限价单</p>
     <div class="master" id="masterAction" style="display:none;"></div>
     <div class="ladder-strip" id="ladderStrip"></div>
-    <!-- v1.16.0 选股三步直答指引 -->
-    <div class="da-guide" id="daGuide">
-      <div class="dg-head">
+    <!-- v1.16.0 选股三步直答指引 · [v1.19.0] 默认折叠(点击标题展开), 收起状态只露一行标题 -->
+    <details class="da-guide" id="daGuide">
+      <summary class="dg-head">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
         选股三步直答 — 高度定梯队 · 分数只排雷
-      </div>
+        <span class="dg-fold-tip">点击展开</span>
+        <svg class="dg-caret" viewBox="0 0 24 24" fill="none" stroke="var(--secondary)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </summary>
       <div class="dg-steps">
         <b>① 今晚买谁？挂几只？</b> 看梯队（T+1合规口径）：<b>M级（首板精选·梯队第一）轻仓1-2%</b>（55.5%/+1.13 · n=607 · 四梯队胜率第一）· <b>S级（4板+）挂隔夜单·仓位2-3%</b>（48.4%/+2.18 · 均值四梯队最高·靠盈亏比）· A级（2进3）轻仓1-2%或放弃（48.8%/+0.25 · 边缘正期望·0.5%生产滑点下转负）· B级（3进4）<b>已停用</b>（44.4%/-0.88 负期望·不挂单不参与）。挂<b>「昨收+5%」限价单</b>（次日按开盘价成交·开盘高于限价不成交）；<b>不用盯竞价，9:30 开盘后未成交（=高开&gt;5%）撤单即可</b>。<b>百分比已换算成价格</b>：各候选卡「明日价位尺」按今收直接标出 +5%挂单限价线 / +3%开盘卖线 / 涨停价（盘中排队用）。<br>
         <b>② 带淘汰标记的能不能买？</b> ❌ 淘汰 · 不买：尾盘板（首封≥13:00）/ 炸板≥3次 / A·B级确定性&lt;65分（负期望区）。S级不看分数 — 回测4板+低分组收益反而更高，高度即资格。<br>
@@ -1639,7 +1679,7 @@ tr.pt-excluded-row td { opacity:.52; }
           最差一成交易约 -9%（P10），故单票仓位 2-3% 是真正的风控；盘中加止损线反而把期望打坏（-5%止损版本均值 -1.4%）。
         </p>
       </details>
-    </div>
+    </details>
     <!-- [v1.17.1] 盘中「低开/平开·等回封可排队」实时汇总条 (交易日盘中自动点亮) -->
     <div class="queue-bar" id="daQueueBar" style="display:none;"></div>
     <!-- v1.18.0 T+1合规重排: 买入日断板只能持有·次日起R3 → 旧口径(当日可卖)胜率70%+作废
@@ -1754,16 +1794,15 @@ tr.pt-excluded-row td { opacity:.52; }
       </div>
     </div>
 
-    <!-- ═══ 五大战法雷达 (近两年回测融合 · T3/T4/T5/P1 采纳) ═══ -->
+    <!-- ═══ 战法雷达 (近两年回测融合 · [v1.19.0] 仅展示成本审计采纳的 T3/P1, 否决战法不再页面展示) ═══ -->
     <div class="card" style="margin-top:14px;" id="sec-strategy">
       <div class="sec-title">
         <span class="ico" style="background:var(--red-soft); color:var(--red);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6.01A9.99 9.99 0 0 0 4 18"/><path d="M15.52 15.52A6 6 0 0 0 12 6a6 6 0 0 0-3.52 9.52"/><circle cx="12" cy="12" r="1.6"/></svg></span>
-        <span>五大战法雷达 · 回测融合</span>
+        <span>战法雷达 · 成本审计采纳版</span>
       </div>
-      <p class="sec-sub">近两年 4991股 × 484交易日 回测 + 二轮参数优化 + <b>成本审计(0.5%双边滑点+止损双确认)</b> · <b>T3龙回头</b> 采纳(绿色·三档成本均正期望) / <b>P1冰点锤子线</b> 采纳(共振≥10只才开仓) · T4涨停回马枪 <b>成本审计红旗否决</b> / T5箱体回踩 <b>黄旗边缘否决</b> · T1阶梯上行 / T2双涨停背离 回测否决 · <b>买入时点: 今日收盘确认形态 → 明日开盘买入</b>(当晚可挂隔夜委托, 约20:00后券商受理 · 当日新出的形态当日不追买)</p>
+      <p class="sec-sub">近两年 4991股 × 484交易日 回测 + 二轮参数优化 + <b>成本审计(0.5%双边滑点+止损双确认)</b> · 仅展示通过审计的采纳战法: <b>T3龙回头</b>(绿色·三档成本均正期望) / <b>P1冰点锤子线</b>(共振≥10只才开仓) · <b>买入时点: 今日收盘确认形态 → 明日开盘买入</b>(当晚可挂隔夜委托, 约20:00后券商受理 · 当日新出的形态当日不追买)</p>
       <div id="stratMeta"></div>
       <div id="stratGrid"></div>
-      <div id="stratVeto"></div>
     </div>
   </section>
 
@@ -2627,23 +2666,44 @@ function renderCands(){
   renderMaster();
   /* [v1.16.0] 选股系统: S级(4板+) / A级(2进3) / B级(3进4) 三梯队渲染, 淘汰垫底
      移动端节奏: 每组首卡(未淘汰排序第一)展开完整直答, 其余折叠
-     [v1.17.0] 新增M级(首板动量观察档): 当日首板分数top3, 淘汰垫底 */
+     [v1.17.0] 新增M级(首板动量观察档): 当日首板分数top3, 淘汰垫底
+     [v1.19.0] 淘汰标的默认折叠: 正常卡直接渲染, 淘汰卡收进组尾「已淘汰N只」折叠块 */
+  const isSkip = c => (c.sel || {}).verdict === 'skip';
+  const splitList = (arr, dropLab) => {
+    const ok = arr.filter(c => !isSkip(c));
+    const skip = arr.filter(isSkip);
+    let html = ok.map((c, i) => candCard(c, i === 0)).join('');
+    if (skip.length){
+      html += `<details class="drop-fold">
+        <summary>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          ${dropLab} · 已淘汰 ${skip.length} 只（${skip.map(c => c.name).slice(0, 6).join(' / ') + (skip.length > 6 ? ' …' : '')}）
+          <span class="df-caret">展开明细</span>
+        </summary>
+        <div class="df-body">${skip.map(c => candCard(c, false)).join('')}</div>
+      </details>`;
+    }
+    return { html, nOk: ok.length };
+  };
   const SLC = D.selection || {}, SC = SLC.counts || {};
   const c4 = D.candidates_4plus || [], c23 = D.candidates_2to3 || [], c34 = D.candidates_3to4 || [],
         c12 = D.candidates_1to2 || [];
-  $('c4List').innerHTML = c4.length
-    ? c4.map((c, i) => candCard(c, i === 0)).join('')
-    : '<div class="card" style="color:var(--secondary);">今日无 4板及以上核心标的 — S级空缺也是答案（不强行降级追2板高标）</div>';
+  /* [v1.19.0] 空态判断用未淘汰数(全部淘汰=空态+折叠明细, 不再渲染淘汰大卡占屏) */
+  const r4 = splitList(c4, 'S级淘汰');
+  $('c4List').innerHTML = r4.nOk
+    ? r4.html
+    : '<div class="card" style="color:var(--secondary);">今日无 4板及以上核心标的 — S级空缺也是答案（不强行降级追2板高标）</div>' + r4.html;
   /* [v1.16.5] 空态充实化: 「为什么空→触发条件→当前主路径」三行结构, 不再一行灰字留大片空白 */
   const emptyCard = (why, cond, path) => `<div class="card" style="color:var(--secondary);padding:20px 24px;">
     <div style="font-weight:700;color:var(--text);font-size:15px;">今日无符合条件的候选</div>
     <div style="margin-top:8px;line-height:1.7;font-size:13.5px;">${why}<br>${cond}</div>
     <div style="margin-top:10px;padding:9px 12px;border-radius:10px;background:var(--primary-soft);color:var(--primary);font-size:13px;font-weight:600;">当前主路径 → ${path}</div></div>`;
-  $('c23List').innerHTML = c23.length
-    ? c23.map((c, i) => candCard(c, i === 0)).join('')
+  const r23 = splitList(c23, 'A级淘汰');
+  $('c23List').innerHTML = r23.nOk
+    ? r23.html
     : emptyCard('今日涨停池中无 2板 标的（或全部被排雷淘汰）。2板是 A级池的唯一入口，市场今日未产出。',
                 '触发条件：今日 2板收盘 → 明晚 15:10 入 A级名单（2进3）。',
-                (c4.length ? 'S级 4板+ 隔夜单（见上方 S级区）' : '空仓等待 · 明晚 15:10 看新名单'));
+                (c4.length ? 'S级 4板+ 隔夜单（见上方 S级区）' : '空仓等待 · 明晚 15:10 看新名单')) + r23.html;
   /* [v1.18.0] B级(3进4)停用: T+1合规负期望(44.4%/-0.88%/PF0.84·n=171) → 不再渲染个股卡 */
   $('c34List').innerHTML = `<div class="card" style="color:var(--secondary);padding:18px 24px;">
     <div style="font-weight:700;color:var(--text);font-size:15px;">B级（3进4）已停用 · 不参与交易</div>
@@ -2652,11 +2712,12 @@ function renderCands(){
     今日 3板 标的仅记录在名单数据（${c34.length} 只），不产生任何买入建议。</div>
     <div style="margin-top:10px;padding:9px 12px;border-radius:10px;background:var(--primary-soft);color:var(--primary);font-size:13px;font-weight:600;">当前主路径 → M级首板精选（胜率第一）· S级 4板+ 隔夜单 · A级轻仓（见上方）</div></div>`;
   /* [v1.17.0→v1.18.0] M级·首板动量精选档: T+1合规大样本 n=607 证实正期望(55.5%/+1.13/PF1.34) */
-  $('c12List').innerHTML = c12.length
-    ? c12.map((c, i) => candCard(c, i === 0)).join('')
+  const r12 = splitList(c12, 'M级淘汰');
+  $('c12List').innerHTML = r12.nOk
+    ? r12.html
     : emptyCard('今日首板池无 score≥55 的标的（或全部被排雷淘汰）。M级只取当日最强首板 Top3，宁缺毋滥。',
                 '触发条件：今日首板收盘 且 快照分数≥55 → 明晚入 M级名单（轻仓1-2%）。',
-                'M级为四梯队胜率第一档（55.5%/+1.13·n=607）· 配合 S/A级隔夜单');
+                'M级为四梯队胜率第一档（55.5%/+1.13·n=607）· 配合 S/A级隔夜单') + r12.html;
   /* 梯队副标题: 实时可买/淘汰统计 ([v1.18.0] T+1合规口径) */
   const sS = SC.S || {}, sA = SC.A || {}, sB = SC.B || {}, sM = SC.M || {};
   $('c4Sub').textContent = `T+1合规口径 胜率 48.4% · 单笔 +2.18%（n=225·PF1.41·均值四梯队最高·靠盈亏比）· 分数不淘汰（高度即资格） · 今日 ${sS.buy || 0}/${sS.total || 0} 可挂` + (sS.out ? ` · 淘汰 ${sS.out} 只（尾盘板/炸板≥3）` : '');
@@ -2975,7 +3036,7 @@ function renderLadderStrip(){
   setTimeout(() => el.querySelectorAll('.ls-bar').forEach(b => b.style.height = b.dataset.h + 'px'), 60);
 }
 
-/* ── 五大战法雷达 (T3/T4/T5 回测融合) ── */
+/* ── 战法雷达 (成本审计采纳 T3+P1 · v1.19.0 否决战法不再展示) ── */
 const STRAT_ICON = {
   t3: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>',
   t4: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',
@@ -3106,7 +3167,7 @@ function renderStrategy(){
   const SR = D.strategy_radar;
   if (!SR || !SR.strategies){
     $('stratMeta').innerHTML = '<div class="strat-meta"><span class="chip" style="background:var(--sep);color:var(--secondary);">战法雷达暂缺</span>每日 15:10 管线收盘后生成 · 09:26/10:30 盘中自动复用</div>';
-    $('stratGrid').innerHTML = ''; $('stratVeto').innerHTML = '';
+    $('stratGrid').innerHTML = '';
     return;
   }
   const M = SR.meta || {}, ph = M.phase_txt || '';
@@ -3162,30 +3223,8 @@ function renderStrategy(){
       if (lb) lb.textContent = card.classList.contains('open') ? '收起' : '详情';
     });
   }
-  /* [v1.18.0] 否决区: T1/T2(回测否决) + T4(成本审计红旗) + T5(黄旗边缘) */
-  $('stratVeto').innerHTML = ['t1','t2','t4','t5'].filter(k => SR.strategies[k]).map(k => {
-    const v = SR.strategies[k];
-    return `<div class="strat-card" style="background:var(--bg);opacity:.75;">
-      <div class="strat-head">
-        <span class="strat-ico" style="background:var(--sep);color:var(--secondary);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></span>
-        <div style="flex:1;min-width:0;">
-          <div class="strat-name" style="font-size:15px;">${v.name} <span class="strat-en">${v.en}</span>
-            <span class="pill" style="background:var(--red-soft);color:var(--red);">回测否决</span></div>
-          <div style="font-size:11.5px;color:var(--secondary);margin-top:3px;">${v.veto || ''}</div>
-        </div>
-      </div>
-    </div>`;
-  }).join('') + `
-    <div class="strat-card" style="background:var(--bg);opacity:.75;">
-      <div class="strat-head">
-        <span class="strat-ico" style="background:var(--sep);color:var(--secondary);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></span>
-        <div style="flex:1;min-width:0;">
-          <div class="strat-name" style="font-size:15px;">视频战法 P2-P6 <span class="strat-en">Douyin Patterns</span>
-            <span class="pill" style="background:var(--red-soft);color:var(--red);">回测否决</span></div>
-          <div style="font-size:11.5px;color:var(--secondary);margin-top:3px;">抖音「6大看涨形态」同口径回测(2024-09~2026-09): P2双针探底/P3跳空上涨/P4一阳吞多阴/P5仙人指路/P6三阳开泰 五项全部负期望否决(PF&lt;1), 仅P1爆量锤子线升级为「冰点锤子线」采纳(共振≥10只才开仓)</div>
-        </div>
-      </div>
-    </div>`;
+  /* [v1.19.0] 否决战法(T1/T2/T4/T5/P2-P6)不再页面展示 — 数据层保留审计档案(cache/cost_sensitivity.json),
+     展示只保留采纳战法, 避免"大概率失效"内容占屏误导 */
 }
 
 /* ── 图表 ── */
@@ -4179,11 +4218,12 @@ function renderScore(){
 }
 
 /* ── 侧边导航 ── */
+/* v1.19.0 荐股置顶(核心功能第一入口) */
 const NAV = [
+  ['sec-candidates','荐股','M12 12c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4zm0 2c-4 0-8 2-8 5v3h16v-3c0-3-4-5-8-5z'],
   ['sec-signal','信号','M13 2 3 14h7l-1 8 10-12h-7l1-8z'],
   ['sec-rhythm','节奏','M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'],
   ['sec-score','高分榜','M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z'],
-  ['sec-candidates','候选','M12 12c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4zm0 2c-4 0-8 2-8 5v3h16v-3c0-3-4-5-8-5z'],
   ['sec-dragons','龙回头','M1 4v6h6 M3.51 15a9 9 0 1 0 2.13-9.36L1 10'],
   ['sec-watch','监控','M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'],
   ['sec-advice','建议','M9 11l3 3L22 4'],
