@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>观澜擒龙</title>
 <style>
+/* v1.19.1 盘后挂单视角修复(2026-09-21): 晚间打开不再误显「隔夜单未成交(9:30已撤)」
+   · 根因: 盘后名单(15:33生成)=今晚挂单·次日入场的新名单, 今日首板票今晨不存在隔夜单;
+     旧盘中直答拿今日定格行情做fill5复盘 → 晚上看被误读成「旧名单已撤单·没单可挂」
+   · 候选卡/精华卡非交易时段改「今晚挂单·次日9:25竞价自动成交」视角(daPhaseCell)
+   · 标题随时段切换: 盘中/清晨「今日建议入场」→ 盘后「今晚挂单·次日入场」, 荐股区同步 */
 /* v1.19.0 信息架构聚焦荐股(2026-09-19): 荐股=核心功能第一入口
    · 导航: 顶栏+侧边「候选」→「荐股」置顶高亮(tnav-hot); 清除高分榜/诊断/三时段/体检过期NEW标签
    · 荐股区新增主标题「荐股·今晚买什么」; 选股三步直答/回测证据默认折叠(details)
@@ -1414,12 +1419,12 @@ tr.pt-excluded-row td { opacity:.52; }
       <!-- v1.11.0 诊断中心入口: 个股量价诊断 + 主力资金/暗盘 + 大盘板块 -->
       <a class="tnav-item tnav-link" href="./stock.html" style="text-decoration:none;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M11 8v3l2 2"/></svg>
-        诊断<span style="font-size:10px;color:var(--primary);font-weight:800;">NEW</span>
+        诊断
       </a>
       <!-- v1.12.0 三时段作战室入口: 盘前预判(外围温度计) / 盘中分析(快照+实时) / 盘后复盘(命中验证) -->
       <a class="tnav-item tnav-link" href="./three.html" style="text-decoration:none;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        三时段<span style="font-size:10px;color:var(--primary);font-weight:800;">NEW</span>
+        三时段
       </a>
       <!-- v1.13.0 持仓体检入口: 上传持仓截图→OCR解析→六条算术校验→三组分组体检报告(port.html) -->
       <a class="tnav-item tnav-link" href="./port.html" style="text-decoration:none;">
@@ -1566,7 +1571,7 @@ tr.pt-excluded-row td { opacity:.52; }
   <section id="sec-entry" class="card fade">
     <div class="sec-title">
       <span class="ico" style="background:var(--green-soft); color:var(--green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
-      <span>今日建议入场</span>
+      <span id="ebTitle">今日建议入场</span>
       <span class="eb-count" id="ebCount"></span>
     </div>
     <div id="entryBrief"></div>
@@ -1642,7 +1647,7 @@ tr.pt-excluded-row td { opacity:.52; }
     <!-- v1.19.0 荐股区主标题: 核心功能第一入口 -->
     <div class="sec-title" style="margin:6px 0 2px;">
       <span class="ico" style="background:var(--primary-soft); color:var(--primary);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c2.2 0 4-1.8 4-4s-1.8-4-4-4-4 1.8-4 4 1.8 4 4 4zm0 2c-4 0-8 2-8 5v3h16v-3c0-3-4-5-8-5z"/></svg></span>
-      <span>荐股 · 今晚买什么</span>
+      <span id="pickTitle">荐股 · 今晚买什么</span>
       <span class="pill" style="background:var(--primary-soft);color:var(--primary);font-size:11.5px;margin-left:2px;">T+1合规口径 · 每晚15:10更新</span>
     </div>
     <p class="sec-sub">M级首板精选（胜率第一）· S级4板+隔夜单 · A级轻仓 · B级停用 · 全部挂「昨收+5%」限价单</p>
@@ -1837,6 +1842,9 @@ tr.pt-excluded-row td { opacity:.52; }
 <script>
 'use strict';
 const D = (typeof SITE_DATA !== 'undefined') ? SITE_DATA : null;
+/* [v1.19.1] meta字段归一化: data.js构建字段为trade_date, 前端多处引用m.date(undefined导致
+   applyLiveStage不推进/节奏面板误报"今日15:10盘后名单待生成") → 统一补齐m.date别名 */
+if (D && D.meta && D.meta.trade_date && !D.meta.date) D.meta.date = D.meta.trade_date;
 const $ = id => document.getElementById(id);
 /* v1.9.6 实时阶段推导: stage 固化在 data.js 构建时刻, 若盘中部署失败或跨时段打开页面会显示滞后
    (如过了10:30仍显示盘前待命)。数据日期为今天/昨天时用本地时钟实时覆盖 — 仅展示层,
@@ -1912,7 +1920,10 @@ function renderEntryBrief(){
       <div class="eb-l"><div class="eb-name">${name} <span class="code">${code}</span>${pills}</div>
       <div class="eb-nums">${nums}</div>${live}</div>
       ${link ? `<span class="eb-go">${ICON_CHEV}</span>` : ''}</div>`;
-  const LIVE_WAIT = '<span class="da-wait">交易时段打开本页 · 自动判定现在能不能买</span>';
+  /* [v1.19.1] 时段感知占位: 盘中=行情加载中, 非盘中=今晚挂单提示(避免闪现误导文案) */
+  const LIVE_WAIT = daTradingBJ()
+    ? '<span class="da-wait">行情加载中 · 自动判定现在能不能买</span>'
+    : '<span class="da-wait">今晚挂「昨收+5%」限价单 · 次日 9:25 竞价自动成交</span>';
   const pill = (txt, fg, bg) => `<span class="pill" style="background:${bg};color:${fg};font-size:11px;">${txt}</span>`;
   /* ① 战法雷达正式信号(相位+形态双达标, 最高优先级) · [v1.16.1]盘中直答=现价/形态是否破止损
      v1.16.7: P1冰点锤子线开闸时同样为正式信号(共振≥10只, 全市场冰点抄底)
@@ -2279,7 +2290,7 @@ function daPanel(c){
     </div>` : ''}
     <div class="da-row">
       <span class="da-tag" style="background:var(--primary-soft);color:var(--primary);">盘中直答</span>
-      <span class="da-body da-live" data-code="${c.code}"><span class="da-wait">交易时段打开本页 · 自动判定现在能不能买</span></span>
+      <span class="da-body da-live" data-code="${c.code}">${daTradingBJ() ? '<span class="da-wait">行情加载中 · 自动判定现在能不能买</span>' : daPhaseCell(c.code)}</span>
     </div>
     <div class="flag-live" data-code="${c.code}">${flagRowHTML(c.code)}</div>
     <div class="da-row">
@@ -2346,6 +2357,29 @@ function daVerdict(x, q){
   return { t:'⚪ 未触发 · 尾盘卖', c:'var(--secondary)',
     s:`现价 ${q.px.toFixed(2)}（浮盈 ${(gapNow*100).toFixed(1)}%）· 距止盈线 ${tp3} 还差 ${toGo.toFixed(1)}% · 14:50 未触发则收盘卖` };
 }
+/* ── [v1.19.1] 非交易时段「今晚挂单」视角 ──
+   背景: 盘后名单(15:33生成)是今晚挂单·次日入场的新名单; 今日首板票今晨不存在隔夜单。
+   旧直答拿今日盘中定格行情做fill5复盘, 晚上看会被"隔夜单未成交(9:30已撤)"误读成
+   "旧名单已撤单·没单可挂"——实际挂单价(今收+5%)就是今晚要挂的新单。 */
+function daFindCand(code){
+  const pools = ['candidates_1to2', 'candidates_4plus', 'candidates_2to3', 'candidates_3to4'];
+  for (const k of pools){ const c = (D[k] || []).find(x => x.code === code); if (c) return c; }
+  return null;
+}
+function daPhaseCell(code){
+  const b = daBJ(), wd = b.getUTCDay(), hm = b.getUTCHours() * 60 + b.getUTCMinutes();
+  const weekend = wd === 0 || wd === 6;
+  const morning = !weekend && hm < 9*60 + 15;          /* 清晨: 名单=昨日盘后, 今日9:25竞价 */
+  const nextDay = (wd === 5 || wd === 6) ? '下周一' : '次日';
+  const c = daFindCand(code);
+  const c5 = c ? (c.cap5 || (c.price > 0 ? (c.price * 1.05).toFixed(2) : null)) : null;
+  const px = c5 ? `挂单价 <b>${c5}</b>（昨收+5%）· ` : '';
+  return morning
+    ? `<b style="color:var(--primary);">⏰ 今日 9:25 竞价 · 隔夜单自动按开盘价成交</b>
+       <span class="da-sub">${px}开盘 ≤ 限价 → 自动成交（高开2-5%为正期望档）· 高开 &gt; 5% → 不成交 · <b>9:30 未成交撤单（撤了也不追）</b> · 盘中打开本页自动判定</span>`
+    : `<b style="color:var(--primary);">🌙 今晚挂「昨收+5%」限价单 · ${nextDay} 9:25 竞价自动成交</b>
+       <span class="da-sub">${px}开盘 ≤ 限价 → 按开盘价自动成交 · 高开 &gt; 5% → 不成交 · <b>9:30 未成交撤单（撤了也不追）</b> · 盘中打开本页自动判定今晨成交状态</span>`;
+}
 /* ── 候选卡盘中直答: 现在能不能买 ──
    [v1.16.9] 隔夜单统一挂「昨收+5%」限价(不用盯竞价): 开盘≤+5%自动按开盘价成交
    (高开2-5%为正期望档·三梯队胜率73-82%——死亡区间33.1%是涨停价成交口径, 与隔夜单无关);
@@ -2354,7 +2388,10 @@ function daVerdict(x, q){
    该档回封不追·已封板也不排; 可排队仅: 低开/平开回封(正期望主样本·成交~90%) 与
    高开>5%已封板(开盘越接近涨停越难成交: ≥7%约30%·一字未开板基本排不到)。 */
 function daLiveCell(code, q){
-  if (!q) return '<span class="da-wait">非交易时段 · 交易日盘中自动判定</span>';
+  /* [v1.19.1] 非交易时段: 切「今晚挂单」视角——盘后名单是今晚挂·次日入场的新名单,
+     今日首板票今晨不存在隔夜单, 不做fill5复盘(旧文案会被误读成"旧名单已撤单") */
+  if (!daTradingBJ()) return daPhaseCell(code);
+  if (!q) return '<span class="da-wait">行情加载中 · 盘中自动判定现在能不能买</span>';
   const openRef = q.po > 0 ? q.po : q.px;
   const sealed = q.px >= q.ztp - 0.001;
   const nowGap = q.px / q.pc - 1;
@@ -2594,13 +2631,26 @@ function renderRhythmPanel(){
     <div class="np-note">当前阶段: <b>${m.stage_label || '—'}</b>${staleAfter ? ' · <span style="color:var(--orange);">今日 15:10 盘后名单待生成</span>' : ''} · 名单始终是"次日预案"，盘中按 09:26 竞价验证结果决定是否执行，10:30 复查定型。</div>`;
 }
 /* [v1.16.1] 三段式阶段30s自动推进: 页面挂着不动也会随时间走(原来只在加载时算一次) */
+/* [v1.19.1] 标题随时段切换: 盘中/清晨=今日入场, 盘后=今晚挂单·次日入场 */
+function applyPhaseTitles(){
+  const b = daBJ(), wd = b.getUTCDay(), hm = b.getUTCHours() * 60 + b.getUTCMinutes();
+  const intraday = wd >= 1 && wd <= 5 && hm >= 9*60 + 15 && hm < 15*60;
+  const weekend = wd === 0 || wd === 6;
+  const morning = !weekend && hm < 9*60 + 15;
+  const nextDay = (wd === 5 || wd === 6) ? '下周一' : '次日';
+  const eb = document.getElementById('ebTitle'), pk = document.getElementById('pickTitle');
+  if (eb) eb.textContent = (intraday || morning) ? '今日建议入场' : `今晚挂单 · ${nextDay}入场`;
+  if (pk) pk.textContent = (intraday || morning) ? '荐股 · 今日买什么' : '荐股 · 今晚挂什么单';
+}
 function stageTick(){
+  applyPhaseTitles();
   applyLiveStage();
   renderHero();
   renderTimeline();
   renderRhythmPanel();
 }
 setInterval(stageTick, 30000);
+applyPhaseTitles();
 function candCard(c, planOpen){
   /* [v1.16.0] 选股卡: 梯队徽章 + 判定(买入/轻仓/淘汰) + 因子缺失兼容(S级旧快照) */
   const sel = c.sel || {};
