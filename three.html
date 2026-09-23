@@ -4,12 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>三时段作战室 · 盘前预判 / 盘中分析 / 盘后复盘</title>
-<!-- three.html v1.0.0 三时段作战室 (三时段体系 · 第一期)
+<!-- three.html v1.2.1 三时段作战室 (三时段体系 · 第一期)
      盘前: 外围温度计(美股三大/A50夜盘/日经/CNH/港股/商品) + 命中率验证
      盘中: 情绪仪表 + 指数/板块资金流 + 时点演变 + 尾盘异动 + 竞价雷达(9:15-9:30前端轮询)
-     盘后: 复盘总览 + 温度计验证 + 情绪演变 + 信号表现 + 明日关注
-     数据: premarket_data.js(08:45) + intraday_data.js(10:30/14:00/14:30) + settle_data.js(15:10后)
-           + 腾讯JSONP实时轮询(竞价/盘中指数, 浏览器直连零token)
+     盘后: 复盘总览 + 温度计验证 + 情绪演变 + 信号表现 + 明日关注(荐股同源)
+     数据: premarket_data.js(08:45) + intraday_data.js(10:30/14:00/14:30) + settle_data.js(15:21)
+           + data.js(15:32 主系统荐股·明日关注候选源) + 腾讯JSONP实时轮询(浏览器直连零token)
+     v1.2.1: 明日关注改读主系统荐股(S/A/M梯队·挂单价·胜率·仓位, 弃用停更三周的
+             tomorrow_candidates.json); 题材热度改由当日涨停池现算(settle_log v1.1.0)
      风格: 与主看板/诊断中心一致的 iOS Liquid Glass -->
 <style>
 :root {
@@ -523,14 +525,15 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
       <thead><tr><th>代码</th><th>名称</th><th>梯队·板位</th><th>挂单价</th><th>胜率·均值</th><th>仓位</th></tr></thead>
       <tbody id="candBody"></tbody>
     </table></div>
-    <div class="fund-note">明日候选为主看板黄金组合评分输出，入场仍需次日情绪闸门（昨日核心涨停45-150家等）全部满足。</div>
+    <div class="fund-note" id="candSkipNote" style="display:none;"></div>
+    <div class="fund-note">与主看板荐股区同源（盘后 15:32 生成）· 统一挂「昨收+5%」限价单 · 9:30 未成交撤单（撤了也不追）· 成交后按 R3「封板续持·断板就走」· 炸板≥3 已淘汰 · B级3进4 已停用（负期望）· 单票1-3% · 总敞口≤10%，最多执行 3-4 只，其余为备选；入场仍需次日情绪闸门（昨日核心涨停45-150家等）全部满足。</div>
   </section>
 </div>
 
 <div class="disclaimer">⚠ 本页为数据聚合与规则化复盘展示：温度计/情绪/资金流均为历史统计的条件概率观察，不构成投资建议，不预测未来价格；据此操作风险自担。数据快照由本机定时任务自动生成（08:45 / 10:30 / 14:00 / 14:30 / 15:10）。</div>
 
 <footer>
-  观澜擒龙 · 三时段作战室 v1.2.0 · 数据源: 腾讯行情(JSONP实时+mkline分时) / 新浪外盘期货·外汇·美股期货 / 东财push2delay(日经·韩综·资金流) / 本地快照管道<br>
+  观澜擒龙 · 三时段作战室 v1.2.1 · 数据源: 腾讯行情(JSONP实时+mkline分时) / 新浪外盘期货·外汇·美股期货 / 东财push2delay(日经·韩综·资金流) / 本地快照管道<br>
   三时段联动 · Liquid Glass UI
 </footer>
 
