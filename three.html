@@ -4,12 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>三时段作战室 · 盘前预判 / 盘中分析 / 盘后复盘</title>
-<!-- three.html v1.2.1 三时段作战室 (三时段体系 · 第一期)
+<!-- three.html v1.3.0 三时段作战室 (三时段体系 · 第一期)
      盘前: 外围温度计(美股三大/A50夜盘/日经/CNH/港股/商品) + 命中率验证
      盘中: 情绪仪表 + 指数/板块资金流 + 时点演变 + 尾盘异动 + 竞价雷达(9:15-9:30前端轮询)
+           + 已入场跟踪(R3盘中直答·昨晚名单自动结算·orders_data.js 15:32账本)
      盘后: 复盘总览 + 温度计验证 + 情绪演变 + 信号表现 + 明日关注(荐股同源)
      数据: premarket_data.js(08:45) + intraday_data.js(10:30/14:00/14:30) + settle_data.js(15:21)
-           + data.js(15:32 主系统荐股·明日关注候选源) + 腾讯JSONP实时轮询(浏览器直连零token)
+           + data.js(15:32 主系统荐股·明日关注候选源) + orders_data.js(已入场账本·orders_track.py)
+           + 腾讯JSONP实时轮询(浏览器直连零token)
+     v1.3.0: 盘中新增「已入场跟踪」板块 — orders_track.py v1.0.0 模拟持仓账本(现行口径:
+             挂昨收+5%隔夜单·R3出场), 每晚15:32自动结算昨晚名单(fill5成交)+持仓R3出场,
+             盘中腾讯实时行情直答 续持/开盘卖/冲高卖/尾盘卖; T+1首日只持有
      v1.2.1: 明日关注改读主系统荐股(S/A/M梯队·挂单价·胜率·仓位, 弃用停更三周的
              tomorrow_candidates.json); 题材热度改由当日涨停池现算(settle_log v1.1.0)
      风格: 与主看板/诊断中心一致的 iOS Liquid Glass -->
@@ -238,6 +243,41 @@ table.lvl tr td:first-child { font-weight:700; }
 .live-item .s { font-size:12px; font-weight:700; margin-top:2px; font-variant-numeric:tabular-nums; }
 .live-item .tm { font-size:10.5px; color:var(--tertiary); margin-top:3px; font-variant-numeric:tabular-nums; }
 
+/* ── 已入场跟踪 v1.3.0 ── */
+.hold-sum { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+.hold-chip { padding:7px 13px; border-radius:999px; background:var(--bg); font-size:12.5px;
+  font-weight:600; color:var(--secondary); box-shadow:inset 0 0 0 .5px var(--hairline-soft); }
+.hold-chip b { color:var(--text); font-variant-numeric:tabular-nums; }
+.hold-row { margin-top:12px; padding:14px 16px; border-radius:14px; background:var(--bg);
+  box-shadow:inset 0 0 0 .5px var(--hairline-soft); }
+.hold-top { display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; }
+.hold-name { font-size:16.5px; font-weight:800; letter-spacing:-.2px; }
+.hold-code { font-size:12px; color:var(--tertiary); font-variant-numeric:tabular-nums; }
+.hold-meta { margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; font-size:12px;
+  color:var(--secondary); font-variant-numeric:tabular-nums; font-weight:600; }
+.hold-quote { display:flex; gap:16px; flex-wrap:wrap; margin-top:9px; font-size:13px;
+  color:var(--secondary); font-variant-numeric:tabular-nums; }
+.hold-quote b { color:var(--text); font-weight:700; }
+.hold-quote .pct-up { color:var(--red); font-weight:800; }
+.hold-quote .pct-dn { color:var(--green); font-weight:800; }
+.hold-verdict { margin-top:10px; padding:10px 13px; border-radius:11px; font-size:13.5px; line-height:1.65; }
+.hold-verdict .vt { font-weight:800; display:block; }
+.hold-verdict .vs { font-size:12px; color:var(--secondary); display:block; margin-top:2px; }
+.hv-green { background:var(--green-soft); color:var(--green); }
+.hv-red { background:var(--red-soft); color:var(--red); }
+.hv-orange { background:var(--orange-soft); color:var(--orange); }
+.hv-blue { background:var(--primary-soft); color:var(--primary); }
+.hv-gray { background:rgba(142,142,147,.12); color:var(--secondary); }
+.hold-closed { margin-top:14px; }
+.hold-closed summary { cursor:pointer; font-size:13px; color:var(--secondary); font-weight:600;
+  padding:9px 13px; border-radius:11px; background:var(--bg); list-style:none;
+  box-shadow:inset 0 0 0 .5px var(--hairline-soft); user-select:none; }
+.hold-closed summary::-webkit-details-marker { display:none; }
+.hold-closed table { width:100%; border-collapse:collapse; margin-top:8px; font-size:12.5px; }
+.hold-closed td { padding:7px 10px; border-bottom:.5px solid var(--hairline-soft);
+  font-variant-numeric:tabular-nums; color:var(--secondary); }
+.hold-closed td:first-child { color:var(--text); font-weight:600; white-space:nowrap; }
+
 /* ── 状态与空态 ── */
 .empty-note { margin-top:14px; padding:14px 18px; border-radius:13px; background:var(--bg);
   color:var(--secondary); font-size:13.5px; line-height:1.7; }
@@ -410,6 +450,22 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
     <div class="rt-note" id="rtNote"></div>
   </section>
 
+  <!-- 已入场跟踪: 昨晚名单自动结算(隔夜单fill5) + R3盘中直答 (v1.3.0) -->
+  <section class="card fade vis" id="holdCard" style="display:none;">
+    <div class="sec-title">
+      <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9m9 5h-9m9 5h-9M5 5l-3 3 3 3M5 12l-3 3 3 3"/></svg></span>
+      <span>已入场跟踪 · R3 盘中直答</span>
+      <span class="badge2 b-blue" style="margin-left:auto;" id="holdBadge">行情加载中</span>
+    </div>
+    <div id="holdBody"><div class="empty-note">账本数据加载中…</div></div>
+    <div class="fund-note" id="holdSkipNote" style="display:none;margin-top:12px;"></div>
+    <details class="hold-closed" id="holdClosed" style="display:none;">
+      <summary>已平仓记录（R3 结算）▸</summary>
+      <div class="tbl-scroll"><table id="holdClosedTbl"></table></div>
+    </details>
+    <div class="fund-note" style="margin-top:12px;">昨晚名单自动结算：开盘 ≤ 挂单价（昨收+5%）→ 按开盘价成交入场 · 高开 &gt; 5% 未成交已撤单。出场 T+1 合规 R3「封板续持 · 断板就走」：首日只持有不可卖；次日起 收盘封板→续持 / 开盘高开≥3%→开盘卖 / 盘中冲高≥成本+3%→即刻卖 / 全天没到→收盘卖。模拟「全名单执行」口径，实际执行 3-4 只 / 单票 1-3% / 总敞口 ≤10%，未买入的标的请忽略对应行 · 行情浏览器直连腾讯零token · 账本每日 15:32 自动结算。</div>
+  </section>
+
   <!-- 情绪仪表 -->
   <section class="card fade vis">
     <div class="sec-title">
@@ -544,7 +600,8 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 <script src="./intraday_data.js?v=100"></script>
 <script src="./settle_data.js?v=101"></script>
 <script src="./data.js?v=100"></script>
-<script src="./three.js?v=104"></script>
+<script src="./orders_data.js?v=100"></script>
+<script src="./three.js?v=106"></script>
 <script src="./totop.js" defer></script>
 </body>
 </html>

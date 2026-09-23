@@ -20,8 +20,12 @@
            ④温度计新权重: 美股45/A50·25/韩综10/日经5/港股5/CNH10(配套premarket_fetch.py v1.1.0)
    v1.2.1: 盘后「明日关注」改读主系统荐股(window.SITE_DATA · data.js 15:32生成), 与主看板
            荐股区同源: M/S/A梯队+挂单价(昨收+5%)+两年胜率·均值+仓位; 弃用settle_data.js的
-           tomorrow.candidates(源自9/1一次性脚本tomorrow_candidates.json, 已停更三周数据过期)。
-           B级3进4停用档与炸板≥3淘汰标的折叠为灰字附注(需three.html先加载data.js) */
+           tomorrow.candidates(源自9/1一次性脚本tomorrow_candidates.json, 已停更三周
+           B级3进4停用档与炸板≥3淘汰标的折叠为灰字附注(需three.html先加载data.js)
+   v1.3.0: 盘中新增「已入场跟踪」HOLD引擎 — orders_data.js(orders_track.py 15:32自动结算)
+           持仓R3盘中直答: T+1首日只持有·封板优先·高开≥3%开盘卖·冲高+3%止盈·尾盘卖
+           (优先级与后端settle_holdings/主看板daVerdict一致); 腾讯批量行情15秒轮询;
+           汇总chips + 未成交撤单附注 + 已平仓折叠表; 成本/价格3位小数防截断 */
 (function () {
 'use strict';
 
@@ -439,6 +443,8 @@ function renderLiveCards() {
   /* RT 实时作战面板: 盘中Tab内常显(引擎自适应 live/pre/frozen/closed 模式) */
   $('rtCard').style.display = phase === 'mid' ? 'block' : 'none';
   if (phase === 'mid') RT.start(); else RT.stop();
+  /* v1.3.0 已入场跟踪: 盘中Tab启动HOLD引擎(start幂等), 离开停止 */
+  if (phase === 'mid') HOLD.start(); else HOLD.stop();
   if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
   if (auction) {
     pollIdx('auctionGrid');
@@ -974,6 +980,192 @@ const RT = (function () {
 const SIG_TXT = {
   open: ['已入场', 'b-red'], closed: ['已平仓', 'b-gray'], no_touch: ['未触及', 'b-gray'], skipped: ['资格未满足', 'b-orange'],
 };
+
+/* ══════════════ 已入场跟踪 HOLD v1.3.0 ══════════════
+   数据: orders_data.js (window.ORDERS_DATA · orders_track.py 每日15:32自动结算)
+   逻辑: 昨晚名单今晨 fill5 成交判定已入账本 → 此处对 holdings 盘中实时 R3 直答
+         T+1合规: 入场日(行情日 ≤ entry_date)只持有不可卖; 次日起
+         收盘封板→续持 / 开盘高开≥3%→开盘卖 / 盘中冲高≥成本×1.03→即刻止盈 / 全天未触发→尾盘卖
+         (优先级与后端 settle_holdings / 主看板 daVerdict 一致: 封板判定优先)
+   行情: 腾讯批量JSONP浏览器直连零token · 盘中/竞价15秒轮询 · 非交易时段静态重绘
+   口径: 成本/价格一律3位小数(防低价股截断 1.082→1.08) */
+const HOLD = (function () {
+  const st = { timer: null, q: {} };
+  const TIER_CLS = { S: 'b-red', M: 'b-blue', A: 'b-orange', B: 'b-gray' };
+  const f3 = (x) => Number(x).toFixed(3);
+  const sgn1 = (x, suf) => (x >= 0 ? '+' : '') + Number(x).toFixed(1) + (suf || '%');
+  const sgn2 = (x, suf) => (x >= 0 ? '+' : '') + Number(x).toFixed(2) + (suf || '%');
+  const fmtD = (d) => { d = String(d || ''); return d.length === 8 ? d.slice(4, 6) + '/' + d.slice(6) : d; };
+  const todayStr = () => {
+    const n = new Date();
+    return '' + n.getFullYear() + ('0' + (n.getMonth() + 1)).slice(-2) + ('0' + n.getDate()).slice(-2);
+  };
+  const mkt = (c) => /^[69]/.test(c) ? 'sh' : 'sz';
+
+  async function fetchQuotes(codes) {
+    const vars = codes.map(c => 'v_' + mkt(c) + c);
+    const rs = await tencentMulti('https://qt.gtimg.cn/q=' + codes.map(c => mkt(c) + c).join(','), vars, 8000);
+    const out = {};
+    rs.forEach((v, i) => {
+      const f = String(v || '').split('~');
+      const px = +f[3];
+      if (f.length > 48 && px > 0)
+        out[codes[i]] = { px: px, pc: +f[4], po: +f[5], ph: +f[33], pl: +f[34], ztp: +f[47], ts: f[30] || '' };
+    });
+    return out;
+  }
+
+  /* R3 盘中直答 — 优先级: 封板 > 高开≥3% > 冲高+3% > 尾盘 */
+  function verdict(h, q) {
+    const today = todayStr();
+    const sess = (q && q.ts) ? q.ts.slice(0, 8) : today;
+    const cost = f3(h.cost);
+    const tp3 = f3(h.cost * 1.03);
+    if (sess <= String(h.entry_date || '')) {
+      /* T+1 首日(或执行日行情未出): 只持有不可卖 */
+      if (!q || sess < today) return { cls: 'hv-blue', t: '🆕 T+1 首日 · 只持有不可卖',
+        s: '今晨开盘 ' + sgn1(h.entry_gap) + ' 成交（成本 ' + cost + '）· 9:30 起盘中自动提示 · 明日起按 R3：收盘封板→续持 / 开盘高开≥3%→开盘卖 / 冲高至 ' + tp3 + ' 即刻止盈 / 全天未触发→收盘卖' };
+      const sealed = q.px >= q.ztp - 0.001;
+      const pnl = (q.px / h.cost - 1) * 100;
+      return { cls: sealed ? 'hv-green' : 'hv-blue',
+        t: sealed ? '🟢 T+1 首日 · 已封板（安心持有）' : '🆕 T+1 首日 · 只持有不可卖',
+        s: '今晨开盘 ' + sgn1(h.entry_gap) + ' 成交 · 现价 ' + f3(q.px) + '（浮盈 ' + sgn1(pnl) + '）· 明日起按 R3：收盘封板→续持 / 高开≥3%→开盘卖 / 冲高至 ' + tp3 + ' 止盈 / 尾盘卖' };
+    }
+    if (!q) return { cls: 'hv-gray', t: '💤 非交易时段', s: '交易日盘中打开本页，自动判定 续持 / 止盈 / 离场' };
+    if (sess < today) {
+      /* 旧行情(上一交易日定格): 至少给出昨收封板状态, 不误报「非交易时段」 */
+      const sealed = q.px >= q.ztp - 0.001;
+      return sealed
+        ? { cls: 'hv-green', t: '🟢 上一交易日封板 · 续持中', s: '昨收 ' + f3(q.px) + '（封板）· 今日 9:30 后自动判定续持/离场' }
+        : { cls: 'hv-gray', t: '💤 等今日开盘', s: '昨收 ' + f3(q.px) + '（未封板）· 今日按 R3：高开≥3%开盘卖 / 冲高止盈 / 尾盘卖' };
+    }
+    const sealed = q.px >= q.ztp - 0.001;
+    if (sealed) return { cls: 'hv-green', t: '🟢 封板续持',
+      s: '现价 ' + f3(q.px) + ' ≥ 涨停 ' + f3(q.ztp) + ' · 继续持有，明日重复本规则' };
+    const openRef = q.po > 0 ? q.po : q.px;
+    const gapOpen = openRef / q.pc - 1;
+    const pnl = (q.px / h.cost - 1) * 100;
+    if (gapOpen >= 0.03) return { cls: 'hv-red', t: '🔴 开盘高开 ' + sgn1(gapOpen * 100) + ' · 开盘离场',
+      s: '开盘 ' + (q.po > 0 ? f3(q.po) : '—') + ' ≥ 离场线 ' + f3(q.pc * 1.03) + '（昨收×1.03）· 断板规则开盘卖出；若尚未卖出，逢反弹离场' };
+    if (q.ph >= h.cost * 1.03 - 0.001) return { cls: 'hv-orange', t: '🟠 冲高 +3% · 即刻止盈',
+      s: '今日最高 ' + f3(q.ph) + ' 已触及止盈线 ' + tp3 + '（成本×1.03）· 卖出' };
+    const toGo = (h.cost * 1.03 / q.px - 1) * 100;
+    return { cls: 'hv-gray', t: '⚪ 未触发 · 尾盘卖',
+      s: '现价 ' + f3(q.px) + '（浮盈 ' + sgn1(pnl) + '）· 距止盈线 ' + tp3 + ' 还差 ' + toGo.toFixed(1) + '% · 14:50 未触发则收盘卖' };
+  }
+
+  function rowHTML(h) {
+    const q = st.q[h.code];
+    const v = verdict(h, q);
+    let quote;
+    if (q && q.px > 0) {
+      const dayPct = (q.px / q.pc - 1) * 100;
+      const pnl = (q.px / h.cost - 1) * 100;
+      const cls = (x) => x >= 0 ? 'pct-up' : 'pct-dn';
+      quote = '<span>现价 <b>' + f3(q.px) + '</b></span>' +
+        '<span>今日 <b class="' + cls(dayPct) + '">' + sgn1(dayPct) + '</b></span>' +
+        '<span>浮盈 <b class="' + cls(pnl) + '">' + sgn1(pnl) + '</b></span>' +
+        '<span>涨停 <b>' + f3(q.ztp) + '</b></span>';
+    } else {
+      quote = '<span>行情拉取中 · 成本 <b>' + f3(h.cost) + '</b></span>';
+    }
+    return '<div class="hold-row">' +
+      '<div class="hold-top">' +
+      '<span class="hold-name">' + (h.name || h.code) + '</span>' +
+      '<span class="hold-code">' + h.code + '</span>' +
+      '<span class="badge2 ' + (TIER_CLS[h.tier] || 'b-gray') + '">' + (h.label || '—') + ' · ' + (h.lb || 1) + '板</span>' +
+      '<div class="hold-meta"><span>成本 <b>' + f3(h.cost) + '</b></span><span>入场 ' + fmtD(h.entry_date) + '</span>' +
+      ((h.days || 0) > 0 ? '<span>封板续持 ' + h.days + ' 天</span>' : '') + '</div>' +
+      '</div>' +
+      '<div class="hold-quote">' + quote + '</div>' +
+      '<div class="hold-verdict ' + v.cls + '"><span class="vt">' + v.t + '</span><span class="vs">' + v.s + '</span></div>' +
+      '</div>';
+  }
+
+  function render() {
+    const card = $('holdCard');
+    if (!card) return;
+    const d = window.ORDERS_DATA;
+    const hs = (d && d.holdings) || [];
+    if (!hs.length) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+
+    /* 汇总 chips: 在持 / 最新结算成交·撤单 / 今晚待挂单 / 累计平仓战绩 */
+    const orders = (d && d.orders) || [];
+    const fills = orders.map(o => o.fill).filter(Boolean);
+    const lastExec = fills.length ? fills.map(f => f.exec_date).sort().pop() : null;
+    const chips = ['在持 <b>' + hs.length + '</b> 只'];
+    if (lastExec) {
+      const lbl = lastExec === todayStr() ? '今晨' : fmtD(lastExec);
+      chips.push(lbl + '隔夜单成交 <b>' + fills.filter(f => f.status === 'filled' && f.exec_date === lastExec).length +
+        '</b> · 撤单 <b>' + fills.filter(f => f.status === 'missed' && f.exec_date === lastExec).length + '</b>');
+    }
+    const pending = orders.filter(o => !o.fill);
+    if (pending.length) chips.push('今晚挂单 <b>' + pending.length + '</b> 只 · 明晨 9:25 竞价自动判定');
+    const stt = (d && d.stats) || {};
+    if (stt.n_closed) chips.push('累计平仓 <b>' + stt.n_closed + '</b> 笔 · 胜率 <b>' + stt.win_rate + '%</b> · 合计 <b>' + sgn2(stt.total_ret) + '%</b>');
+    $('holdBody').innerHTML = '<div class="hold-sum">' + chips.map(c => '<span class="hold-chip">' + c + '</span>').join('') + '</div>' + hs.map(rowHTML).join('');
+
+    /* 未成交撤单附注(最近一日) */
+    const sk = (d && d.skipped) || [];
+    const skDate = sk.length ? sk.map(s => s.date).sort().pop() : null;
+    const skLast = sk.filter(s => s.date === skDate);
+    const note = $('holdSkipNote');
+    if (note) {
+      if (skLast.length) {
+        note.style.display = '';
+        note.innerHTML = '未成交撤单（' + fmtD(skDate) + '）：' +
+          skLast.map(s => s.name + '（高开 ' + sgn1(s.open_gap) + ' · 9:30 已撤）').join('、') +
+          ' — 高开 &gt; 5% 不追，纪律放弃。';
+      } else { note.style.display = 'none'; }
+    }
+
+    /* 已平仓折叠表 */
+    const cl = (d && d.closed) || [];
+    const det = $('holdClosed');
+    if (det) {
+      if (cl.length) {
+        det.style.display = '';
+        det.querySelector('summary').textContent =
+          '已平仓记录（R3 结算 · 累计 ' + (stt.n_closed || cl.length) + ' 笔 · 显示最近 ' + cl.length + ' 笔）▸';
+        $('holdClosedTbl').innerHTML =
+          '<tr style="color:var(--tertiary);font-size:11px;"><td>标的</td><td>梯队</td><td>入场→出场</td><td>成本→卖价</td><td>收益</td><td>原因</td></tr>' +
+          cl.map(c => '<tr>' +
+            '<td>' + (c.name || c.code) + ' <span style="color:var(--tertiary);font-weight:400;">' + c.code + '</span></td>' +
+            '<td>' + (c.label || '—') + '</td>' +
+            '<td>' + fmtD(c.entry_date) + '→' + fmtD(c.exit_date) + '</td>' +
+            '<td>' + f3(c.cost) + '→' + f3(c.exit_price) + '</td>' +
+            '<td style="color:' + ((c.ret || 0) >= 0 ? 'var(--red)' : 'var(--green)') + ';font-weight:800;">' + sgn2(c.ret) + '%</td>' +
+            '<td>' + (c.reason || '') + '</td></tr>').join('');
+      } else { det.style.display = 'none'; }
+    }
+
+    const live = inSession() || inAuction();
+    $('holdBadge').textContent = '在持 ' + hs.length + (live ? ' · ' + new Date().toTimeString().slice(0, 8) : ' · 静态');
+  }
+
+  async function tick() {
+    const d = window.ORDERS_DATA;
+    const codes = ((d && d.holdings) || []).map(h => h.code).filter(Boolean);
+    if (codes.length) {
+      try { Object.assign(st.q, await fetchQuotes(codes)); } catch (e) { /* 静默: 保留上次行情 */ }
+    }
+    render();
+  }
+
+  function start() {
+    render();                                  /* 先静态渲染, 行情到手后再刷新 */
+    if (st.timer) return;                      /* 已运行: 仅重绘(start幂等, renderLiveCards会反复调) */
+    tick();
+    st.timer = setInterval(() => {
+      if (phase === 'mid' && (inSession() || inAuction())) tick();
+      else render();                           /* 非交易时段: 静态重绘, 转开盘自动恢复轮询 */
+    }, 15000);
+  }
+  function stop() { if (st.timer) { clearInterval(st.timer); st.timer = null; } }
+
+  return { start: start, stop: stop };
+})();
 
 function renderPost() {
   const s = window.SETTLE_DATA;
