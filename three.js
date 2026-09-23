@@ -17,7 +17,11 @@
            与div60/div30/div15并行独立不打架, 确认级进决策树「预警」层+风险点
    v1.2.0: 盘前外围升级 — ①日经改东财push2delay实时源(新浪int_nikkei已失效返回旧值)
            ②新增韩国KOSPI(韩综)展示+温度计权重10% ③新增美股三大期货CME实时展示组
-           ④温度计新权重: 美股45/A50·25/韩综10/日经5/港股5/CNH10(配套premarket_fetch.py v1.1.0) */
+           ④温度计新权重: 美股45/A50·25/韩综10/日经5/港股5/CNH10(配套premarket_fetch.py v1.1.0)
+   v1.2.1: 盘后「明日关注」改读主系统荐股(window.SITE_DATA · data.js 15:32生成), 与主看板
+           荐股区同源: M/S/A梯队+挂单价(昨收+5%)+两年胜率·均值+仓位; 弃用settle_data.js的
+           tomorrow.candidates(源自9/1一次性脚本tomorrow_candidates.json, 已停更三周数据过期)。
+           B级3进4停用档与炸板≥3淘汰标的折叠为灰字附注(需three.html先加载data.js) */
 (function () {
 'use strict';
 
@@ -1036,16 +1040,46 @@ function renderPost() {
       '<td>' + (r.index_regime || '—') + '</td></tr>';
   }).join('') || '<tr><td colspan="6" style="color:var(--tertiary);">当日无新信号</td></tr>';
 
-  /* 明日关注 */
+  /* 明日关注 [v1.2.1] — 候选读主系统荐股(SITE_DATA, 与主看板荐股区同源);
+     题材热度由 settle_log v1.1.0 从当日涨停池现算(settle_data.js) */
   const tm = L.tomorrow || {};
   $('tomorrowThemes').innerHTML = (tm.themes || []).map((t, i) =>
     '<span class="badge2 ' + (i === 0 ? 'b-red' : 'b-blue') + '" style="margin:4px 6px 0 0;">' + t + '</span>').join('') ||
     '<div class="empty-note">暂无主线题材</div>';
-  $('candBody').innerHTML = (tm.candidates || []).map(c =>
-    '<tr><td>' + c.code + '</td><td>' + c.name + '</td><td>' + (c.industry || '') + '</td>' +
-    '<td>' + (c.lb || 1) + '板 ' + (c.board_type || '') + '</td>' +
-    '<td>' + R2(c.turnover || 0) + '</td><td>' + R2(c.seal_money_yi || 0) + '</td></tr>').join('') ||
-    '<tr><td colspan="6" style="color:var(--tertiary);">明日候选待生成</td></tr>';
+
+  /* data.js 顶层为 const SITE_DATA(全局词法绑定, 非 window 属性) — typeof 守卫
+     避免 data.js 加载失败时 ReferenceError */
+  const SD = (typeof SITE_DATA !== 'undefined') ? SITE_DATA : window.SITE_DATA;
+  const TIER_CLS = { S: 'b-red', M: 'b-blue', A: 'b-orange', B: 'b-gray' };
+  const POOL_ORDER = ['candidates_1to2', 'candidates_4plus', 'candidates_2to3', 'candidates_3to4'];
+  const rows = [], dropped = [];
+  let bStopped = 0;
+  if (SD) {
+    for (const k of POOL_ORDER) {
+      for (const c of (SD[k] || [])) {
+        const s = c.sel || {};
+        if (s.verdict === 'skip') {
+          if (s.tier === 'B') { bStopped++; continue; }
+          dropped.push((c.name || c.code) + '·' + (s.drop || s.verdict_txt || '淘汰'));
+          continue;
+        }
+        rows.push('<tr><td>' + c.code + '</td>' +
+          '<td>' + (c.name || '') + '<span style="display:block;color:var(--tertiary);font-size:11px;">' + (c.industry || '') + '</span></td>' +
+          '<td><span class="badge2 ' + (TIER_CLS[s.tier] || 'b-gray') + '">' + (s.label || '—') + '</span> ' + (c.lb || 1) + '板</td>' +
+          '<td style="font-weight:700;color:var(--primary);">' + (c.cap5 != null ? c.cap5 : '—') + '</td>' +
+          '<td>' + (s.win || '—') + ' / ' + (s.avg || '—') + '</td>' +
+          '<td>' + (s.pos || '—') + '</td></tr>');
+      }
+    }
+  }
+  $('candBody').innerHTML = rows.join('') ||
+    '<tr><td colspan="6" style="color:var(--tertiary);">主系统荐股数据待生成（盘后 15:32 更新）</td></tr>';
+  const skipBits = [];
+  if (dropped.length) skipBits.push('已淘汰: ' + dropped.join('、'));
+  if (bStopped) skipBits.push('B级3进4停用档 ' + bStopped + ' 只（负期望·不参与）');
+  const skipDiv = $('candSkipNote');
+  /* innerHTML 而非 textContent: drop 原因串含 &lt; 等 HTML 实体(与主看板渲染同口径) */
+  if (skipDiv) { skipDiv.innerHTML = skipBits.join(' · '); skipDiv.style.display = skipBits.length ? '' : 'none'; }
 }
 
 /* ═══ 启动 ═══ */
