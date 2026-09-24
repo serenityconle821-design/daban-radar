@@ -25,7 +25,13 @@
    v1.3.0: 盘中新增「已入场跟踪」HOLD引擎 — orders_data.js(orders_track.py 15:32自动结算)
            持仓R3盘中直答: T+1首日只持有·封板优先·高开≥3%开盘卖·冲高+3%止盈·尾盘卖
            (优先级与后端settle_holdings/主看板daVerdict一致); 腾讯批量行情15秒轮询;
-           汇总chips + 未成交撤单附注 + 已平仓折叠表; 成本/价格3位小数防截断 */
+           汇总chips + 未成交撤单附注 + 已平仓折叠表; 成本/价格3位小数防截断
+   v1.4.0: [v1.20.0配套] HOLD引擎R3→优化B五档盘中直答(与orders_track.py v1.1.0同口径):
+           封板续持 → 开盘高开≥3%开盘卖 → 开盘浮盈≥2%(较成本)开盘兑现 →
+           分档止盈(低开日成本+2%/平开高开日成本+3%) → 冲高回落≥2.5%离场(约最高×0.975)
+           → 尾盘卖; 回测178笔: 73.6%/+6.56%/PF3.08 vs R3 69.1%/+2.92%/PF1.86;
+           S级标的离场提示附加「断板未跌停可留底仓待反包」(作手新一·人工决断参考);
+           明日关注候选表新增「助攻」列(板块共振·同行业当日涨停家数含自身) */
 (function () {
 'use strict';
 
@@ -981,11 +987,12 @@ const SIG_TXT = {
   open: ['已入场', 'b-red'], closed: ['已平仓', 'b-gray'], no_touch: ['未触及', 'b-gray'], skipped: ['资格未满足', 'b-orange'],
 };
 
-/* ══════════════ 已入场跟踪 HOLD v1.3.0 ══════════════
+/* ══════════════ 已入场跟踪 HOLD v1.4.0 ══════════════
    数据: orders_data.js (window.ORDERS_DATA · orders_track.py 每日15:32自动结算)
-   逻辑: 昨晚名单今晨 fill5 成交判定已入账本 → 此处对 holdings 盘中实时 R3 直答
+   逻辑: 昨晚名单今晨 fill5 成交判定已入账本 → 此处对 holdings 盘中实时优化B直答
          T+1合规: 入场日(行情日 ≤ entry_date)只持有不可卖; 次日起
-         收盘封板→续持 / 开盘高开≥3%→开盘卖 / 盘中冲高≥成本×1.03→即刻止盈 / 全天未触发→尾盘卖
+         收盘封板→续持 / 开盘高开≥3%→开盘卖 / 开盘浮盈≥2%→开盘兑现 /
+         分档止盈(低开日成本×1.02·平开高开日成本×1.03) / 冲高回落≥2.5%→离场 / 全天未触发→尾盘卖
          (优先级与后端 settle_holdings / 主看板 daVerdict 一致: 封板判定优先)
    行情: 腾讯批量JSONP浏览器直连零token · 盘中/竞价15秒轮询 · 非交易时段静态重绘
    口径: 成本/价格一律3位小数(防低价股截断 1.082→1.08) */
@@ -1015,21 +1022,23 @@ const HOLD = (function () {
     return out;
   }
 
-  /* R3 盘中直答 — 优先级: 封板 > 高开≥3% > 冲高+3% > 尾盘 */
+  /* 优化B 盘中直答 v1.4.0 — 优先级: 封板 > 高开≥3% > 开盘浮盈≥2% > 分档止盈 > 冲高回落 > 尾盘
+     (与后端 settle_holdings v1.1.0 同口径; 低开日止盈线降至+2%防拖尾盘卖绿盘) */
   function verdict(h, q) {
     const today = todayStr();
     const sess = (q && q.ts) ? q.ts.slice(0, 8) : today;
     const cost = f3(h.cost);
-    const tp3 = f3(h.cost * 1.03);
+    const isS = String(h.tier || '').toUpperCase() === 'S';
+    const sTail = isS ? ' · S级龙头断板未跌停可留底仓观察反包(作手·人工决断)' : '';
     if (sess <= String(h.entry_date || '')) {
       /* T+1 首日(或执行日行情未出): 只持有不可卖 */
       if (!q || sess < today) return { cls: 'hv-blue', t: '🆕 T+1 首日 · 只持有不可卖',
-        s: '今晨开盘 ' + sgn1(h.entry_gap) + ' 成交（成本 ' + cost + '）· 9:30 起盘中自动提示 · 明日起按 R3：收盘封板→续持 / 开盘高开≥3%→开盘卖 / 冲高至 ' + tp3 + ' 即刻止盈 / 全天未触发→收盘卖' };
+        s: '今晨开盘 ' + sgn1(h.entry_gap) + ' 成交（成本 ' + cost + '）· 9:30 起盘中自动提示 · 明日起按优化B：收盘封板→续持 / 开盘高开≥3%→开盘卖 / 开盘浮盈≥2%→兑现 / 低开日冲高 ' + f3(h.cost * 1.02) + '、平开日冲高 ' + f3(h.cost * 1.03) + ' 止盈 / 冲高回落≥2.5%离场' };
       const sealed = q.px >= q.ztp - 0.001;
       const pnl = (q.px / h.cost - 1) * 100;
       return { cls: sealed ? 'hv-green' : 'hv-blue',
         t: sealed ? '🟢 T+1 首日 · 已封板（安心持有）' : '🆕 T+1 首日 · 只持有不可卖',
-        s: '今晨开盘 ' + sgn1(h.entry_gap) + ' 成交 · 现价 ' + f3(q.px) + '（浮盈 ' + sgn1(pnl) + '）· 明日起按 R3：收盘封板→续持 / 高开≥3%→开盘卖 / 冲高至 ' + tp3 + ' 止盈 / 尾盘卖' };
+        s: '今晨开盘 ' + sgn1(h.entry_gap) + ' 成交 · 现价 ' + f3(q.px) + '（浮盈 ' + sgn1(pnl) + '）· 明日起按优化B：封板续持 / 高开≥3%开盘卖 / 浮盈≥2%兑现 / 低开+2%·平开+3%分档止盈 / 回落≥2.5%离场' };
     }
     if (!q) return { cls: 'hv-gray', t: '💤 非交易时段', s: '交易日盘中打开本页，自动判定 续持 / 止盈 / 离场' };
     if (sess < today) {
@@ -1037,7 +1046,7 @@ const HOLD = (function () {
       const sealed = q.px >= q.ztp - 0.001;
       return sealed
         ? { cls: 'hv-green', t: '🟢 上一交易日封板 · 续持中', s: '昨收 ' + f3(q.px) + '（封板）· 今日 9:30 后自动判定续持/离场' }
-        : { cls: 'hv-gray', t: '💤 等今日开盘', s: '昨收 ' + f3(q.px) + '（未封板）· 今日按 R3：高开≥3%开盘卖 / 冲高止盈 / 尾盘卖' };
+        : { cls: 'hv-gray', t: '💤 等今日开盘', s: '昨收 ' + f3(q.px) + '（未封板）· 今日按优化B：高开≥3%开盘卖 / 浮盈≥2%兑现 / 分档止盈 / 回落离场 / 尾盘卖' };
     }
     const sealed = q.px >= q.ztp - 0.001;
     if (sealed) return { cls: 'hv-green', t: '🟢 封板续持',
@@ -1045,13 +1054,27 @@ const HOLD = (function () {
     const openRef = q.po > 0 ? q.po : q.px;
     const gapOpen = openRef / q.pc - 1;
     const pnl = (q.px / h.cost - 1) * 100;
+    const pnlOpen = openRef / h.cost - 1;
+    /* ① 开盘高开≥3%(较昨收) → 开盘离场 */
     if (gapOpen >= 0.03) return { cls: 'hv-red', t: '🔴 开盘高开 ' + sgn1(gapOpen * 100) + ' · 开盘离场',
-      s: '开盘 ' + (q.po > 0 ? f3(q.po) : '—') + ' ≥ 离场线 ' + f3(q.pc * 1.03) + '（昨收×1.03）· 断板规则开盘卖出；若尚未卖出，逢反弹离场' };
-    if (q.ph >= h.cost * 1.03 - 0.001) return { cls: 'hv-orange', t: '🟠 冲高 +3% · 即刻止盈',
-      s: '今日最高 ' + f3(q.ph) + ' 已触及止盈线 ' + tp3 + '（成本×1.03）· 卖出' };
-    const toGo = (h.cost * 1.03 / q.px - 1) * 100;
+      s: '开盘 ' + (q.po > 0 ? f3(q.po) : '—') + ' ≥ 离场线 ' + f3(q.pc * 1.03) + '（昨收×1.03）· 断板规则开盘卖出；若尚未卖出，逢反弹离场' + sTail };
+    /* ② 开盘浮盈≥2%(较成本) → 开盘兑现(防大幅浮盈被固定止盈线贱卖) */
+    if (pnlOpen >= 0.02) return { cls: 'hv-red', t: '🔴 开盘浮盈 ' + sgn1(pnlOpen * 100) + ' ≥2% · 开盘兑现',
+      s: '开盘 ' + f3(openRef) + '（成本 ' + cost + ' ×1.02+）· 浮盈落袋优先；若尚未卖出，逢反弹离场' + sTail };
+    /* ③ 分档止盈: 低开日(较昨收<0)成本+2% / 平开高开日成本+3% */
+    const tp = gapOpen < 0 ? h.cost * 1.02 : h.cost * 1.03;
+    if (q.ph >= tp - 0.001) return { cls: 'hv-orange', t: '🟠 冲高触发' + (gapOpen < 0 ? '低开档 +2%' : '+3%') + ' · 即刻止盈',
+      s: '今日最高 ' + f3(q.ph) + ' 已触及止盈线 ' + f3(tp) + '（低开日降至成本×1.02，防拖尾盘）· 卖出' + sTail };
+    /* ④ 冲高回落保护: 最高≥成本+0.5% 且自最高回落≥2.5% → 离场 */
+    if (q.ph >= h.cost * 1.005 && (q.ph - q.px) / q.ph >= 0.025) {
+      const backPct = (q.ph - q.px) / q.ph * 100;
+      return { cls: 'hv-orange', t: '🟠 冲高回落 ' + backPct.toFixed(1) + '% · 离场',
+        s: '最高 ' + f3(q.ph) + '（≥成本+0.5%）回落至现价 ' + f3(q.px) + ' · 回撤≥2.5%触发保护 · 参考卖价约 ' + f3(q.ph * 0.975) + sTail };
+    }
+    /* ⑤ 未触发 → 尾盘卖 */
+    const toGo = (tp / q.px - 1) * 100;
     return { cls: 'hv-gray', t: '⚪ 未触发 · 尾盘卖',
-      s: '现价 ' + f3(q.px) + '（浮盈 ' + sgn1(pnl) + '）· 距止盈线 ' + tp3 + ' 还差 ' + toGo.toFixed(1) + '% · 14:50 未触发则收盘卖' };
+      s: '现价 ' + f3(q.px) + '（浮盈 ' + sgn1(pnl) + '）· 今日本档止盈线 ' + f3(tp) + (gapOpen < 0 ? '（低开日+2%）' : '（+3%）') + ' 还差 ' + toGo.toFixed(1) + '% · 冲高回落≥2.5%亦离场 · 14:50 未触发则收盘卖' };
   }
 
   function rowHTML(h) {
@@ -1127,7 +1150,7 @@ const HOLD = (function () {
       if (cl.length) {
         det.style.display = '';
         det.querySelector('summary').textContent =
-          '已平仓记录（R3 结算 · 累计 ' + (stt.n_closed || cl.length) + ' 笔 · 显示最近 ' + cl.length + ' 笔）▸';
+          '已平仓记录（优化B结算 · 累计 ' + (stt.n_closed || cl.length) + ' 笔 · 显示最近 ' + cl.length + ' 笔）▸';
         $('holdClosedTbl').innerHTML =
           '<tr style="color:var(--tertiary);font-size:11px;"><td>标的</td><td>梯队</td><td>入场→出场</td><td>成本→卖价</td><td>收益</td><td>原因</td></tr>' +
           cl.map(c => '<tr>' +
@@ -1255,17 +1278,24 @@ function renderPost() {
           dropped.push((c.name || c.code) + '·' + (s.drop || s.verdict_txt || '淘汰'));
           continue;
         }
+        /* [v1.4.0] 板块助攻列: 同行业当日涨停家数(含自身)·作手新一板块共振; ≥3主线梯队 / 1独苗警示 */
+        const sc = c.sect_cnt || 0;
+        const sectCell = !sc ? '<span style="color:var(--tertiary);">—</span>'
+          : sc >= 3 ? '<b style="color:var(--red);">' + sc + ' 只</b><span style="display:block;color:var(--tertiary);font-size:11px;">主线梯队✓</span>'
+          : sc === 1 ? '<b style="color:var(--orange,#FF9500);">1 只</b><span style="display:block;color:var(--tertiary);font-size:11px;">独苗·降档</span>'
+          : '<b>' + sc + ' 只</b>';
         rows.push('<tr><td>' + c.code + '</td>' +
           '<td>' + (c.name || '') + '<span style="display:block;color:var(--tertiary);font-size:11px;">' + (c.industry || '') + '</span></td>' +
           '<td><span class="badge2 ' + (TIER_CLS[s.tier] || 'b-gray') + '">' + (s.label || '—') + '</span> ' + (c.lb || 1) + '板</td>' +
           '<td style="font-weight:700;color:var(--primary);">' + (c.cap5 != null ? c.cap5 : '—') + '</td>' +
+          '<td>' + sectCell + '</td>' +
           '<td>' + (s.win || '—') + ' / ' + (s.avg || '—') + '</td>' +
           '<td>' + (s.pos || '—') + '</td></tr>');
       }
     }
   }
   $('candBody').innerHTML = rows.join('') ||
-    '<tr><td colspan="6" style="color:var(--tertiary);">主系统荐股数据待生成（盘后 15:32 更新）</td></tr>';
+    '<tr><td colspan="7" style="color:var(--tertiary);">主系统荐股数据待生成（盘后 15:32 更新）</td></tr>';
   const skipBits = [];
   if (dropped.length) skipBits.push('已淘汰: ' + dropped.join('、'));
   if (bStopped) skipBits.push('B级3进4停用档 ' + bStopped + ' 只（负期望·不参与）');
