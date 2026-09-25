@@ -19,7 +19,7 @@
            ②新增韩国KOSPI(韩综)展示+温度计权重10% ③新增美股三大期货CME实时展示组
            ④温度计新权重: 美股45/A50·25/韩综10/日经5/港股5/CNH10(配套premarket_fetch.py v1.1.0)
    v1.2.1: 盘后「明日关注」改读主系统荐股(window.SITE_DATA · data.js 15:32生成), 与主看板
-           荐股区同源: M/S/A梯队+挂单价(昨收+5%)+两年胜率·均值+仓位; 弃用settle_data.js的
+           荐股区同源: M/S/A梯队+挂单价(涨停下方0.2%·v1.21.0口径)+两年胜率·均值+仓位; 弃用settle_data.js的
            tomorrow.candidates(源自9/1一次性脚本tomorrow_candidates.json, 已停更三周
            B级3进4停用档与炸板≥3淘汰标的折叠为灰字附注(需three.html先加载data.js)
    v1.3.0: 盘中新增「已入场跟踪」HOLD引擎 — orders_data.js(orders_track.py 15:32自动结算)
@@ -34,9 +34,15 @@
            明日关注候选表新增「助攻」列(板块共振·同行业当日涨停家数含自身)
    v1.4.1: 新增E档「破昨收走弱保护」(相对昨收口径): 当日最高≥昨收+2%且现价跌破昨收→离场
            (参考卖价≈昨收×0.998) — 兜住低开票「上午相对昨收红·下午翻绿」的场景
-           (成本口径保护永不触发: 挂单成本≈昨收+5%); 全样本178笔触发9笔 合计+41.5pp PF 3.08→3.32;
+           (成本口径保护永不触发: 挂单成本≈昨收上方); 全样本178笔触发9笔 合计+41.5pp PF 3.08→3.32;
            未触发档附加大盘实时提示(上证跌≥1%弱日加速兑现/涨≥1%强势可耐心, 仅话术不改判定);
-           已入场跟踪与orders_track.py v1.1.1 / 主看板daVerdict同口径 */
+           已入场跟踪与orders_track.py v1.1.1 / 主看板daVerdict同口径
+   v1.5.0: [v1.21.0配套] 隔夜单挂单价 +5%→涨停下方0.2%(10cm=昨收+9.8%/20cm=昨收+19.8%):
+           明日关注挂单价列标注板块对应比例; 未成交撤单附注改「超挂单限价」通用口径;
+           依据全市场审计(33277涨停事件·B+E出场·T+1): +5~9.8%高开接力档均值+2.56pp/PF1.67
+           (0~5%档+1.26pp/PF1.51)·五个半年度全正; 页面真实名单重放: 35笔净-235元→48笔
+           +2088元(每笔5000·实际费率); HOLD出场规则不变(优化B+E六档), 与orders_track.py
+           v1.2.0 / web_build.py v1.21.0 / 主看板daVerdict 四处同口径 */
 (function () {
 'use strict';
 
@@ -1157,7 +1163,7 @@ const HOLD = (function () {
         note.style.display = '';
         note.innerHTML = '未成交撤单（' + fmtD(skDate) + '）：' +
           skLast.map(s => s.name + '（高开 ' + sgn1(s.open_gap) + ' · 9:30 已撤）').join('、') +
-          ' — 高开 &gt; 5% 不追，纪律放弃。';
+          ' — 高开超挂单限价不追，纪律放弃。';
       } else { note.style.display = 'none'; }
     }
 
@@ -1304,10 +1310,13 @@ function renderPost() {
           : sc >= 3 ? '<b style="color:var(--red);">' + sc + ' 只</b><span style="display:block;color:var(--tertiary);font-size:11px;">主线梯队✓</span>'
           : sc === 1 ? '<b style="color:var(--orange,#FF9500);">1 只</b><span style="display:block;color:var(--tertiary);font-size:11px;">独苗·降档</span>'
           : '<b>' + sc + ' 只</b>';
+        /* [v1.21.0] 挂单价=涨停下方0.2%(10cm昨收+9.8%/20cm昨收+19.8%), 副标标注板块比例 */
+        const is20 = /^(30|68)/.test(String(c.code));
         rows.push('<tr><td>' + c.code + '</td>' +
           '<td>' + (c.name || '') + '<span style="display:block;color:var(--tertiary);font-size:11px;">' + (c.industry || '') + '</span></td>' +
           '<td><span class="badge2 ' + (TIER_CLS[s.tier] || 'b-gray') + '">' + (s.label || '—') + '</span> ' + (c.lb || 1) + '板</td>' +
-          '<td style="font-weight:700;color:var(--primary);">' + (c.cap5 != null ? c.cap5 : '—') + '</td>' +
+          '<td style="font-weight:700;color:var(--primary);">' + (c.cap5 != null ? c.cap5 : '—') +
+          (c.cap5 != null ? '<span style="display:block;color:var(--tertiary);font-size:11px;font-weight:400;">昨收+' + (is20 ? '19.8' : '9.8') + '%</span>' : '') + '</td>' +
           '<td>' + sectCell + '</td>' +
           '<td>' + (s.win || '—') + ' / ' + (s.avg || '—') + '</td>' +
           '<td>' + (s.pos || '—') + '</td></tr>');

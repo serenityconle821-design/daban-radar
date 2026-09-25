@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>观澜擒龙</title>
 <style>
+/* v1.21.0 隔夜单挂单价 +5%→涨停下方0.2%(2026-09-26): 10cm=昨收+9.8% / 20cm=昨收+19.8%
+   · 依据全市场审计(analyze_entry.py·33277涨停事件·B+E出场·T+1合规): +5~9.8%高开接力档
+     均值+2.56pp/PF1.67(0~5%档+1.26pp/PF1.51)·五个半年度全正, 为均值最高可成交档;
+     +9.8~10%全为一字排队幻觉已剔除; 页面真实名单重放(replay_page·每笔5000·实际费率):
+     现行+5% 35笔净-235元 → 挂+9.8% 48笔净+2088元(新增13笔高开5~9.8%接力·胜率69.2%)
+   · 旧「+5%上限屏蔽高开5-9%毒药档」为R3出场时代结论; v1.20.0出场升级B+E后高开接力
+     档优势释放, 上限随之提至涨停下方0.2%; 仍不用盯竞价·9:30未成交撤单
+   · 同步: web_build.py v1.21.0 / orders_track.py v1.2.0(结算按实际昨收重算挂单价·存量
+     挂单自动迁移) / three.js+three.html v1.5.0 — 四处口径一致 */
 /* v1.19.1 盘后挂单视角修复(2026-09-21): 晚间打开不再误显「隔夜单未成交(9:30已撤)」
    · 根因: 盘后名单(15:33生成)=今晚挂单·次日入场的新名单, 今日首板票今晨不存在隔夜单;
      旧盘中直答拿今日定格行情做fill5复盘 → 晚上看被误读成「旧名单已撤单·没单可挂」
@@ -1650,7 +1659,7 @@ tr.pt-excluded-row td { opacity:.52; }
       <span id="pickTitle">荐股 · 今晚买什么</span>
       <span class="pill" style="background:var(--primary-soft);color:var(--primary);font-size:11.5px;margin-left:2px;">T+1合规口径 · 每晚15:10更新</span>
     </div>
-    <p class="sec-sub">M级首板精选（胜率第一）· S级4板+隔夜单 · A级轻仓 · B级停用 · 全部挂「昨收+5%」限价单</p>
+    <p class="sec-sub">M级首板精选（胜率第一）· S级4板+隔夜单 · A级轻仓 · B级停用 · 全部挂「涨停下方0.2%」限价单（10cm=昨收+9.8% / 20cm=昨收+19.8%）</p>
     <div class="master" id="masterAction" style="display:none;"></div>
     <div class="ladder-strip" id="ladderStrip"></div>
     <!-- v1.16.0 选股三步直答指引 · [v1.19.0] 默认折叠(点击标题展开), 收起状态只露一行标题 -->
@@ -1662,10 +1671,10 @@ tr.pt-excluded-row td { opacity:.52; }
         <svg class="dg-caret" viewBox="0 0 24 24" fill="none" stroke="var(--secondary)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </summary>
       <div class="dg-steps">
-        <b>① 今晚买谁？挂几只？</b> 看梯队（T+1合规口径）：<b>M级（首板精选·梯队第一）轻仓1-2%</b>（55.5%/+1.13 · n=607 · 四梯队胜率第一）· <b>S级（4板+）挂隔夜单·仓位2-3%</b>（48.4%/+2.18 · 均值四梯队最高·靠盈亏比）· A级（2进3）轻仓1-2%或放弃（48.8%/+0.25 · 边缘正期望·0.5%生产滑点下转负）· B级（3进4）<b>已停用</b>（44.4%/-0.88 负期望·不挂单不参与）。挂<b>「昨收+5%」限价单</b>（次日按开盘价成交·开盘高于限价不成交）；<b>不用盯竞价，9:30 开盘后未成交（=高开&gt;5%）撤单即可</b>。<b>百分比已换算成价格</b>：各候选卡「明日价位尺」按今收直接标出 +5%挂单限价线 / +3%开盘卖线 / 涨停价（盘中排队用）。<br>
+        <b>① 今晚买谁？挂几只？</b> 看梯队（T+1合规口径）： <b>M级（首板精选·梯队第一）轻仓1-2%</b>（55.5%/+1.13 · n=607 · 四梯队胜率第一）· <b>S级（4板+）挂隔夜单·仓位2-3%</b>（48.4%/+2.18 · 均值四梯队最高·靠盈亏比）· A级（2进3）轻仓1-2%或放弃（48.8%/+0.25 · 边缘正期望·0.5%生产滑点下转负）· B级（3进4）<b>已停用</b>（44.4%/-0.88 负期望·不挂单不参与）。挂<b>「涨停下方0.2%」限价单</b>（10cm=昨收+9.8% / 20cm=昨收+19.8%·次日按开盘价成交·开盘高于限价不成交）；<b>不用盯竞价，9:30 开盘后未成交（=高开超涨停下方0.2%·基本一字）撤单即可</b>。<b>百分比已换算成价格</b>：各候选卡「明日价位尺」按今收直接标出 +9.8%挂单限价线（20cm为+19.8%）/ +3%开盘卖线 / 涨停价（盘中排队用）。<b>v1.21.0 依据</b>：全市场审计（33277涨停事件·B+E出场）+5~9.8%高开接力档均值+2.56pp/PF1.67 为最优可成交档，旧+5%上限为R3出场时代结论；梯队胜率/均值数字仍为+5%限价×R3回测口径（新口径为增益方向）。<br>
         <b>② 带淘汰标记的能不能买？</b> ❌ 淘汰 · 不买：尾盘板（首封≥13:00）/ 炸板≥3次 / A·B级确定性&lt;65分（负期望区）。S级不看分数 — 回测4板+低分组收益反而更高，高度即资格。<br>
         <b>③ 买入后第二天怎么办？</b> 统一规则「<b>封板续持 · 分档止盈</b>」（优化B+E·回测胜率73.0%/PF3.32）：收盘封板→继续持有；未封板日 开盘高开≥+3%→开盘卖 / 开盘浮盈≥+2%→开盘兑现 / 盘中冲高至成本+3%（低开日降至+2%）→即刻止盈 / 冲高回落≥2.5%→离场 / <b>冲高≥昨收+2%后跌破昨收→走弱离场（不等尾盘，防上午红下午绿）</b> / 全天没到→收盘卖。买入后点卡上「已买入·登记」，「我的打板仓」每天盘中直接给 持有/止盈/离场 提示。<br>
-        <b>④ 买入当天（T日）盘中怎么执行？</b> 时间轴：<b>9:25</b> 竞价定格开盘价，隔夜单（昨收+5%限价）自动按开盘价成交（高开&gt;5% 不成交，9:30 撤单即可）→ <b>9:30后</b> 没隔夜单的不追开盘价，等首次冲板在<b>封板瞬间挂涨停价排队</b>（提前追=追涨；已封死照样排队等让位）→ <b>排不到</b>：14:45前撤单换备选，不追高 → <b>买入后炸板</b>：绝不加仓摊平（炸板=分歧验证），巨单秒回封→持有；反复炸≥2次/封单萎缩→当日减半；尾盘未回封→断板次日按优化B执行。完整手册见上方「今日建议入场」区的执行手册。
+        <b>④ 买入当天（T日）盘中怎么执行？</b> 时间轴：<b>9:25</b> 竞价定格开盘价，隔夜单（涨停下方0.2%限价）自动按开盘价成交（高开超限价·基本一字 不成交，9:30 撤单即可）→ <b>9:30后</b> 没隔夜单的不追开盘价，等首次冲板在<b>封板瞬间挂涨停价排队</b>（提前追=追涨；已封死照样排队等让位）→ <b>排不到</b>：14:45前撤单换备选，不追高 → <b>买入后炸板</b>：绝不加仓摊平（炸板=分歧验证），巨单秒回封→持有；反复炸≥2次/封单萎缩→当日减半；尾盘未回封→断板次日按优化B执行。完整手册见上方「今日建议入场」区的执行手册。
       </div>
       <details>
         <summary>📊 回测证据：隔夜单资格矩阵 + 持有规则分年度验证（两年 4995股 · 24万可成交样本 · 含0.15%双边成本）</summary>
@@ -1695,7 +1704,7 @@ tr.pt-excluded-row td { opacity:.52; }
       <span class="ico" style="background:var(--green-soft); color:var(--green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
       <span>M级 · 首板动量 · 精选档</span>
     </div>
-    <p class="sec-sub" id="c12Sub">T+1合规口径 胜率 55.5% / 单笔 +1.13%（n=607 · PF1.34 · 四梯队第一 · 挂「昨收+5%」限价×R3）· 轻仓1-2%</p>
+    <p class="sec-sub" id="c12Sub">T+1合规口径 胜率 55.5% / 单笔 +1.13%（n=607 · PF1.34 · 四梯队第一 · +5%限价×R3保守回测·新挂单口径为增益方向）· 轻仓1-2%</p>
     <div id="c12List"></div>
 
     <!-- v1.16.0 S级 · 4板+ 选股池 (高度即护城河) -->
@@ -1923,7 +1932,7 @@ function renderEntryBrief(){
   /* [v1.19.1] 时段感知占位: 盘中=行情加载中, 非盘中=今晚挂单提示(避免闪现误导文案) */
   const LIVE_WAIT = daTradingBJ()
     ? '<span class="da-wait">行情加载中 · 自动判定现在能不能买</span>'
-    : '<span class="da-wait">今晚挂「昨收+5%」限价单 · 次日 9:25 竞价自动成交</span>';
+    : '<span class="da-wait">今晚挂「涨停下方0.2%」限价单 · 次日 9:25 竞价自动成交</span>';
   const pill = (txt, fg, bg) => `<span class="pill" style="background:${bg};color:${fg};font-size:11px;">${txt}</span>`;
   /* ① 战法雷达正式信号(相位+形态双达标, 最高优先级) · [v1.16.1]盘中直答=现价/形态是否破止损
      v1.16.7: P1冰点锤子线开闸时同样为正式信号(共振≥10只, 全市场冰点抄底)
@@ -1978,7 +1987,7 @@ function renderEntryBrief(){
   <details style="margin-top:8px;">
     <summary style="cursor:pointer;font-weight:700;color:var(--primary);font-size:13.5px;padding:6px 0;">⏱ 当日盘中怎么买？等封板还是已封板？排不到/炸板怎么办？（点开看执行手册）</summary>
     <div style="padding:6px 2px 2px;line-height:1.75;font-size:13px;">
-      <b style="color:var(--text);">① 什么时间买：</b>挂了隔夜单（「昨收+5%」限价）的<b>什么都不用做，9:25 撮合定格自动按开盘价成交</b>；开盘高开&gt;5% 则不成交，<b>9:30 看一眼未成交撤单即可</b>（撤了也不追）。没挂隔夜单的：9:30 开盘后<b>不追开盘价</b>，等标的首次冲板。
+      <b style="color:var(--text);">① 什么时间买：</b>挂了隔夜单（「涨停下方0.2%」限价·10cm昨收+9.8%/20cm昨收+19.8%）的<b>什么都不用做，9:25 撮合定格自动按开盘价成交</b>；开盘高开超限价 则不成交，<b>9:30 看一眼未成交撤单即可</b>（撤了也不追）。没挂隔夜单的：9:30 开盘后<b>不追开盘价</b>，等标的首次冲板。
       <br><b style="color:var(--text);">② 等还没封板、还是已封板：</b><b>在「封板瞬间」挂涨停价排队</b>——打板买的是「封死」这个动作的确定性，不是买便宜。封板前价格在 +5%~+9.9% 之间波动，提前追=追涨，冲不过 +5% 禁追线的直接放弃。已经封死的：照样挂涨停价排队（有人撤单/开板让位时按涨停价成交）。
       <br><b style="color:var(--text);">③ 排不到怎么办：</b>排队单挂着不撤，14:45 前仍未成交就撤单走人，<b>换名单里的备选标的</b>（按排序口径顺位递补），绝不为「买不到」去追高或买计划外标的。少买一只不亏钱，追错一只才是真亏。
       <br><b style="color:var(--red);">④ 开盘买入后炸板 — 绝不加仓摊平：</b>炸板=分歧验证，加仓=在分歧里放大敞口（反面教材：中新赛克 12.4% 仓位扛单）。处置只分三档：<b>巨单秒回封</b> → 持有，等收盘按「封板续持」判定；<b>反复炸板≥2次 / 封单持续萎缩</b> → 当日减半；<b>尾盘仍未回封（断板）</b> → 次日按优化B执行：高开≥3%开盘卖 / 浮盈≥2%兑现 / 低开日+2%平开+3%止盈 / 回落≥2.5%离场 / 尾盘卖，不隔夜扛不确定性。
@@ -2265,9 +2274,11 @@ function daPanel(c){
   /* [v1.16.4] 明日竞价价位尺: 基准=今收(=明日昨收), 高开百分比直接换算成价格 */
   const pBase = c.price > 0 ? c.price : (c.next_zt > 0 ? c.next_zt / 1.1 : 0);
   const pPct = p => pBase > 0 ? (pBase * (1 + p)).toFixed(2) : '—';
+  const is20cm = /^(30|68)/.test(String(c.code));
+  const capPct = is20cm ? 0.198 : 0.098, capT = (capPct * 100).toFixed(1);
   const ovBody = ov.w
-    ? `${sel.label}（${sel.full}）· 今晚挂隔夜单（挂 <b>「昨收+5%」${pPct(0.05)}</b> 限价单，次日按开盘价成交·开盘高于此价不成交）· 仓位 <b>${sel.pos}</b>。
-       <span class="da-sub">[v1.16.9] 不用盯 9:15-9:20 竞价，<b>9:30 开盘后看一眼，未成交（=高开&gt;5%）撤单即可</b>；+5% 限价自动屏蔽高开&gt;5% 毒药档（5-9% 胜率降至 57-70% · ≥9% 仅 42%），保留高开 2-5% 正期望档 → 两年回测胜率 <b>${ov.w.w}%</b> · 单笔均值 <b>+${ov.w.r}%</b>（全面优于挂涨停+盯竞价）· ${sel.recent}</span>`
+    ? `${sel.label}（${sel.full}）· 今晚挂隔夜单（挂 <b>「昨收+${capT}%」${c.cap5 || pPct(capPct)}</b> 限价单，次日按开盘价成交·开盘高于此价不成交）· 仓位 <b>${sel.pos}</b>。
+       <span class="da-sub">[v1.21.0] 不用盯 9:15-9:20 竞价，<b>9:30 开盘后看一眼，未成交（=高开超限价）撤单即可</b>；限价挂涨停下方 0.2% 自动规避一字排队幻觉档（≥9.8% 胜率仅 42%·中位 -3.15%），保留高开 2-9.8% 正期望档（5-9.8% 接力档均值 +2.56pp/PF1.67）→ 两年回测胜率 <b>${ov.w.w}%</b> · 单笔均值 <b>+${ov.w.r}%</b>（全面优于挂涨停+盯竞价）· ${sel.recent}</span>`
     : `1板次日买入为负期望（两年回测均值 -0.3%），不挂隔夜单、盘中也不追。`;
   const holdBody = `统一规则「<b>封板续持 · 断板就走</b>」：任意持有日收盘封板 → 继续持有；未封板日：开盘高开≥3%（首日线 ${pPct(0.03)}）→ 开盘卖 / 盘中冲高 +3%（止盈线 = 开盘成交价×1.03）→ 即刻卖 / 全天没到 → 收盘卖。
     <span class="da-sub">2024/2025/2026 分年度全正期望；最差一成交易约 -9%，单票仓位 2-3% 才是真正的风控</span>`;
@@ -2280,8 +2291,8 @@ function daPanel(c){
     ${pBase > 0 ? `
     <div class="da-row">
       <span class="da-tag" style="background:var(--green-soft);color:var(--green);">明日价位尺</span>
-      <span class="da-body">基准=今收 <b>${pBase.toFixed(2)}</b>（明日昨收）：<b>+5% 挂单限价线 ${pPct(0.05)}</b>（今晚挂单价）· <b>+3% 开盘卖线 ${pPct(0.03)}</b> · 明日涨停 <b>${c.next_zt}</b>（盘中排队打板用）
-        <span class="da-sub">不用盯竞价：开盘价 ≤ ${pPct(0.05)} → 隔夜单自动按开盘价成交 · 开盘价 &gt; ${pPct(0.05)} → 不成交，9:30 撤单即可（撤了也不追）· 挂单截止 9:25</span></span>
+      <span class="da-body">基准=今收 <b>${pBase.toFixed(2)}</b>（明日昨收）：<b>+${capT}% 挂单限价线 ${pPct(capPct)}</b>（今晚挂单价）· <b>+3% 开盘卖线 ${pPct(0.03)}</b> · 明日涨停 <b>${c.next_zt}</b>（盘中排队打板用）
+        <span class="da-sub">不用盯竞价：开盘价 ≤ ${pPct(capPct)} → 隔夜单自动按开盘价成交 · 开盘价 &gt; ${pPct(capPct)} → 不成交，9:30 撤单即可（撤了也不追）· 挂单截止 9:25</span></span>
     </div>` : ''}
     ${sel.downgrade ? `
     <div class="da-row">
@@ -2369,11 +2380,14 @@ function daVerdict(x, q){
 /* ── [v1.19.1] 非交易时段「今晚挂单」视角 ──
    背景: 盘后名单(15:33生成)是今晚挂单·次日入场的新名单; 今日首板票今晨不存在隔夜单。
    旧直答拿今日盘中定格行情做fill5复盘, 晚上看会被"隔夜单未成交(9:30已撤)"误读成
-   "旧名单已撤单·没单可挂"——实际挂单价(今收+5%)就是今晚要挂的新单。 */
+   "旧名单已撤单·没单可挂"——实际挂单价(今收×涨停比例-0.2%)就是今晚要挂的新单。 */
 function daFindCand(code){
   const pools = ['candidates_1to2', 'candidates_4plus', 'candidates_2to3', 'candidates_3to4'];
   for (const k of pools){ const c = (D[k] || []).find(x => x.code === code); if (c) return c; }
   return null;
+}
+function daCapPct(code){                               /* [v1.21.0] 挂单上限=涨停下方0.2% */
+  return /^(30|68)/.test(String(code)) ? 0.198 : 0.098;
 }
 function daPhaseCell(code){
   const b = daBJ(), wd = b.getUTCDay(), hm = b.getUTCHours() * 60 + b.getUTCMinutes();
@@ -2381,18 +2395,20 @@ function daPhaseCell(code){
   const morning = !weekend && hm < 9*60 + 15;          /* 清晨: 名单=昨日盘后, 今日9:25竞价 */
   const nextDay = (wd === 5 || wd === 6) ? '下周一' : '次日';
   const c = daFindCand(code);
-  const c5 = c ? (c.cap5 || (c.price > 0 ? (c.price * 1.05).toFixed(2) : null)) : null;
-  const px = c5 ? `挂单价 <b>${c5}</b>（昨收+5%）· ` : '';
+  const capPct = daCapPct(code), capTxt = (capPct * 100).toFixed(1);
+  const c5 = c ? (c.cap5 || (c.price > 0 ? (c.price * (1 + capPct)).toFixed(2) : null)) : null;
+  const px = c5 ? `挂单价 <b>${c5}</b>（昨收+${capTxt}%）· ` : '';
   return morning
     ? `<b style="color:var(--primary);">⏰ 今日 9:25 竞价 · 隔夜单自动按开盘价成交</b>
-       <span class="da-sub">${px}开盘 ≤ 限价 → 自动成交（高开2-5%为正期望档）· 高开 &gt; 5% → 不成交 · <b>9:30 未成交撤单（撤了也不追）</b> · 盘中打开本页自动判定</span>`
-    : `<b style="color:var(--primary);">🌙 今晚挂「昨收+5%」限价单 · ${nextDay} 9:25 竞价自动成交</b>
-       <span class="da-sub">${px}开盘 ≤ 限价 → 按开盘价自动成交 · 高开 &gt; 5% → 不成交 · <b>9:30 未成交撤单（撤了也不追）</b> · 盘中打开本页自动判定今晨成交状态</span>`;
+       <span class="da-sub">${px}开盘 ≤ 限价 → 自动成交（高开2-5%胜率73-82%·5-${capTxt}%高开接力档+2.56pp/PF1.67）· 高开 &gt; ${capTxt}% → 不成交 · <b>9:30 未成交撤单（撤了也不追）</b> · 盘中打开本页自动判定</span>`
+    : `<b style="color:var(--primary);">🌙 今晚挂「涨停下方0.2%」限价单（昨收+${capTxt}%）· ${nextDay} 9:25 竞价自动成交</b>
+       <span class="da-sub">${px}开盘 ≤ 限价 → 按开盘价自动成交 · 高开 &gt; ${capTxt}% → 不成交 · <b>9:30 未成交撤单（撤了也不追）</b> · 盘中打开本页自动判定今晨成交状态</span>`;
 }
 /* ── 候选卡盘中直答: 现在能不能买 ──
-   [v1.16.9] 隔夜单统一挂「昨收+5%」限价(不用盯竞价): 开盘≤+5%自动按开盘价成交
-   (高开2-5%为正期望档·三梯队胜率73-82%——死亡区间33.1%是涨停价成交口径, 与隔夜单无关);
-   开盘>+5%不成交·9:30撤单(撤了也不追)。
+   [v1.21.0] 隔夜单统一挂「涨停下方0.2%」限价(10cm昨收+9.8%/20cm昨收+19.8%·不用盯竞价):
+   开盘≤限价自动按开盘价成交(高开2-5%三梯队胜率73-82%·5-9.8%高开接力档均值+2.56pp/PF1.67
+   ——死亡区间33.1%是涨停价成交口径, 与隔夜单无关);
+   开盘>限价不成交·9:30撤单(撤了也不追·近一字档胜率仅42%·中位-3.15%由限价单自动规避)。
    死亡区间(高开0-5%触板排队=涨停价成交·胜率33.1%)仅适用盘中排队打板: 未挂隔夜单者
    该档回封不追·已封板也不排; 可排队仅: 低开/平开回封(正期望主样本·成交~90%) 与
    高开>5%已封板(开盘越接近涨停越难成交: ≥7%约30%·一字未开板基本排不到)。 */
@@ -2407,22 +2423,23 @@ function daLiveCell(code, q){
   const lx = p => (q.pc * (1 + p)).toFixed(2);          /* [v1.16.4] 线位价 = 昨收×(1+pct) */
   const oTxt = q.po > 0 ? `开盘 ${q.po.toFixed(2)} · ` : '';
   const gap = openRef / q.pc - 1;
+  const capPct = daCapPct(code), capTxt = (capPct * 100).toFixed(1);  /* [v1.21.0] 涨停下方0.2% */
   const dead = gap > 0.001 && gap < 0.05;               /* 死亡区间: 高开0-5%(仅适用盘中排队打板) */
-  const fill5 = gap <= 0.050001;                        /* [v1.16.9] 开盘≤+5% → 隔夜单已按开盘价成交 */
+  const fill5 = gap <= capPct + 0.00001;                /* [v1.21.0] 开盘≤限价 → 隔夜单已按开盘价成交 */
   if (sealed){
-    if (fill5) return `<b style="color:var(--green);">✅ 已封板 ${q.px.toFixed(2)} · 隔夜单已按开盘价成交（开盘${(gap*100).toFixed(1)}% ≤ +5%限价 ${lx(0.05)}）· 继续持有</b>
-      <span class="da-sub">按「封板续持 · 断板就走」执行${dead ? ' · 未挂隔夜单者不排：高开0-5%盘中排队=涨停价成交·该组胜率仅33.1%' : ' · 未挂隔夜单者可排队打板（低开/平开回封正期望·成交~90%）'}</span>`;
+    if (fill5) return `<b style="color:var(--green);">✅ 已封板 ${q.px.toFixed(2)} · 隔夜单已按开盘价成交（开盘${(gap*100).toFixed(1)}% ≤ +${capTxt}%限价 ${lx(capPct)}）· 继续持有</b>
+      <span class="da-sub">按「封板续持 · 断板就走」执行${dead ? ' · 未挂隔夜单者不排：高开0-5%盘中排队=涨停价成交·该组胜率仅33.1%' : (gap > 0.05 ? ' · 未挂隔夜单者要排挂涨停价（高开档排队成交率低·非纪律）' : ' · 未挂隔夜单者可排队打板（低开/平开回封正期望·成交~90%）')}</span>`;
     const yizi = (q.pl || 0) >= q.ztp - 0.001;
     const fp = yizi ? '今日未开过板·基本排不到(排到=开板瞬间成交)'
       : (gap >= 0.07 ? '开盘≥7%·仅约30%能排到' : '');
-    return `<b style="color:var(--orange);">⚠️ 已封板 ${q.px.toFixed(2)} · 开盘高开${(gap*100).toFixed(1)}% &gt; +5%限价 ${lx(0.05)} · 隔夜单未成交（9:30已撤）</b>
-      <span class="da-sub">${fp ? fp + ' · ' : ''}排队打板非纪律（高开5-9%档胜率57-70%）· 要排挂 ${q.ztp.toFixed(2)} · 不排也完全OK</span>`;
+    return `<b style="color:var(--orange);">⚠️ 已封板 ${q.px.toFixed(2)} · 开盘高开${(gap*100).toFixed(1)}% &gt; +${capTxt}%限价 ${lx(capPct)} · 隔夜单未成交（9:30已撤）</b>
+      <span class="da-sub">${fp ? fp + ' · ' : ''}排队打板非纪律（近一字档胜率仅42%·中位-3.15%）· 要排挂 ${q.ztp.toFixed(2)} · 不排也完全OK</span>`;
   }
-  if (!fill5) return `<b style="color:var(--red);">❌ 高开 ${(gap*100).toFixed(1)}%（${oTxt}&gt; +5%限价 ${lx(0.05)}）· 隔夜单未成交 · 9:30撤单 · 禁止追买</b>
-    <span class="da-sub">高开&gt;5%为毒药档（5-9%胜率降至57-70%·≥9%仅42%且一字基本排不到）· 排板/半路都不做</span>`;
-  if (dead) return `<b style="color:var(--primary);">✅ 开盘高开${(gap*100).toFixed(1)}%（${oTxt}≤ +5%限价）· 隔夜单已按开盘价成交 · 持有</b>
+  if (!fill5) return `<b style="color:var(--red);">❌ 高开 ${(gap*100).toFixed(1)}%（${oTxt}&gt; +${capTxt}%限价 ${lx(capPct)}）· 隔夜单未成交 · 9:30撤单 · 禁止追买</b>
+    <span class="da-sub">高开超限价≈近一字档（胜率仅42%·中位-3.15%·一字基本排不到）· 排板/半路都不做</span>`;
+  if (dead) return `<b style="color:var(--primary);">✅ 开盘高开${(gap*100).toFixed(1)}%（${oTxt}≤ +${capTxt}%限价）· 隔夜单已按开盘价成交 · 持有</b>
     <span class="da-sub">现价 ${q.px.toFixed(2)} · 高开2-5%为正期望档（三梯队胜率73-82%）· 断板按优化B+E出场（高开≥3%开盘卖/浮盈≥2%兑现/分档止盈/回落≥2.5%离场/破昨收走弱离场/尾盘卖）· 未挂隔夜单者半路不追·回封也不排（排队=涨停价成交·胜率33.1%）</span>`;
-  return `<b style="color:var(--primary);">✅ 开盘${(gap*100).toFixed(1)}%（${oTxt}≤ +5%限价 ${lx(0.05)}）· 隔夜单已按开盘价成交 · 持有</b>
+  return `<b style="color:var(--primary);">✅ 开盘${(gap*100).toFixed(1)}%（${oTxt}≤ +${capTxt}%限价 ${lx(capPct)}）· 隔夜单已按开盘价成交 · 持有</b>
     <span class="da-sub">现价 ${q.px.toFixed(2)}（${nowGap>=0?'+':''}${(nowGap*100).toFixed(1)}%）· 等回封（触 ${q.ztp.toFixed(2)}）· 未挂隔夜单者可等回封排队打板（低开回封成交~90%）· 断板按优化B出场</span>`;
 }
 /* ── 腾讯批量行情 (script注入, GBK, 无跨域问题) ── */
@@ -2708,7 +2725,7 @@ function candCard(c, planOpen){
       <div class="cand-name">
         <div class="n1">${c.name} <span class="code">${c.code}</span>
           ${tierPill} ${tag}</div>
-        <div class="n2">${c.lb}板 · ${sel.full} · ${c.industry} · 隔夜挂单价(昨收+5%) <b>${c.cap5 || c.next_zt}</b> · 两年胜率 <b>${sel.win}</b>/均值 <b>${sel.avg}</b></div>
+        <div class="n2">${c.lb}板 · ${sel.full} · ${c.industry} · 隔夜挂单价(${/^(30|68)/.test(String(c.code)) ? '昨收+19.8%' : '昨收+9.8%'}) <b>${c.cap5 || c.next_zt}</b> · 两年胜率 <b>${sel.win}</b>/均值 <b>${sel.avg}</b></div>
       </div>
       <div class="cand-ring">${ringHTML(88, 8, skip ? 0 : (c.score != null ? c.score/100 : 0), color, inner)}</div>
     </div>
@@ -2781,7 +2798,7 @@ function renderCands(){
   const sS = SC.S || {}, sA = SC.A || {}, sB = SC.B || {}, sM = SC.M || {};
   $('c4Sub').textContent = `T+1合规口径 胜率 48.4% · 单笔 +2.18%（n=225·PF1.41·均值四梯队最高·靠盈亏比）· 分数不淘汰（高度即资格） · 今日 ${sS.buy || 0}/${sS.total || 0} 可挂` + (sS.out ? ` · 淘汰 ${sS.out} 只（尾盘板/炸板≥3）` : '');
   $('c23Sub').textContent = `T+1合规口径 胜率 48.8% · 单笔 +0.25%（n=326·PF1.07 边缘正期望·降轻仓1-2%或放弃）· 确定性<65分淘汰 · 今日 ${sA.light || 0}/${sA.total || 0} 轻仓` + (sA.out ? ` · 淘汰 ${sA.out} 只` : '');
-  $('c12Sub').textContent = `T+1合规口径 胜率 55.5% · 单笔 +1.13%（n=607·PF1.34·四梯队第一·挂「昨收+5%」限价×R3）· 轻仓1-2% · 今日 ${sM.light || 0}/${sM.total || 0} 观察` + (sM.out ? ` · 淘汰 ${sM.out} 只` : '');
+  $('c12Sub').textContent = `T+1合规口径 胜率 55.5% · 单笔 +1.13%（n=607·PF1.34·四梯队第一·+5%限价×R3保守回测·新挂单口径为增益方向）· 轻仓1-2% · 今日 ${sM.light || 0}/${sM.total || 0} 观察` + (sM.out ? ` · 淘汰 ${sM.out} 只` : '');
   $('c34Sub').textContent = `T+1合规口径 44.4% / -0.88%（n=171·PF0.84 负期望）· 已停用 · 今日 ${sB.total || 0} 只 3板 标的不产生买入建议`;
 }
 
@@ -4402,7 +4419,7 @@ function renderPanels(){
       ${npStat(dr.length + '只', '龙回头信号')}
     </div>
     <div class="np-note">${top
-      ? `梯队首选: <b>${top.name}</b>（${(top.sel||{}).label || ''} · ${top.lb}板 · 挂单价 ${top.cap5 || top.next_zt || '—'}（昨收+5%）· T+1合规胜率 ${(top.sel||{}).win || '—'}）· `
+      ? `梯队首选: <b>${top.name}</b>（${(top.sel||{}).label || ''} · ${top.lb}板 · 挂单价 ${top.cap5 || top.next_zt || '—'}（${/^(30|68)/.test(String(top.code)) ? '昨收+19.8%' : '昨收+9.8%'}）· T+1合规胜率 ${(top.sel||{}).win || '—'}）· `
       : '今日无符合条件的候选 · 规则下观望为主 · '}
       每日三段式节奏: 15:10 名单生成 → 09:26 竞价验证 → 10:30 定型复查</div>`;
 
@@ -4475,7 +4492,7 @@ function renderPanels(){
         (c.sel||{}).verdict === 'skip' ? 'var(--red)' : ((c.sel||{}).tier === 'S' ? 'var(--red)' : ((c.sel||{}).tier === 'A' ? 'var(--green)' : 'var(--orange)'))
       )).join('')}
     </div>
-    <div class="np-note">选股系统: 高度定梯队(S=4板+ / A=2进3 / B=3进4) + 排雷(尾盘板/炸板≥3/A·B级<65分) · 隔夜单挂「昨收+5%」限价 · 不用盯竞价9:30未成交撤 — 点击「查看详情」展开。</div>`
+    <div class="np-note">选股系统: 高度定梯队(S=4板+ / A=2进3 / B=3进4) + 排雷(尾盘板/炸板≥3/A·B级<65分) · 隔夜单挂「涨停下方0.2%」限价(10cm昨收+9.8%/20cm昨收+19.8%) · 不用盯竞价9:30未成交撤 — 点击「查看详情」展开。</div>`
     : '<div class="np-note">今日涨停池未产出合格候选(S/A/B梯队均空) — 连板生态今日断档, 属正常周期现象。明晚 15:10 盘后扫描后更新 · 空仓等待也是操作。</div>';
 
   // ⑤ 龙回头
