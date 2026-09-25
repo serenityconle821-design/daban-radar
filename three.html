@@ -4,14 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>三时段作战室 · 盘前预判 / 盘中分析 / 盘后复盘</title>
-<!-- three.html v1.4.0 三时段作战室 (三时段体系 · 第一期)
+<!-- three.html v1.4.1 三时段作战室 (三时段体系 · 第一期)
      盘前: 外围温度计(美股三大/A50夜盘/日经/CNH/港股/商品) + 命中率验证
      盘中: 情绪仪表 + 指数/板块资金流 + 时点演变 + 尾盘异动 + 竞价雷达(9:15-9:30前端轮询)
-           + 已入场跟踪(优化B五档盘中直答·昨晚名单自动结算·orders_data.js 15:32账本)
+           + 已入场跟踪(优化B+E六档盘中直答·昨晚名单自动结算·orders_data.js 15:32账本)
      盘后: 复盘总览 + 温度计验证 + 情绪演变 + 信号表现 + 明日关注(荐股同源)
      数据: premarket_data.js(08:45) + intraday_data.js(10:30/14:00/14:30) + settle_data.js(15:21)
            + data.js(15:32 主系统荐股·明日关注候选源) + orders_data.js(已入场账本·orders_track.py)
            + 腾讯JSONP实时轮询(浏览器直连零token)
+     v1.4.1: 新增E档「破昨收走弱保护」: 当日最高≥昨收+2%且现价跌破昨收→离场(参考卖价≈昨收×0.998)
+             — 兜住低开票「上午相对昨收红·下午翻绿」拖尾盘卖最低区(成本≈昨收+5%, 成本口径保护
+             永不触发); 全样本178笔触发9笔 合计+41.5pp PF 3.08→3.32; 未触发档附大盘实时提示
+             (上证跌≥1%弱日加速兑现/涨≥1%强势可耐心·仅话术不改判定·回测C方案硬规则增益≈0)
      v1.4.0: [web_build v1.20.0配套] 出场R3→优化B(封板续持·高开≥3%开盘卖·开盘浮盈≥2%兑现·
              低开日+2%/平开+3%分档止盈·冲高回落≥2.5%离场·尾盘卖); S级离场附「留底仓待反包」
              提示(作手新一·人工决断); 明日关注候选表新增「板块助攻」列(同行业当日涨停家数,
@@ -454,20 +458,20 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
     <div class="rt-note" id="rtNote"></div>
   </section>
 
-  <!-- 已入场跟踪: 昨晚名单自动结算(隔夜单fill5) + 优化B五档盘中直答 (v1.4.0) -->
+  <!-- 已入场跟踪: 昨晚名单自动结算(隔夜单fill5) + 优化B+E六档盘中直答 (v1.4.1) -->
   <section class="card fade vis" id="holdCard" style="display:none;">
     <div class="sec-title">
       <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9m9 5h-9m9 5h-9M5 5l-3 3 3 3M5 12l-3 3 3 3"/></svg></span>
-      <span>已入场跟踪 · 优化B 盘中直答</span>
+      <span>已入场跟踪 · 优化B+E 盘中直答</span>
       <span class="badge2 b-blue" style="margin-left:auto;" id="holdBadge">行情加载中</span>
     </div>
     <div id="holdBody"><div class="empty-note">账本数据加载中…</div></div>
     <div class="fund-note" id="holdSkipNote" style="display:none;margin-top:12px;"></div>
     <details class="hold-closed" id="holdClosed" style="display:none;">
-      <summary>已平仓记录（优化B结算）▸</summary>
+      <summary>已平仓记录（优化B+E结算）▸</summary>
       <div class="tbl-scroll"><table id="holdClosedTbl"></table></div>
     </details>
-    <div class="fund-note" style="margin-top:12px;">昨晚名单自动结算：开盘 ≤ 挂单价（昨收+5%）→ 按开盘价成交入场 · 高开 &gt; 5% 未成交已撤单。出场 T+1 合规优化B「封板续持 · 分档止盈」：首日只持有不可卖；次日起 收盘封板→续持 / 开盘高开≥3%→开盘卖 / 开盘浮盈≥2%→开盘兑现 / 冲高至成本+3%（低开日降至+2%）→即刻止盈 / 冲高回落≥2.5%→离场 / 全天没到→收盘卖。回测178笔：胜率73.6%/均值+6.56%/PF3.08（原R3 69.1%/+2.92%/PF1.86）。模拟「全名单执行」口径，实际执行 3-4 只 / 单票 1-3% / 总敞口 ≤10%，未买入的标的请忽略对应行 · 行情浏览器直连腾讯零token · 账本每日 15:32 自动结算。</div>
+    <div class="fund-note" style="margin-top:12px;">昨晚名单自动结算：开盘 ≤ 挂单价（昨收+5%）→ 按开盘价成交入场 · 高开 &gt; 5% 未成交已撤单。出场 T+1 合规优化B+E「封板续持 · 分档止盈」：首日只持有不可卖；次日起 收盘封板→续持 / 开盘高开≥3%→开盘卖 / 开盘浮盈≥2%→开盘兑现 / 冲高至成本+3%（低开日降至+2%）→即刻止盈 / 冲高回落≥2.5%→离场 / <b>冲高≥昨收+2%后跌破昨收→走弱离场（不等尾盘）</b> / 全天没到→收盘卖。回测178笔：胜率73.0%/均值+6.54%/PF3.08（原R3 68.5%/+2.91%/PF1.85）；E档触发9笔 合计+41.5pp PF→3.32。模拟「全名单执行」口径，实际执行 3-4 只 / 单票 1-3% / 总敞口 ≤10%，未买入的标的请忽略对应行 · 行情浏览器直连腾讯零token · 账本每日 15:32 自动结算。</div>
   </section>
 
   <!-- 情绪仪表 -->
@@ -593,7 +597,7 @@ footer { margin-top:34px; text-align:center; color:var(--tertiary); font-size:12
 <div class="disclaimer">⚠ 本页为数据聚合与规则化复盘展示：温度计/情绪/资金流均为历史统计的条件概率观察，不构成投资建议，不预测未来价格；据此操作风险自担。数据快照由本机定时任务自动生成（08:45 / 10:30 / 14:00 / 14:30 / 15:10）。</div>
 
 <footer>
-  观澜擒龙 · 三时段作战室 v1.4.0 · 数据源: 腾讯行情(JSONP实时+mkline分时) / 新浪外盘期货·外汇·美股期货 / 东财push2delay(日经·韩综·资金流) / 本地快照管道<br>
+  观澜擒龙 · 三时段作战室 v1.4.1 · 数据源: 腾讯行情(JSONP实时+mkline分时) / 新浪外盘期货·外汇·美股期货 / 东财push2delay(日经·韩综·资金流) / 本地快照管道<br>
   三时段联动 · Liquid Glass UI
 </footer>
 

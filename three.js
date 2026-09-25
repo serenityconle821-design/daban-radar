@@ -31,7 +31,12 @@
            分档止盈(低开日成本+2%/平开高开日成本+3%) → 冲高回落≥2.5%离场(约最高×0.975)
            → 尾盘卖; 回测178笔: 73.6%/+6.56%/PF3.08 vs R3 69.1%/+2.92%/PF1.86;
            S级标的离场提示附加「断板未跌停可留底仓待反包」(作手新一·人工决断参考);
-           明日关注候选表新增「助攻」列(板块共振·同行业当日涨停家数含自身) */
+           明日关注候选表新增「助攻」列(板块共振·同行业当日涨停家数含自身)
+   v1.4.1: 新增E档「破昨收走弱保护」(相对昨收口径): 当日最高≥昨收+2%且现价跌破昨收→离场
+           (参考卖价≈昨收×0.998) — 兜住低开票「上午相对昨收红·下午翻绿」的场景
+           (成本口径保护永不触发: 挂单成本≈昨收+5%); 全样本178笔触发9笔 合计+41.5pp PF 3.08→3.32;
+           未触发档附加大盘实时提示(上证跌≥1%弱日加速兑现/涨≥1%强势可耐心, 仅话术不改判定);
+           已入场跟踪与orders_track.py v1.1.1 / 主看板daVerdict同口径 */
 (function () {
 'use strict';
 
@@ -987,17 +992,17 @@ const SIG_TXT = {
   open: ['已入场', 'b-red'], closed: ['已平仓', 'b-gray'], no_touch: ['未触及', 'b-gray'], skipped: ['资格未满足', 'b-orange'],
 };
 
-/* ══════════════ 已入场跟踪 HOLD v1.4.0 ══════════════
+/* ══════════════ 已入场跟踪 HOLD v1.4.1 ══════════════
    数据: orders_data.js (window.ORDERS_DATA · orders_track.py 每日15:32自动结算)
    逻辑: 昨晚名单今晨 fill5 成交判定已入账本 → 此处对 holdings 盘中实时优化B直答
          T+1合规: 入场日(行情日 ≤ entry_date)只持有不可卖; 次日起
          收盘封板→续持 / 开盘高开≥3%→开盘卖 / 开盘浮盈≥2%→开盘兑现 /
-         分档止盈(低开日成本×1.02·平开高开日成本×1.03) / 冲高回落≥2.5%→离场 / 全天未触发→尾盘卖
+         分档止盈(低开日成本×1.02·平开高开日成本×1.03) / 冲高回落≥2.5%→离场 / 破昨收走弱→离场 / 全天未触发→尾盘卖
          (优先级与后端 settle_holdings / 主看板 daVerdict 一致: 封板判定优先)
    行情: 腾讯批量JSONP浏览器直连零token · 盘中/竞价15秒轮询 · 非交易时段静态重绘
    口径: 成本/价格一律3位小数(防低价股截断 1.082→1.08) */
 const HOLD = (function () {
-  const st = { timer: null, q: {} };
+  const st = { timer: null, q: {}, idx: null };
   const TIER_CLS = { S: 'b-red', M: 'b-blue', A: 'b-orange', B: 'b-gray' };
   const f3 = (x) => Number(x).toFixed(3);
   const sgn1 = (x, suf) => (x >= 0 ? '+' : '') + Number(x).toFixed(1) + (suf || '%');
@@ -1022,9 +1027,13 @@ const HOLD = (function () {
     return out;
   }
 
-  /* 优化B 盘中直答 v1.4.0 — 优先级: 封板 > 高开≥3% > 开盘浮盈≥2% > 分档止盈 > 冲高回落 > 尾盘
-     (与后端 settle_holdings v1.1.0 同口径; 低开日止盈线降至+2%防拖尾盘卖绿盘) */
-  function verdict(h, q) {
+  /* 优化B+E 盘中直答 v1.4.1 — 优先级: 封板 > 高开≥3% > 开盘浮盈≥2% > 分档止盈 > 冲高回落 > 破昨收走弱 > 尾盘
+     (与后端 settle_holdings v1.1.1 同口径; 低开日止盈线降至+2%防拖尾盘卖绿盘)
+     [v1.4.1] E档·破昨收走弱保护: 最高≥昨收+2%(盘中曾相对昨收走强)且现价<昨收 → 离场
+              解决低开票「上午相对昨收红·下午翻绿」拖到尾盘卖最低区(挂单成本≈昨收+5%, 成本口径保护永不触发)
+              全样本178笔触发9笔 合计+41.5pp PF 3.08→3.32 (replay_recent.py)
+     [v1.4.1] 大盘实时软提示: 上证实时跌≥1%提示加速兑现/涨≥1%提示可耐心 — 仅话术不改变判定(回测C方案增益≈0) */
+  function verdict(h, q, idx) {
     const today = todayStr();
     const sess = (q && q.ts) ? q.ts.slice(0, 8) : today;
     const cost = f3(h.cost);
@@ -1071,15 +1080,24 @@ const HOLD = (function () {
       return { cls: 'hv-orange', t: '🟠 冲高回落 ' + backPct.toFixed(1) + '% · 离场',
         s: '最高 ' + f3(q.ph) + '（≥成本+0.5%）回落至现价 ' + f3(q.px) + ' · 回撤≥2.5%触发保护 · 参考卖价约 ' + f3(q.ph * 0.975) + sTail };
     }
-    /* ⑤ 未触发 → 尾盘卖 */
+    /* ④E 破昨收走弱保护(相对昨收口径): 最高≥昨收+2% 且 现价<昨收 → 离场
+       低开票上午相对昨收红、下午翻绿: 成本口径保护不触发(成本≈昨收+5%), 此档兜住 */
+    if (q.ph >= q.pc * 1.02 - 0.001 && q.px < q.pc) {
+      return { cls: 'hv-orange', t: '🟠 冲高回落破昨收 · 走弱离场',
+        s: '今日最高 ' + f3(q.ph) + '（≥昨收+2%）已回落跌破昨收 ' + f3(q.pc) + ' · 盘中走强失败翻绿 · 参考卖价约 ' + f3(q.pc * 0.998) + '（不等尾盘）' + sTail };
+    }
+    /* ⑤ 未触发 → 尾盘卖 (附大盘实时提示: 弱日加速兑现/强日可耐心, 仅话术不改判定) */
     const toGo = (tp / q.px - 1) * 100;
+    const idxTip = idx ? (idx.pct <= -1
+      ? ' · ⚠️ 上证实时' + sgn1(idx.pct) + '·弱日: 冲高接近止盈线果断兑现勿贪'
+      : (idx.pct >= 1 ? ' · 上证实时' + sgn1(idx.pct) + '·强势: 可耐心持有至止盈线' : '')) : '';
     return { cls: 'hv-gray', t: '⚪ 未触发 · 尾盘卖',
-      s: '现价 ' + f3(q.px) + '（浮盈 ' + sgn1(pnl) + '）· 今日本档止盈线 ' + f3(tp) + (gapOpen < 0 ? '（低开日+2%）' : '（+3%）') + ' 还差 ' + toGo.toFixed(1) + '% · 冲高回落≥2.5%亦离场 · 14:50 未触发则收盘卖' };
+      s: '现价 ' + f3(q.px) + '（浮盈 ' + sgn1(pnl) + '）· 今日本档止盈线 ' + f3(tp) + (gapOpen < 0 ? '（低开日+2%）' : '（+3%）') + ' 还差 ' + toGo.toFixed(1) + '% · 冲高回落≥2.5%或跌破昨收亦离场 · 14:50 未触发则收盘卖' + idxTip };
   }
 
   function rowHTML(h) {
     const q = st.q[h.code];
-    const v = verdict(h, q);
+    const v = verdict(h, q, st.idx);
     let quote;
     if (q && q.px > 0) {
       const dayPct = (q.px / q.pc - 1) * 100;
@@ -1173,6 +1191,8 @@ const HOLD = (function () {
     if (codes.length) {
       try { Object.assign(st.q, await fetchQuotes(codes)); } catch (e) { /* 静默: 保留上次行情 */ }
     }
+    /* 上证实时: 未触发档的大盘弱日/强日提示 */
+    try { st.idx = await fetchIdxQuote('sh000001'); } catch (e) { /* 静默 */ }
     render();
   }
 
