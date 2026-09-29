@@ -1696,17 +1696,9 @@ tr.pt-excluded-row td { opacity:.52; }
     </details>
     <!-- [v1.17.1] 盘中「低开/平开·等回封可排队」实时汇总条 (交易日盘中自动点亮) -->
     <div class="queue-bar" id="daQueueBar" style="display:none;"></div>
-    <!-- v1.18.0 T+1合规重排: 买入日断板只能持有·次日起R3 → 旧口径(当日可卖)胜率70%+作废
-         合规大样本(n=1329): M 55.5%/+1.13(n=607·PF1.34) > A 48.8%/+0.25(n=326·PF1.07·边缘降轻仓)
-         > S 48.4%/+2.18(n=225·PF1.41·均值最高) ; B 44.4%/-0.88(n=171·PF0.84 负期望→停用) -->
-    <!-- M级 · 首板动量 精选档 (T+1合规四梯队胜率第一) -->
-    <div class="sec-title" style="margin:34px 0 4px;">
-      <span class="ico" style="background:var(--green-soft); color:var(--green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
-      <span>M级 · 首板动量 · 精选档</span>
-    </div>
-    <p class="sec-sub" id="c12Sub">T+1合规口径 胜率 55.5% / 单笔 +1.13%（n=607 · PF1.34 · 四梯队第一 · +5%限价×R3保守回测·新挂单口径为增益方向）· 轻仓1-2%</p>
-    <div id="c12List"></div>
-
+    <!-- v1.21.2 梯队展示重排: 按预期收益+确定性排序 S→M→A→B (v1.18.0曾按胜率M前置):
+         隔夜单均值 S +2.18%(n=225·PF1.41) > M +1.13%(n=607·PF1.34) > A +0.25%(n=326·PF1.07边缘)
+         S胜率48.4%靠盈亏比·资金主线(单票2-3%); M胜率55.5%第一但轻仓1-2%; B负期望停用 -->
     <!-- v1.16.0 S级 · 4板+ 选股池 (高度即护城河) -->
     <div class="sec-title" style="margin:34px 0 4px;">
       <span class="ico" style="background:var(--red-soft); color:var(--red);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 7.2H22l-6 4.6 2.3 7.2-6.3-4.5-6.3 4.5L8 13.8l-6-4.6h7.6z"/></svg></span>
@@ -1714,6 +1706,14 @@ tr.pt-excluded-row td { opacity:.52; }
     </div>
     <p class="sec-sub" id="c4Sub">T+1合规口径 胜率 48.4% / 单笔 +2.18%（n=225 · PF1.41 · 均值四梯队最高 · 靠盈亏比）· 分数不淘汰（高度即资格）</p>
     <div id="c4List"></div>
+
+    <!-- M级 · 首板动量 精选档 (T+1合规胜率第一·轻仓观察) -->
+    <div class="sec-title" style="margin:34px 0 4px;">
+      <span class="ico" style="background:var(--green-soft); color:var(--green);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+      <span>M级 · 首板动量 · 精选档</span>
+    </div>
+    <p class="sec-sub" id="c12Sub">T+1合规口径 胜率 55.5% / 单笔 +1.13%（n=607 · PF1.34 · 四梯队第一 · +5%限价×R3保守回测·新挂单口径为增益方向）· 轻仓1-2%</p>
+    <div id="c12List"></div>
 
     <div class="sec-title" style="margin:34px 0 4px;">
       <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>
@@ -1950,10 +1950,10 @@ function renderEntryBrief(){
         `<div class="eb-live da-live" data-code="${x.code}" data-strat="1" data-stop="${x.stop_price || ''}"><span class="da-wait">非交易时段 · 明日开盘按计划执行</span></div>`));
     });
   });
-  /* ② 选股候选([v1.18.0] T+1合规重排: M级(胜率第一)前置 → S级(隔夜单) → A级(轻仓);
-     B级已停用(verdict=skip 自动过滤), 淘汰不进精华卡
+  /* ② 选股候选([v1.21.2] 按预期收益+确定性排序: S级(均值+2.18%·主线) → M级(+1.13%·轻仓)
+     → A级(+0.25%·边缘); B级已停用(verdict=skip 自动过滤), 淘汰不进精华卡
      [v1.16.1] 盘中直答(封板可排队/高开禁追/等回封) + 整行点击进详细策略页 */
-  [...(D.candidates_1to2 || []), ...(D.candidates_4plus || []), ...(D.candidates_2to3 || []), ...(D.candidates_3to4 || [])].forEach(c => {
+  [...(D.candidates_4plus || []), ...(D.candidates_1to2 || []), ...(D.candidates_2to3 || [])].forEach(c => {
     const sel = c.sel || {};
     if (sel.verdict === 'skip') return;
     const isS = sel.tier === 'S', isA = sel.tier === 'A', isM = sel.tier === 'M';
@@ -2576,8 +2576,8 @@ function renderQueueBar(){
   if (!bar) return;
   if (!daTradingBJ() || !Object.keys(DA_Q).length){ bar.style.display = 'none'; return; }
   const tiers = [
-    ...(D.candidates_4plus||[]), ...(D.candidates_2to3||[]),
-    ...(D.candidates_3to4||[]), ...(D.candidates_1to2||[]),
+    ...(D.candidates_4plus||[]), ...(D.candidates_1to2||[]),
+    ...(D.candidates_2to3||[]), ...(D.candidates_3to4||[]),
   ].filter(c => (c.sel||{}).verdict !== 'skip');
   const rows = [];
   tiers.forEach(c => {

@@ -1292,7 +1292,7 @@ function renderPost() {
      避免 data.js 加载失败时 ReferenceError */
   const SD = (typeof SITE_DATA !== 'undefined') ? SITE_DATA : window.SITE_DATA;
   const TIER_CLS = { S: 'b-red', M: 'b-blue', A: 'b-orange', B: 'b-gray' };
-  const POOL_ORDER = ['candidates_1to2', 'candidates_4plus', 'candidates_2to3', 'candidates_3to4'];
+  const POOL_ORDER = ['candidates_4plus', 'candidates_1to2', 'candidates_2to3', 'candidates_3to4'];  // [v1.21.2] S→M→A→B 预期收益+确定性排序
   const rows = [], dropped = [];
   let bStopped = 0;
   if (SD) {
