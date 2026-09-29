@@ -1846,8 +1846,9 @@ tr.pt-excluded-row td { opacity:.52; }
 </div>
 
 <script src="echarts.min.js"></script>
-<script src="data.js"></script>
-<script src="score_data.js"></script>
+  <script src="data.js"></script>
+  <script src="./orders_data.js?v=103"></script>
+  <script src="score_data.js"></script>
 <script>
 'use strict';
 const D = (typeof SITE_DATA !== 'undefined') ? SITE_DATA : null;
@@ -2417,6 +2418,26 @@ function daLiveCell(code, q){
      今日首板票今晨不存在隔夜单, 不做fill5复盘(旧文案会被误读成"旧名单已撤单") */
   if (!daTradingBJ()) return daPhaseCell(code);
   if (!q) return '<span class="da-wait">行情加载中 · 盘中自动判定现在能不能买</span>';
+  /* [v1.21.1] 账本门控: 只对 ORDERS_DATA 实挂单/在持做「隔夜单成交」复盘。
+     背景: 10:30定型复查会用盘中实时名单刷新候选(=今晚预览·非昨晚挂单),
+     旧逻辑对任何候选都判「隔夜单已成交/已撤」→ 凭空显示从未挂过单的"继续持有" */
+  const OL = window.ORDERS_DATA || {};
+  const oOrd = (OL.orders || []).find(x => x.code === code) || null;
+  const oHold = (OL.holdings || []).find(x => x.code === code) || null;
+  if (oHold){
+    const addOrd = (oOrd && oOrd.fill && oOrd.fill.status === 'missed')
+      ? ' · 昨晚再次挂单未成交（9:30已撤）' : '';
+    return `<b style="color:var(--green);">✅ 已在持（成本 ${(+oHold.cost).toFixed(2)}${oHold.label ? ' · ' + oHold.label : ''}）· 按出场规则执行${addOrd}</b>
+      <span class="da-sub">封板续持 · 断板按优化B+E（高开≥3%开盘卖 / 浮盈≥2%兑现 / 分档止盈 / 冲高回落≥2.5%离场 / 破昨收走弱离场 / 尾盘14:50卖）· 个股实时判定见「已入场跟踪」</span>`;
+  }
+  if (oOrd && oOrd.fill && oOrd.fill.status === 'missed'){
+    return `<b style="color:var(--red);">❌ 昨晚隔夜单未成交（开盘+${oOrd.fill.open_gap}% &gt; 限价 ${oOrd.cap5}）· 9:30已撤单 · 禁止追买</b>
+      <span class="da-sub">高开超限价≈近一字档（胜率仅42%·中位-3.15%）· 排板/半路都不做 · 要参与等今晚新名单</span>`;
+  }
+  if (!oOrd){
+    return `<b style="color:var(--secondary);">📋 未挂隔夜单 · 盘中不追</b>
+      <span class="da-sub">此票为今晚名单候选（盘中实时刷新·15:10定型·明早9:25竞价执行）· 未挂隔夜单者：高开0-5%排队=涨停价成交·该组胜率仅33.1%（死亡区间）· 半路/回封排板均非纪律 · 要参与今晚挂「涨停下方0.2%」限价单</span>`;
+  }
   const openRef = q.po > 0 ? q.po : q.px;
   const sealed = q.px >= q.ztp - 0.001;
   const nowGap = q.px / q.pc - 1;
