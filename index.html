@@ -2401,7 +2401,7 @@ function daPhaseCell(code){
   const oHold = (OL.holdings || []).find(x => x.code === code) || null;
   const oOrd = (OL.orders || []).find(x => x.code === code) || null;
   if (oHold){
-    return `<b style="color:var(--green);">✅ 已在持（成本 ${(+oHold.cost).toFixed(2)}${oHold.label ? ' · ' + oHold.label : ''}）· 无需再挂隔夜单</b>
+    return `<b style="color:var(--green);">✅ 已在持（成本 ${(+oHold.cost).toFixed(3)}${oHold.label ? ' · ' + oHold.label : ''}）· 无需再挂隔夜单</b>
       <span class="da-sub">按出场规则执行: 收盘封板续持 · 断板按优化B+E（高开≥3%开盘卖/浮盈≥2%兑现/分档止盈/冲高回落≥2.5%离场/破昨收走弱离场/尾盘14:50卖）· 盘中打开本页见个股实时判定</span>`;
   }
   if (oOrd && oOrd.fill && oOrd.fill.status === 'missed'){
@@ -2445,7 +2445,7 @@ function daLiveCell(code, q){
   if (oHold){
     const addOrd = (oOrd && oOrd.fill && oOrd.fill.status === 'missed')
       ? ' · 昨晚再次挂单未成交（9:30已撤）' : '';
-    return `<b style="color:var(--green);">✅ 已在持（成本 ${(+oHold.cost).toFixed(2)}${oHold.label ? ' · ' + oHold.label : ''}）· 按出场规则执行${addOrd}</b>
+    return `<b style="color:var(--green);">✅ 已在持（成本 ${(+oHold.cost).toFixed(3)}${oHold.label ? ' · ' + oHold.label : ''}）· 按出场规则执行${addOrd}</b>
       <span class="da-sub">封板续持 · 断板按优化B+E（高开≥3%开盘卖 / 浮盈≥2%兑现 / 分档止盈 / 冲高回落≥2.5%离场 / 破昨收走弱离场 / 尾盘14:50卖）· 个股实时判定见「已入场跟踪」</span>`;
   }
   if (oOrd && oOrd.fill && oOrd.fill.status === 'missed'){
@@ -2763,6 +2763,29 @@ function candCard(c, planOpen){
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       信号日换手 <b>${(c.turn ?? 0).toFixed(1)}%</b> &gt; 35% · 单日三分之一筹码换手=主力出货嫌疑 · 建议放弃或降至1%观察（影子警示·不拦截·样本积累中）
     </div>` : '';
+  /* [v1.21.4] 题材温度标签(涨停原因的板块效应代理·analyze_theme.py 387笔回测·影子展示不拦截):
+     宽度4-6家 B+E 60.0%/+2.33% vs 基线54.8%/+0.93% · 延续题材(昨日同业≥2家) 57.4%/+1.89% vs 新题材53.5%/+0.44% */
+  const nwT = c.sect_cnt ?? 0, nwpT = c.sect_prev ?? 0;
+  let themeBar = '';
+  if (!skip && nwT >= 2){
+    const contTxt = nwpT >= 2 ? ` · <b>延续题材</b>(昨日同业${nwpT}家涨停·B+E 57.4%/+1.89%优于新启动)` : ' · 今日新启动';
+    if (nwT >= 4 && nwT <= 6){
+      themeBar = `<div class="sel-down" style="background:var(--green-soft);color:var(--green);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      <b>板块共振</b> · 同行业今日 <b>${nwT}家</b>涨停(最优宽度4-6·B+E回测60.0%/+2.33%)${contTxt}（影子因子·只标不拦·样本积累中）
+      </div>`;
+    } else if (nwT >= 7){
+      themeBar = `<div class="sel-down" style="background:var(--orange-soft);color:var(--orange);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      题材过热 · 同行业今日 <b>${nwT}家</b>涨停 · 板块内卷次日分歧风险大(回测42.9%/-0.79%·n=14样本少·观察)
+      </div>`;
+    } else if (nwpT >= 2){
+      themeBar = `<div class="sel-down" style="background:var(--green-soft);color:var(--green);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      <b>延续题材</b> · 昨日同业${nwpT}家 → 今日${nwT}家涨停(隔夜单B+E 57.4%/+1.89%优于新启动53.5%/+0.44%)（影子因子·只标不拦）
+      </div>`;
+    }
+  }
   return `
   <div class="cand${skip ? ' is-skip' : ''}">
     <div class="cand-head">
@@ -2775,7 +2798,7 @@ function candCard(c, planOpen){
       <div class="cand-ring">${ringHTML(88, 8, skip ? 0 : (c.score != null ? c.score/100 : 0), color, inner)}</div>
     </div>
     ${actRow}
-    ${dropBar}${downBar}${turnBar}
+    ${dropBar}${downBar}${turnBar}${themeBar}
     <div class="factor-grid">${factors.map(f => `
       <div class="f-cell"><div class="fv ${f.good?'good':''} ${f.bad?'bad':''}">${f.v}</div>
       <div class="fl">${f.l}</div>${f.s ? `<div class="fs">${f.s}</div>` : ''}</div>`).join('')}

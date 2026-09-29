@@ -230,7 +230,7 @@ function daLiveCell(code, q){
   if (oHold){
     const addOrd = (oOrd && oOrd.fill && oOrd.fill.status === 'missed')
       ? ' · 昨晚再次挂单未成交（9:30已撤）' : '';
-    return `<b style="color:var(--green);">✅ 已在持（成本 ${(+oHold.cost).toFixed(2)}${oHold.label ? ' · ' + oHold.label : ''}）· 按出场规则执行${addOrd}</b>
+    return `<b style="color:var(--green);">✅ 已在持（成本 ${(+oHold.cost).toFixed(3)}${oHold.label ? ' · ' + oHold.label : ''}）· 按出场规则执行${addOrd}</b>
       <span class="live-sub">封板续持 · 断板按优化B+E · 个股实时判定见主站「已入场跟踪」</span>`;
   }
   if (oOrd && oOrd.fill && oOrd.fill.status === 'missed'){
@@ -401,6 +401,13 @@ function render(){
     ${skip ? `<div class="drop-bar">❌ ${sel.drop || '排雷未通过'} — 不挂隔夜单 · 盘中也不追。回测口径: 该类标的近3月胜率55.6%/均值-0.71%负期望。</div>` : ''}
     ${(!skip && sel.downgrade) ? `<div class="down-bar">⚠️ ${sel.why || '情绪退潮/冰点'} → 仓位降为 <b>1% 轻仓或放弃</b>（环境差时胜率仅微降，规则不再一刀切禁止）</div>` : ''}
     ${(!skip && (c.turn ?? 0) > 35) ? `<div class="down-bar" style="background:var(--red-soft);color:var(--red);">🚨 信号日换手 <b>${(c.turn ?? 0).toFixed(1)}%</b> &gt; 35% · 单日三分之一筹码换手=主力对倒出货嫌疑 · 建议放弃或降至1%观察（影子警示·不拦截·样本积累中: 命中4笔3亏 均值-6.09%）</div>` : ''}
+    ${(() => { const nw = c.sect_cnt ?? 0, nwp = c.sect_prev ?? 0;
+       if (skip || nw < 2) return '';
+       const cont = nwp >= 2 ? `延续题材(昨日同业${nwp}家涨停)` : '今日新启动';
+       if (nw >= 4 && nw <= 6) return `<div class="down-bar" style="background:var(--green-soft);color:var(--green);">📈 <b>板块共振</b> · 同行业今日 <b>${nw}家</b>涨停(最优宽度4-6·隔夜单B+E回测60.0%/+2.33% vs 基线54.8%/+0.93%) · ${cont}（影子因子·只标不拦·样本积累中）</div>`;
+       if (nw >= 7) return `<div class="down-bar" style="background:var(--orange-soft);color:var(--orange);">⚠️ 题材过热 · 同行业今日 <b>${nw}家</b>涨停 · 板块内卷次日分歧风险大(回测42.9%/-0.79%·n=14样本少·观察)</div>`;
+       if (nwp >= 2) return `<div class="down-bar" style="background:var(--green-soft);color:var(--green);">📈 <b>延续题材</b> · 昨日同业${nwp}家 → 今日${nw}家涨停(隔夜单B+E 57.4%/+1.89%优于新启动53.5%/+0.44%)（影子因子·只标不拦）</div>`;
+       return ''; })()}
   </div>`;
 
   /* 直答卡 + [v1.16.4] 明日竞价价位尺(百分比直接换算价格) */
