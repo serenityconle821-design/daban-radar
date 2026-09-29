@@ -2757,6 +2757,12 @@ function candCard(c, planOpen){
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       ${sel.why} → 仓位降为 1% 轻仓或放弃
     </div>` : '';
+  /* [v1.21.3] 换手>35%影子警示(斌哥规则·只标不拦): 9/4起17日真实名单命中4笔(华纺-22.6%/集泰-7.7%/百花-7.5%/金健+13.4%, 均-6.09%) — 样本积累中, 攒够样本再议硬拦 */
+  const turnBar = (!skip && (c.turn ?? 0) > 35) ? `
+    <div class="sel-down" style="background:var(--red-soft);color:var(--red);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      信号日换手 <b>${(c.turn ?? 0).toFixed(1)}%</b> &gt; 35% · 单日三分之一筹码换手=主力出货嫌疑 · 建议放弃或降至1%观察（影子警示·不拦截·样本积累中）
+    </div>` : '';
   return `
   <div class="cand${skip ? ' is-skip' : ''}">
     <div class="cand-head">
@@ -2769,7 +2775,7 @@ function candCard(c, planOpen){
       <div class="cand-ring">${ringHTML(88, 8, skip ? 0 : (c.score != null ? c.score/100 : 0), color, inner)}</div>
     </div>
     ${actRow}
-    ${dropBar}${downBar}
+    ${dropBar}${downBar}${turnBar}
     <div class="factor-grid">${factors.map(f => `
       <div class="f-cell"><div class="fv ${f.good?'good':''} ${f.bad?'bad':''}">${f.v}</div>
       <div class="fl">${f.l}</div>${f.s ? `<div class="fs">${f.s}</div>` : ''}</div>`).join('')}

@@ -400,6 +400,7 @@ function render(){
     </div>
     ${skip ? `<div class="drop-bar">❌ ${sel.drop || '排雷未通过'} — 不挂隔夜单 · 盘中也不追。回测口径: 该类标的近3月胜率55.6%/均值-0.71%负期望。</div>` : ''}
     ${(!skip && sel.downgrade) ? `<div class="down-bar">⚠️ ${sel.why || '情绪退潮/冰点'} → 仓位降为 <b>1% 轻仓或放弃</b>（环境差时胜率仅微降，规则不再一刀切禁止）</div>` : ''}
+    ${(!skip && (c.turn ?? 0) > 35) ? `<div class="down-bar" style="background:var(--red-soft);color:var(--red);">🚨 信号日换手 <b>${(c.turn ?? 0).toFixed(1)}%</b> &gt; 35% · 单日三分之一筹码换手=主力对倒出货嫌疑 · 建议放弃或降至1%观察（影子警示·不拦截·样本积累中: 命中4笔3亏 均值-6.09%）</div>` : ''}
   </div>`;
 
   /* 直答卡 + [v1.16.4] 明日竞价价位尺(百分比直接换算价格) */
