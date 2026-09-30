@@ -1867,7 +1867,7 @@ tr.pt-excluded-row td { opacity:.52; }
 
 <script src="echarts.min.js"></script>
   <script src="data.js"></script>
-  <script src="./orders_data.js?v=104"></script>
+  <script src="./orders_data.js?v=105"></script>
   <script src="score_data.js"></script>
 <script>
 'use strict';
@@ -2399,7 +2399,7 @@ function renderHoldNow(){
     <div class="mine-row" style="margin-bottom:12px;">
       <div class="mine-name">${h.name}<span class="code">${h.code}</span>
         ${h.own ? '<span class="pill" style="background:var(--orange-soft);color:var(--orange);margin-left:6px;">自有仓</span>' : ''}
-        ${h.label ? '<span class="pill" style="background:var(--primary-soft);color:var(--primary);margin-left:6px;">' + h.label + '</span>' : ''}</div>
+        ${(!h.own && h.label && h.label !== '自有仓') ? '<span class="pill" style="background:var(--primary-soft);color:var(--primary);margin-left:6px;">' + h.label + '</span>' : ''}</div>
       <div class="mine-nums">
         <span>成本 <b>${(+h.cost).toFixed(3)}</b></span>
         <span>${h.shares ? h.shares + ' 股' : ''}</span>
