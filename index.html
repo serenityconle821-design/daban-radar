@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>观澜擒龙</title>
 <style>
+/* [v1.21.5] 首页实盘持仓·实时出场红牌(2026-09-30): 账本holdings × 优化B+E六档判定
+   · 背景: 9/30用户三只持仓全部卖在早盘恐慌低点(雪龙开盘浮盈+10.2%·规则应开盘兑现20.46,
+     实卖18.41跌停价·-11pp) — 红牌判定原只在三时段作战室(three.html), 主看板仅静态文案
+   · 本版: sec-holdnow区块置于第一屏(今日建议入场之后), 复用qtFetch+daTick 30s轮询,
+     判定与orders_track v1.3.1/three.js HOLD v1.4.1同口径(封板>高开3%>浮盈2%>分档止盈>
+     回落2.5%>破昨收E档>尾盘), 增T+1首日不可卖分支+自有仓own标注(出场价仅参考) */
 /* v1.21.0 隔夜单挂单价 +5%→涨停下方0.2%(2026-09-26): 10cm=昨收+9.8% / 20cm=昨收+19.8%
    · 依据全市场审计(analyze_entry.py·33277涨停事件·B+E出场·T+1合规): +5~9.8%高开接力档
      均值+2.56pp/PF1.67(0~5%档+1.26pp/PF1.51)·五个半年度全正, 为均值最高可成交档;
@@ -1586,6 +1592,20 @@ tr.pt-excluded-row td { opacity:.52; }
     <div id="entryBrief"></div>
   </section>
 
+  <!-- ═══ [v1.21.5] 实盘持仓 · 实时出场红牌(账本holdings·盘中30s自动判定) ═══
+       背景: 9/30用户三只持仓全部卖在早盘恐慌低点(雪龙开盘浮盈+10.2%规则应开盘兑现20.46,
+       实卖18.41跌停价·-11pp) — 红牌判定原只在三时段作战室, 主看板仅静态文案, 用户看不到。
+       本区把优化B+E六档判定(与orders_track v1.3.1/three.js HOLD v1.4.1同口径)直接放首页第一屏。 -->
+  <section id="sec-holdnow" class="card fade" style="display:none;">
+    <div class="sec-title">
+      <span class="ico" style="background:var(--red-soft); color:var(--red);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
+      <span>实盘持仓 · 实时出场判定</span>
+      <span class="eb-count" id="holdNowCount"></span>
+    </div>
+    <p class="sec-sub">账本持仓 · 交易日盘中 30 秒自动判定 <b>封板续持 / 🔴开盘兑现 / 🟠止盈离场 / 尾盘卖</b> — 优先级: 封板 &gt; 高开≥3%开盘卖 &gt; 开盘浮盈≥2%兑现 &gt; 分档止盈 &gt; 冲高回落≥2.5% &gt; 破昨收走弱 &gt; 尾盘14:50</p>
+    <div id="holdNowList"></div>
+  </section>
+
   <!-- ═══ v1.15.0 我的打板仓 · 次日直答 ═══ -->
   <section id="sec-mine" class="card fade" style="display:none;">
     <div class="sec-title">
@@ -2315,6 +2335,83 @@ function daPanel(c){
     </div>
   </div>`;
 }
+/* ── [v1.21.5] 实盘持仓实时判定: 账本holdings × 优化B+E六档 ──
+   与 daVerdict/三时段HOLD/orders_track 同口径, 差异: 支持账本字段(cost/entry_date/own自有仓)
+   + T+1首日不可卖分支(入场当日) + 自有仓标注(出场价仅参考·不自动平仓) */
+function holdVerdict(h, q){
+  const today = daTodayStr();
+  const cost = (+h.cost).toFixed(3);
+  const own = h.own ? ' · 自有仓(出场价仅参考·不自动平仓)' : '';
+  /* T+1 首日: 入场日行情 → 只持有不可卖 */
+  const sess = (q && q.ts) ? q.ts.slice(0, 8) : today;
+  if (sess <= String(h.entry_date || '')){
+    const sealed = q && q.px >= q.ztp - 0.001;
+    return sealed
+      ? { t:'🆕 T+1 首日 · 已封板（安心持有）', c:'var(--green)',
+          s:`今晨按隔夜单成交（成本 ${cost}）· 现价 ${q.px.toFixed(3)} 已封板 · 明日起按优化B+E出场${own}` }
+      : { t:'🆕 T+1 首日 · 只持有不可卖', c:'var(--primary)',
+          s:`今晨开盘 ${h.entry_gap >= 0 ? '+' : ''}${(+h.entry_gap || 0).toFixed(1)}% 成交（成本 ${cost}）· A股T+1当日不可卖 · 明日起: 封板续持 / 高开≥3%开盘卖 / 浮盈≥2%兑现 / 分档止盈 / 回落离场${own}` };
+  }
+  if (!q) return { t:'💤 非交易时段', c:'var(--secondary)', s:'交易日盘中打开本页，自动给出 续持/止盈/离场' };
+  const todayOnly = q.ts && q.ts.startsWith(today);
+  if (!todayOnly){
+    const sealed = q.px >= q.ztp - 0.001;
+    return sealed
+      ? { t:'🟢 上一交易日封板 · 续持中', c:'var(--green)', s:`昨收 ${q.px.toFixed(3)}（封板）· 今日 9:30 后自动判定续持/离场${own}` }
+      : { t:'💤 等今日开盘', c:'var(--secondary)', s:`昨收 ${q.px.toFixed(3)}（未封板）· 今日按优化B+E: 高开≥3%开盘卖 / 浮盈≥2%兑现 / 分档止盈 / 回落≥2.5%或破昨收走弱离场 / 尾盘14:50卖${own}` };
+  }
+  const openRef = q.po > 0 ? q.po : q.px;
+  const sealed = q.px >= q.ztp - 0.001;
+  const gapOpen = openRef / q.pc - 1;
+  const pnl = (q.px / h.cost - 1) * 100;
+  const pnlOpen = openRef / h.cost - 1;
+  const tp = h.cost * (gapOpen < 0 ? 1.02 : 1.03);
+  const tpTxt = tp.toFixed(3);
+  const exit3 = (q.pc * 1.03).toFixed(3);
+  const oTxt = q.po > 0 ? `开盘 ${q.po.toFixed(3)} · ` : '';
+  if (sealed) return { t:'🟢 封板续持', c:'var(--green)',
+    s:`现价 ${q.px.toFixed(3)} ≥ 涨停 ${q.ztp.toFixed(3)} · 继续持有，明日重复本规则${own}` };
+  if (gapOpen >= 0.03) return { t:'🔴 开盘高开 +' + (gapOpen*100).toFixed(1) + '% · 开盘离场', c:'var(--red)',
+    s:`${oTxt}离场线 ${exit3}（昨收×1.03）· 断板规则开盘卖出；若尚未卖出，<b>逢反弹离场（勿杀跌卖出）</b>${own}` };
+  if (pnlOpen >= 0.02) return { t:'🔴 开盘浮盈 +' + (pnlOpen*100).toFixed(1) + '% ≥2% · 开盘兑现', c:'var(--red)',
+    s:`${oTxt}成本 ${cost} ×1.02+ · 浮盈落袋优先（防大幅浮盈被固定止盈线贱卖）；若尚未卖出，<b>逢反弹离场（勿杀跌卖出）</b>${own}` };
+  if (q.ph >= tp - 0.001) return { t:'🟠 冲高触发' + (gapOpen < 0 ? '低开档+2%' : '+3%') + ' · 即刻止盈', c:'var(--orange)',
+    s:`今日最高 ${q.ph.toFixed(3)} 已触及止盈线 ${tpTxt}（${gapOpen < 0 ? '低开日降至成本×1.02，防拖尾盘卖绿盘' : '成本×1.03'}）· 卖出${own}` };
+  if (q.ph >= h.cost * 1.005 && (q.ph - q.px) / q.ph >= 0.025)
+    return { t:'🟠 冲高回落 ' + ((q.ph - q.px) / q.ph * 100).toFixed(1) + '% · 离场', c:'var(--orange)',
+      s:`最高 ${q.ph.toFixed(3)}（≥成本+0.5%）回落至现价 ${q.px.toFixed(3)} · 回撤≥2.5%触发保护 · 参考卖价约 ${(q.ph * 0.975).toFixed(3)}${own}` };
+  if (q.ph >= q.pc * 1.02 - 0.001 && q.px < q.pc)
+    return { t:'🟠 冲高回落破昨收 · 走弱离场', c:'var(--orange)',
+      s:`今日最高 ${q.ph.toFixed(3)}（≥昨收+2%）已跌破昨收 ${q.pc.toFixed(3)} · 盘中走强失败翻绿 · 参考卖价约 ${(q.pc * 0.998).toFixed(3)}（不等尾盘）${own}` };
+  const toGo = (tp / q.px - 1) * 100;
+  return { t:'⚪ 未触发 · 尾盘卖', c:'var(--secondary)',
+    s:`现价 ${q.px.toFixed(3)}（浮盈 ${pnl >= 0 ? '+' : ''}${pnl.toFixed(1)}%）· 今日本档止盈线 ${tpTxt}（${gapOpen < 0 ? '低开日+2%' : '+3%'}）还差 ${toGo.toFixed(1)}% · 冲高回落≥2.5%或跌破昨收亦离场 · 14:50 未触发则收盘卖${own}` };
+}
+function renderHoldNow(){
+  const sec = $('sec-holdnow');
+  if (!sec) return;
+  const OL = window.ORDERS_DATA || {};
+  const hs = (OL.holdings || []);
+  if (!hs.length){ sec.style.display = 'none'; return; }
+  sec.style.display = '';
+  $('holdNowCount').textContent = hs.length + ' 只';
+  $('holdNowList').innerHTML = hs.map(h => `
+    <div class="mine-row" style="margin-bottom:12px;">
+      <div class="mine-name">${h.name}<span class="code">${h.code}</span>
+        ${h.own ? '<span class="pill" style="background:var(--orange-soft);color:var(--orange);margin-left:6px;">自有仓</span>' : ''}
+        ${h.label ? '<span class="pill" style="background:var(--primary-soft);color:var(--primary);margin-left:6px;">' + h.label + '</span>' : ''}</div>
+      <div class="mine-nums">
+        <span>成本 <b>${(+h.cost).toFixed(3)}</b></span>
+        <span>${h.shares ? h.shares + ' 股' : ''}</span>
+        <span>入场 ${String(h.entry_date || '').replace(/(\d{4})(\d{2})(\d{2})/, '$2/$3')}</span>
+        ${(h.days || 0) > 0 ? `<span>封板续持 ${h.days} 天</span>` : ''}
+      </div>
+      <div class="mine-verdict" id="hv-${h.code}">
+        <div class="mv-txt da-wait">等待交易时段…</div>
+        <div class="mv-sub">封板续持 · 断板按优化B+E · 盘中30秒自动判定</div>
+      </div>
+    </div>`).join('');
+}
 /* ── 我的打板仓渲染 (localStorage, 不上传) ── */
 function renderMine(){
   const book = daBook();
@@ -2536,22 +2633,24 @@ function daLiveStratCell(el, q){
     <span class="da-sub">按计划<b>明日开盘买入</b>，当日不追买${near != null ? ' · 距止损 ' + near.toFixed(1) + '%' : ''}</span>`;
 }
 async function daTick(){
-  /* [v1.16.4fix] 行情代码双源收集: DOM(.da-live) + daBook(我的打板仓)
-     修复: 持仓标的不在今日候选列表时, 代码不在DOM中→不拉行情→永远显示"非交易时段" */
+  /* [v1.16.4fix] 行情代码三源收集: DOM(.da-live) + daBook(我的打板仓) + 账本holdings(实盘持仓)
+     [v1.21.5] 实盘持仓区红牌判定: 与候选卡同轮30s刷新, 持仓代码保留旧行情(昨收定格不误报) */
   const codes = [];
   document.querySelectorAll('.da-live[data-code]').forEach(el => {
     if (!codes.includes(el.dataset.code)) codes.push(el.dataset.code);
   });
   daBook().forEach(x => { if (!codes.includes(x.code)) codes.push(x.code); });
+  const holdCodes = ((window.ORDERS_DATA || {}).holdings || []).map(h => h.code);
+  holdCodes.forEach(c => { if (!codes.includes(c)) codes.push(c); });
   if (!codes.length) return;
   const q = await qtFetch(codes);
   const today = daTodayStr();
   const bookCodes = daBook().map(x => x.code);
   /* 时间戳过滤: 候选卡只保留今日数据(隔日旧数据会误导买入决策);
-     持仓标的保留旧数据(盘后/凌晨至少能看到昨收, daVerdict会标注"昨日") */
+     持仓标的(打板仓+账本)保留旧数据(盘后/凌晨至少能看到昨收, 判定会标注"昨日") */
   Object.keys(q).forEach(k => {
     if (!q[k].ts || !q[k].ts.startsWith(today)) {
-      if (!bookCodes.includes(k)) delete q[k];
+      if (!bookCodes.includes(k) && !holdCodes.includes(k)) delete q[k];
     }
   });
   Object.assign(DA_Q, q);
@@ -2559,6 +2658,26 @@ async function daTick(){
     el.innerHTML = el.dataset.strat
       ? daLiveStratCell(el, DA_Q[el.dataset.code])
       : daLiveCell(el.dataset.code, DA_Q[el.dataset.code]);
+  });
+  /* [v1.21.5] 实盘持仓实时红牌: 每轮重绘(红/橙牌加底色醒目) */
+  ((window.ORDERS_DATA || {}).holdings || []).forEach(h => {
+    const el = $('hv-' + h.code);
+    if (!el) return;
+    const q2 = DA_Q[h.code];
+    const v = holdVerdict(h, q2);
+    const bg = v.c === 'var(--red)' ? 'var(--red-soft)' : (v.c === 'var(--orange)' ? 'var(--orange-soft)' : (v.c === 'var(--green)' ? 'var(--green-soft)' : 'rgba(120,120,128,.06)'));
+    el.style.cssText = 'background:' + bg + ';border-radius:12px;padding:10px 12px;margin-top:6px;text-align:left;';
+    let quote = '';
+    if (q2 && q2.px > 0){
+      const dayPct = (q2.px / q2.pc - 1) * 100;
+      const pnl = (q2.px / h.cost - 1) * 100;
+      quote = `<div class="mine-nums" style="margin:0 0 4px;">
+        <span>现价 <b>${q2.px.toFixed(3)}</b></span>
+        <span>今日 <b style="color:${dayPct >= 0 ? 'var(--red)' : 'var(--green)'};">${dayPct >= 0 ? '+' : ''}${dayPct.toFixed(1)}%</b></span>
+        <span>浮盈 <b style="color:${pnl >= 0 ? 'var(--red)' : 'var(--green)'};">${pnl >= 0 ? '+' : ''}${pnl.toFixed(1)}%</b></span>
+        <span>涨停 <b>${q2.ztp.toFixed(3)}</b></span></div>`;
+    }
+    el.innerHTML = quote + `<div class="mv-txt" style="color:${v.c};font-weight:800;font-size:15.5px;">${v.t}</div><div class="mv-sub" style="color:var(--text);opacity:.85;">${v.s}</div>`;
   });
   daBook().forEach(x => {
     const el = $('mv-' + x.code);
@@ -2663,6 +2782,7 @@ async function flagTick(){
   }
 }
 function initDaLive(){
+  renderHoldNow();                      /* [v1.21.5] 实盘持仓实时判定区 */
   renderMine();
   daTick();
   setInterval(daTick, 30000);
