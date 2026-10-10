@@ -11,6 +11,12 @@
    · 本版: sec-holdnow区块置于第一屏(今日建议入场之后), 复用qtFetch+daTick 30s轮询,
      判定与orders_track v1.3.1/three.js HOLD v1.4.1同口径(封板>高开3%>浮盈2%>分档止盈>
      回落2.5%>破昨收E档>尾盘), 增T+1首日不可卖分支+自有仓own标注(出场价仅参考) */
+/* [v1.21.6] 封单比影子标签(2026-10-10): seal_ratio = 封单/当日成交额%(mv×turn近似·分档不一致率1%)
+   · 来源: 用户问豆包视频指标「封单比高=持有」— seal_ratio_bt.py 614笔回测(9/11~10/9·B+E)方向相反:
+     <10% 充分换手板 58.2%/+1.00%/PF1.41 全场最优(豆包却建议开盘卖) ·
+     ≥30% 缩量板 34.7%/-1.15%/PF0.72 全场最差(豆包却建议持有)
+   · 机制: 封单比高=当日成交小=浮筹未换手消化, 次日不涨停则抛压集中释放(雪龙9/29封单比203%→9/30跌停)
+   · 前端: ≥30%橙色缩量板警示 / <10%绿色充分换手 · 只标不拦 · 主板口径(60/00) · 同步plan.html */
 /* v1.21.0 隔夜单挂单价 +5%→涨停下方0.2%(2026-09-26): 10cm=昨收+9.8% / 20cm=昨收+19.8%
    · 依据全市场审计(analyze_entry.py·33277涨停事件·B+E出场·T+1合规): +5~9.8%高开接力档
      均值+2.56pp/PF1.67(0~5%档+1.26pp/PF1.51)·五个半年度全正, 为均值最高可成交档;
@@ -2906,6 +2912,24 @@ function candCard(c, planOpen){
       </div>`;
     }
   }
+  /* [v1.21.6] 封单比标签(seal/成交额%·seal_ratio_bt.py 614笔回测·影子展示不拦截·豆包方向反向):
+     <10% 充分换手板 58.2%/+1.00%/PF1.41 全场最优 · ≥30% 缩量板 34.7%/-1.15%/PF0.72 全场最差
+     机制: 封单比高=当日成交小=浮筹未换手消化, 次日不涨停则抛压集中释放 */
+  const sr = c.seal_ratio;
+  let sealBar = '';
+  if (!skip && sr != null && c.code && /^(60|00)/.test(String(c.code))){
+    if (sr >= 30){
+      sealBar = `<div class="sel-down" style="background:var(--orange-soft);color:var(--orange);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      <b>缩量板警示</b> · 封单比 <b>${sr}%</b>(封单/当日成交额) · 当日换手不充分·浮筹未消化·次日不板则抛压集中(回测≥30%档 34.7%/-1.15%/PF0.72 全场最差)（影子因子·只标不拦·主板口径）
+      </div>`;
+    } else if (sr < 10){
+      sealBar = `<div class="sel-down" style="background:var(--green-soft);color:var(--green);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      <b>充分换手板</b> · 封单比仅 <b>${sr}%</b>(封单/当日成交额) · 当日充分换手·承接盘充足(回测<10%档 58.2%/+1.00%/PF1.41 全场最优)（影子因子·只标不拦·主板口径）
+      </div>`;
+    }
+  }
   return `
   <div class="cand${skip ? ' is-skip' : ''}">
     <div class="cand-head">
@@ -2918,7 +2942,7 @@ function candCard(c, planOpen){
       <div class="cand-ring">${ringHTML(88, 8, skip ? 0 : (c.score != null ? c.score/100 : 0), color, inner)}</div>
     </div>
     ${actRow}
-    ${dropBar}${downBar}${turnBar}${themeBar}
+    ${dropBar}${downBar}${turnBar}${themeBar}${sealBar}
     <div class="factor-grid">${factors.map(f => `
       <div class="f-cell"><div class="fv ${f.good?'good':''} ${f.bad?'bad':''}">${f.v}</div>
       <div class="fl">${f.l}</div>${f.s ? `<div class="fs">${f.s}</div>` : ''}</div>`).join('')}

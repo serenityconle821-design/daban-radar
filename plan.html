@@ -408,6 +408,11 @@ function render(){
        if (nw >= 7) return `<div class="down-bar" style="background:var(--orange-soft);color:var(--orange);">⚠️ 题材过热 · 同行业今日 <b>${nw}家</b>涨停 · 板块内卷次日分歧风险大(回测42.9%/-0.79%·n=14样本少·观察)</div>`;
        if (nwp >= 2) return `<div class="down-bar" style="background:var(--green-soft);color:var(--green);">📈 <b>延续题材</b> · 昨日同业${nwp}家 → 今日${nw}家涨停(隔夜单B+E 57.4%/+1.89%优于新启动53.5%/+0.44%)（影子因子·只标不拦）</div>`;
        return ''; })()}
+    ${(() => { const sr = c.seal_ratio;
+       if (skip || sr == null || !/^(60|00)/.test(String(c.code))) return '';
+       if (sr >= 30) return `<div class="down-bar" style="background:var(--orange-soft);color:var(--orange);">⚠️ <b>缩量板警示</b> · 封单比 <b>${sr}%</b>(封单/当日成交额) · 当日换手不充分·浮筹未消化·次日不板则抛压集中(回测≥30%档 34.7%/-1.15%/PF0.72 全场最差)（影子因子·只标不拦·主板口径）</div>`;
+       if (sr < 10) return `<div class="down-bar" style="background:var(--green-soft);color:var(--green);">📈 <b>充分换手板</b> · 封单比仅 <b>${sr}%</b>(封单/当日成交额) · 当日充分换手·承接盘充足(回测<10%档 58.2%/+1.00%/PF1.41 全场最优)（影子因子·只标不拦·主板口径）</div>`;
+       return ''; })()}
   </div>`;
 
   /* 直答卡 + [v1.16.4] 明日竞价价位尺(百分比直接换算价格) */
