@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>观澜擒龙</title>
 <style>
+/* [v1.23.0] 建议注额上卡片+名单追踪滚动合计(2026-10-31): 用户问「待挂单标的大概投多少/最近收益」
+   · 建议注额: sel.stake_txt = 账户基准10万×仓位%(web_build v1.23.0) → S级2-3%≈约2,000-3,000元/
+     A·M级1-2%≈约1,000-2,000元/降级1%≈约1,000元 — 候选卡pill/直答/降级条三处直显, 免心算
+   · 滚动合计: list_track.py v1.1.0 summary.months/total(月度·全注+轻仓双口径) —
+     9/18~10/13=month_replay.json权威历史(动态注额+去重) + 10/14起=名单追踪固定注额, 无重叠无缝衔接
+   · 同口径脚注: 回测注额(S1万/A5千/M2.5千)≈10万账户页面纪律的3~4倍, 页面注额以账户纪律为准 */
 /* [v1.22.0] 名单追踪板块上线(2026-10-30): 上晚推荐→今日/明日收益, 回答「每晚照名单执行赚多少」
    · 数据: list_track.py v1.0.0 从git历史提取每晚候选池 → 腾讯K线模拟限价成交+B+E六档出场
      → cache/list_track.json → web_build.py SITE_DATA.track (auto_pipeline.ps1 v1.4.0 步骤①h盘后刷新)
@@ -2333,7 +2339,7 @@ function daPanel(c){
   const is20cm = /^(30|68)/.test(String(c.code));
   const capPct = is20cm ? 0.198 : 0.098, capT = (capPct * 100).toFixed(1);
   const ovBody = ov.w
-    ? `${sel.label}（${sel.full}）· 今晚挂隔夜单（挂 <b>「昨收+${capT}%」${c.cap5 || pPct(capPct)}</b> 限价单，次日按开盘价成交·开盘高于此价不成交）· 仓位 <b>${sel.pos}</b>。
+    ? `${sel.label}（${sel.full}）· 今晚挂隔夜单（挂 <b>「昨收+${capT}%」${c.cap5 || pPct(capPct)}</b> 限价单，次日按开盘价成交·开盘高于此价不成交）· 仓位 <b>${sel.pos}</b>${sel.stake_txt ? ` · 建议注额 <b>${sel.stake_txt}</b>` : ''}。
        <span class="da-sub">[v1.21.0] 不用盯 9:15-9:20 竞价，<b>9:30 开盘后看一眼，未成交（=高开超限价）撤单即可</b>；限价挂涨停下方 0.2% 自动规避一字排队幻觉档（≥9.8% 胜率仅 42%·中位 -3.15%），保留高开 2-9.8% 正期望档（5-9.8% 接力档均值 +2.56pp/PF1.67）→ 两年回测胜率 <b>${ov.w.w}%</b> · 单笔均值 <b>+${ov.w.r}%</b>（全面优于挂涨停+盯竞价）· ${sel.recent}</span>`
     : `1板次日买入为负期望（两年回测均值 -0.3%），不挂隔夜单、盘中也不追。`;
   const holdBody = `统一规则「<b>封板续持 · 分档止盈</b>」（优化B+E）：任意持有日收盘封板 → 继续持有；未封板日：开盘高开≥3%（首日线 ${pPct(0.03)}）→ 开盘卖 / 开盘浮盈≥2% → 兑现 / 盘中冲高至成本+3%（低开日+2%）→ 即刻止盈 / 冲高回落≥2.5% 或冲高后跌破昨收 → 离场 / <b>击穿成交价-2%（按限价成交约 ${pBase > 0 ? (pBase * (1 + capPct) * 0.98).toFixed(2) : '—'}）→ SL止损</b> / 全天没到 → 14:50 尾盘卖。
@@ -2927,7 +2933,7 @@ function candCard(c, planOpen){
   const downBar = (!skip && sel.downgrade) ? `
     <div class="sel-down">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      ${sel.why} → 仓位降为 1% 轻仓或放弃
+      ${sel.why} → 仓位降为 1% 轻仓或放弃${sel.stake_txt ? `（注额${sel.stake_txt}）` : ''}
     </div>` : '';
   /* [v1.21.3] 换手>35%影子警示(斌哥规则·只标不拦): 9/4起17日真实名单命中4笔(华纺-22.6%/集泰-7.7%/百花-7.5%/金健+13.4%, 均-6.09%) — 样本积累中, 攒够样本再议硬拦 */
   const turnBar = (!skip && (c.turn ?? 0) > 35) ? `
@@ -4381,6 +4387,11 @@ function renderTrack(){
   });
   const winRate = nSet ? nWin / nSet * 100 : null;
   const chip = (l, v, cls) => `<span class="pt-chip">${l} <b class="${cls || ''}">${v}</b></span>`;
+  /* [v1.23.0] 月度滚动合计: list_track v1.1.0 summary — 9/18~10/13=month_replay权威历史 + 10/14起追踪段 */
+  const RS = T.summary || {}, rm = RS.months || [];
+  const mFmt = r => `${r.month.slice(0,4)}年${+r.month.slice(4)}月 ${r.filled}笔 · 胜率${r.win_rate != null ? r.win_rate.toFixed(1) + '%' : '—'} · 全注${sign(r.net.toFixed(0), '元')} · 轻仓${sign(r.light_net.toFixed(0), '元')}`;
+  const tot = RS.total || null;
+  const rollLine = rm.length ? `<div class="pt-meta-line" style="margin:8px 0 0;">📅 月度滚动(全注 · 轻仓=退潮/冰点晚×⅓): ${rm.map(mFmt).join(' ｜ ')}${tot ? `<br>📌 上线以来累计: ${tot.n_nights}晚 · ${tot.filled}成交 · ${tot.settled}笔 · 胜率${tot.win_rate != null ? tot.win_rate.toFixed(1) + '%' : '—'} · 全注${sign(tot.net.toFixed(0), '元')} · 轻仓${sign(tot.light_net.toFixed(0), '元')}` : ''}</div>` : '';
   kpisEl.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px;">
     ${chip('追踪', nights.length + ' 晚')}
     ${chip('推荐', nRec + ' 只')}
@@ -4390,7 +4401,7 @@ function renderTrack(){
     ${chip('全注净额', sign(netSum.toFixed(0), '元'), pctCls(netSum))}
     ${chip('满注信号晚', nSigNights + ' 晚')}
     <span class="pt-chip" style="color:var(--secondary);">统计口径 · 名单内不重复挂单 · 整手 · 实际费率</span>
-  </div>`;
+  </div>${rollLine}`;
   bodyEl.innerHTML = nights.map((nt, i) => {
     const s = nt.summary || {};
     const gate = TRACK_GATE[nt.gate] || ['—', 'var(--secondary)'];
@@ -4415,7 +4426,8 @@ function renderTrack(){
       ${tbl}
     </details>`;
   }).join('') + `<div class="pt-meta-line" style="margin-top:10px;">口径: 「今日」=名单次日执行日(开盘≤限价单成交·超限价9:30撤单) · 「明日」=出场日(B+E六档: 封板续持/高开≥3%卖开盘/浮盈≥2%兑现/分档止盈/冲高回落/破昨收走弱/收盘离场) · 净盈亏含实际费率 · 生成时间 ${T.updated_at || '—'}<br>
-  ⚡ 满注信号 = 环境三条件全过(核心涨停45-150家 · 最高连板≥4板 · 1进2晋级率≥20%) · 三年731个交易日中仅154天触发(21.1% · 约每4.7个交易日一次 · 最长断档99天) — 其余时间按名单轻仓或空仓, 不重仓</div>`;
+  💰 金额口径: 模拟注额 S级1万/A级5千/M级2.5千(回测基准) ≈ 10万账户页面纪律注额的3~4倍 — 候选卡「注额」字段(账户基准×仓位%)才是你自己该挂的金额<br>
+  ⚡ 满注信号 = 环境三条件全过(核心涨停45-150家 · 最高连板≥4板 · 1进2晋级率≥20%) — [v1.23.0修正·phase_freq v2口径] 三年726个交易日(主板口径校准0.994): 三条件18.9%(每5.3日) · ∧非退潮/冰点14.6%(每6.8日) · ∧回暖相位真满注仅7.3%(每13.7日·年均15-25天) — 其余时间按名单轻仓或空仓, 不重仓</div>`;
 }
 
 /* ── 规则 ── */

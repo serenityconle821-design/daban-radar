@@ -1,4 +1,4 @@
-/* three.js v1.2.0 — 三时段作战室逻辑
+/* three.js v1.6.0 — 三时段作战室逻辑
    数据: premarket_data.js(PREMARKET_DATA) + intraday_data.js(INTRADAY_DATA) + settle_data.js(SETTLE_DATA)
          + 腾讯JSONP实时轮询(竞价雷达/盘中指数, 浏览器直连零token)
    渲染: 盘前温度计gauge+贡献条+隔夜明细+命中率 | 盘中情绪/资金/时点曲线+竞价雷达+尾盘异动+RT实时作战 | 盘后复盘全景
@@ -49,6 +49,9 @@
            分年四年皆正·扫描线1~3%单调平坦·冰点S级均值+10.48→+10.54不砍大盈利尾部;
            本月重放交叉验证: 全注-3,024→-2,480, 轻仓+SL组合-1,256→-943(全月减亏69%);
            与index.html holdVerdict/daVerdict v1.21.7 同口径; 影子轨每周结算对比SL vs 收盘卖 */
+   v1.6.0: [v1.23.0配套] 明日关注候选表仓位列副标显示建议注额(s.stake_txt = web_build账户基准10万×仓位%):
+           S级2-3%≈约2,000-3,000元 / A·M级1-2%≈约1,000-2,000元 / 降级1%≈约1,000元 —
+           回测注额(S1万/A5千/M2.5千)是模拟基准, 页面注额以账户纪律为准(three.html引用需?v=108强刷) */
 (function () {
 'use strict';
 
@@ -1339,7 +1342,9 @@ function renderPost() {
           (c.cap5 != null ? '<span style="display:block;color:var(--tertiary);font-size:11px;font-weight:400;">昨收+' + (is20 ? '19.8' : '9.8') + '%</span>' : '') + '</td>' +
           '<td>' + sectCell + '</td>' +
           '<td>' + (s.win || '—') + ' / ' + (s.avg || '—') + '</td>' +
-          '<td>' + (s.pos || '—') + '</td></tr>');
+          '<td>' + (s.pos || '—') +
+          (s.stake_txt ? '<span style="display:block;color:var(--tertiary);font-size:11px;font-weight:400;">' + s.stake_txt + '</span>' : '') +
+          '</td></tr>');
       }
     }
   }
