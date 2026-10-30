@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>观澜擒龙</title>
 <style>
+/* [v1.22.0] 名单追踪板块上线(2026-10-30): 上晚推荐→今日/明日收益, 回答「每晚照名单执行赚多少」
+   · 数据: list_track.py v1.0.0 从git历史提取每晚候选池 → 腾讯K线模拟限价成交+B+E六档出场
+     → cache/list_track.json → web_build.py SITE_DATA.track (auto_pipeline.ps1 v1.4.0 步骤①h盘后刷新)
+   · 展示: 每晚一卡(相位/gate/满注信号/汇总) + 逐标的表(今日开盘/收盘/出场结果/净盈亏),
+     最新两晚默认展开; 纯规则模拟非实盘 · 与month_replay/orders_track同口径 */
 /* [v1.21.7] SL2%止损档上线(2026-10-15): 前六档(封板>高开3%>浮盈2%>分档止盈>回落2.5%>破昨收E档)
    均未触发时, 开盘或现价击穿成本×0.98 → 止损离场, 替代原「全天未触发·14:50收盘卖」兜底
    · 依据: sl_sweep.py 3年2,713笔精细扫描(与opt_bt/addsize同源口径) — SL2%净额+33,164元/
@@ -1429,6 +1434,11 @@ tr.pt-excluded-row td { opacity:.52; }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5"/></svg>
         影子
       </button>
+      <!-- v1.22.0 名单追踪: 上晚推荐→今日/明日收益 -->
+      <button class="tnav-item" data-sec="sec-track">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+        追踪
+      </button>
       <button class="tnav-item" data-sec="sec-emotion">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 9l-5 5-3-3-4 4"/></svg>
         情绪
@@ -1822,6 +1832,17 @@ tr.pt-excluded-row td { opacity:.52; }
       <span class="pt-caret"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
     </div>
     <div class="pt-body" id="ptBody"></div>
+  </section>
+
+  <!-- ═══ v1.22.0 名单追踪 (上晚推荐→今日/明日收益 · 纯规则模拟非实盘) ═══ -->
+  <section id="sec-track" class="card fade">
+    <div class="sec-title">
+      <span class="ico" style="background:var(--primary-soft); color:var(--primary);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg></span>
+      <span>名单追踪 · 上晚推荐 → 今日 / 明日收益</span>
+    </div>
+    <p class="sec-sub">每晚推荐名单的<b>纯规则模拟</b>复盘（非实盘·零资金）：挂「涨停下方0.2%」限价隔夜单 → 开盘≤限价按开盘价成交、超限价9:30撤单不追 → 优化B+E六档出场 · 口径与生产 orders_track 逐字同源 · 只回答一个问题：<b>如果每晚都照名单执行，收益是多少</b></p>
+    <div id="trackKpis"></div>
+    <div id="trackBody"></div>
   </section>
 
   <!-- ═══ 情绪数据 ═══ -->
@@ -4302,6 +4323,99 @@ function renderParallel(){
     零干扰约束: 不改生产信号/建议/仓位 · 同快照派生双轨 · 幂等结算(只推进不回退) · 零token·零资金${PT.error ? '<br><span style="color:var(--red);">⚠ 模块异常: ' + PT.error + '</span>' : ''}</div>`;
 }
 
+/* ── v1.22.0 名单追踪: 上晚推荐→今日/明日收益 (SITE_DATA.track · list_track.py 口径) ── */
+const TRACK_PHASE_COLOR = {'高潮':'var(--red)','回暖':'var(--green)','退潮':'var(--orange)','冰点':'var(--secondary)'};
+const TRACK_GATE = { buy:['可出手 · 有S级挂单','var(--green)'], ready:['轻仓 · 无S级','var(--orange)'], wait:['空仓观望','var(--secondary)'] };
+function trackTierPill(t){
+  const st = t === 'S' ? ['var(--red-soft)','var(--red)'] : t === 'A' ? ['var(--orange-soft)','var(--orange)'] : ['var(--green-soft)','var(--green)'];
+  return `<span class="pill" style="background:${st[0]};color:${st[1]};">${t}级</span>`;
+}
+function trackPct(v, fixed){
+  return v == null ? '—' : `<span class="mono ${pctCls(v)}">${sign(v.toFixed(fixed != null ? fixed : 2), '%')}</span>`;
+}
+function trackRowHTML(s){
+  const gapHtml = trackPct(s.gap, 1);
+  const sealTag = s.t1_sealed ? '<span style="color:var(--red);font-size:10px;font-weight:700;margin-left:2px;">板</span>' : '';
+  const t1Html = s.t1_close != null ? trackPct(s.t1_close, 1) + sealTag : '—';
+  let resHtml = '—', netHtml = '—';
+  if (!s.exec_date){
+    resHtml = '<span style="color:var(--primary);font-size:12px;">📋 待执行 · 今晚挂限价单</span>';
+  } else if (!s.filled){
+    resHtml = `<span style="color:var(--tertiary);font-size:12px;">未成交·不追</span>` +
+      (s.t2_close != null ? `<span style="color:var(--tertiary);font-size:11px;"> · 次日收盘 ${sign(s.t2_close.toFixed(1), '%')}</span>` : '');
+  } else if (s.state === '已结算'){
+    resHtml = `<div style="font-size:12px;">${s.reason || '—'}</div>` +
+      `<div style="color:var(--tertiary);font-size:10.5px;">出场 ${s.exit_date ? fmtDate(s.exit_date) : '—'} · 收益 ${sign(s.ret != null ? s.ret.toFixed(2) : 0, '%')}</div>`;
+    netHtml = `<span class="mono ${pctCls(s.net)}" style="font-weight:700;">${s.net != null ? sign(s.net.toFixed(0), '元') : '—'}</span>`;
+  } else {
+    resHtml = `<span style="color:var(--orange);font-size:12px;">${s.t1_sealed ? '封板续持' : '持有待出场'}</span>` +
+      `<div style="color:var(--tertiary);font-size:10.5px;">浮动 ${sign(s.ret != null ? s.ret.toFixed(2) : 0, '%')}${s.days ? ' · 已持' + s.days + '日' : ''}</div>`;
+    netHtml = trackPct(s.ret);
+  }
+  return `<tr>
+    <td><b>${s.name}</b><span class="code" style="margin-left:4px;">${s.code}</span></td>
+    <td>${trackTierPill(s.tier)}</td>
+    <td class="mono" style="font-size:12px;">${s.lb}板</td>
+    <td>${gapHtml}</td>
+    <td>${t1Html}</td>
+    <td>${resHtml}</td>
+    <td>${netHtml}</td>
+  </tr>`;
+}
+function renderTrack(){
+  const T = D.track, kpisEl = $('trackKpis'), bodyEl = $('trackBody');
+  if (!T || !T.nights || !T.nights.length){
+    kpisEl.innerHTML = '';
+    bodyEl.innerHTML = `<div class="exit-calm">名单追踪数据未就绪${T && T.error ? ' · 异常: ' + T.error : ''} · 下一交易日盘后(15:10)自动生成</div>`;
+    return;
+  }
+  const nights = T.nights;
+  let nRec = 0, nFill = 0, nSet = 0, nWin = 0, netSum = 0, nSigNights = 0;
+  nights.forEach(nt => {
+    const s = nt.summary || {};
+    nRec += s.n || 0; nFill += s.filled || 0; nSet += s.settled || 0;
+    nWin += s.win || 0; netSum += s.net || 0;
+    if (nt.sig_pass) nSigNights++;
+  });
+  const winRate = nSet ? nWin / nSet * 100 : null;
+  const chip = (l, v, cls) => `<span class="pt-chip">${l} <b class="${cls || ''}">${v}</b></span>`;
+  kpisEl.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px;">
+    ${chip('追踪', nights.length + ' 晚')}
+    ${chip('推荐', nRec + ' 只')}
+    ${chip('限价成交', nFill + ' 只')}
+    ${chip('已结算', nSet + ' 笔')}
+    ${chip('胜率', winRate != null ? winRate.toFixed(1) + '%' : '—', winRate != null && winRate >= 50 ? 'up' : 'down')}
+    ${chip('全注净额', sign(netSum.toFixed(0), '元'), pctCls(netSum))}
+    ${chip('满注信号晚', nSigNights + ' 晚')}
+    <span class="pt-chip" style="color:var(--secondary);">统计口径 · 名单内不重复挂单 · 整手 · 实际费率</span>
+  </div>`;
+  bodyEl.innerHTML = nights.map((nt, i) => {
+    const s = nt.summary || {};
+    const gate = TRACK_GATE[nt.gate] || ['—', 'var(--secondary)'];
+    const phColor = TRACK_PHASE_COLOR[nt.phase] || 'var(--primary)';
+    const sigTag = nt.sig_pass
+      ? '<span style="background:var(--green-soft);color:var(--green);font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;">⚡ 满注信号</span>'
+      : '';
+    const openAttr = i < 2 ? ' open' : '';
+    const rows = (nt.stocks || []).map(trackRowHTML).join('');
+    const tbl = rows
+      ? `<div class="tbl-scroll"><table class="tbl"><tr><th>标的</th><th>梯队</th><th>连板</th><th>今日开盘</th><th>今日收盘</th><th>出场 / 明日结果</th><th>净盈亏</th></tr>${rows}</table></div>`
+      : '<div class="exit-calm" style="margin-top:8px;">当晚名单为空 · 空仓也是操作</div>';
+    return `<details class="sc-subbox"${openAttr}>
+      <summary><b>${shortD(nt.night)} 晚</b>
+        <span style="color:${phColor};font-weight:700;margin-left:6px;">${nt.phase || '—'}</span>
+        <span style="color:${gate[1]};font-size:11.5px;margin-left:6px;">${gate[0]}</span>
+        ${sigTag}
+        <span style="color:var(--tertiary);font-size:11px;margin-left:6px;">涨停${nt.zt}家 · 最高${nt.max_lb}板</span>
+        <span style="margin-left:auto;font-size:11.5px;">推荐${s.n || 0} · 成交${s.filled || 0} · 已结算${s.settled || 0} · 胜${s.win || 0}
+          <b class="${pctCls(s.net)}" style="margin-left:4px;">${s.net ? sign(s.net.toFixed(0), '元') : (s.settled ? '±0元' : '')}</b></span></summary>
+      <div style="font-size:11.5px;color:var(--secondary);margin:6px 2px 2px;">${nt.action_title || ''}</div>
+      ${tbl}
+    </details>`;
+  }).join('') + `<div class="pt-meta-line" style="margin-top:10px;">口径: 「今日」=名单次日执行日(开盘≤限价单成交·超限价9:30撤单) · 「明日」=出场日(B+E六档: 封板续持/高开≥3%卖开盘/浮盈≥2%兑现/分档止盈/冲高回落/破昨收走弱/收盘离场) · 净盈亏含实际费率 · 生成时间 ${T.updated_at || '—'}<br>
+  ⚡ 满注信号 = 环境三条件全过(核心涨停45-150家 · 最高连板≥4板 · 1进2晋级率≥20%) · 三年731个交易日中仅154天触发(21.1% · 约每4.7个交易日一次 · 最长断档99天) — 其余时间按名单轻仓或空仓, 不重仓</div>`;
+}
+
 /* ── 规则 ── */
 function renderRules(){
   const R = D.rules;
@@ -4539,6 +4653,7 @@ const NAV = [
   ['sec-watch','监控','M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'],
   ['sec-advice','建议','M9 11l3 3L22 4'],
   ['sec-parallel','影子','M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5'],
+  ['sec-track','追踪','M3 3v5h5M3.05 13A9 9 0 1 0 6 5.3L3 8M12 7v5l4 2'],
   ['sec-emotion','情绪','M3 3v18h18M18 9l-5 5-3-3-4 4'],
   ['sec-strategy','战法','M19.07 4.93A10 10 0 0 0 6.99 3.34M4 6.01A9.99 9.99 0 0 0 4 18M15.52 15.52A6 6 0 0 0 12 6a6 6 0 0 0-3.52 9.52'],
   ['sec-backtest','回测','M12 20V10M18 20V4M6 20v-4'],
@@ -4878,7 +4993,7 @@ if (D){
   renderHero(); renderEntryBrief(); renderSignal(); renderTimeline(); renderCands(); renderDragons(); renderWatch();
   renderEmotion(); renderCharts(); renderBacktest(); renderRules(); renderNav(); renderFooter();
   renderStrategy();
-  renderAdvice(); renderParallel();
+  renderAdvice(); renderParallel(); renderTrack();
   renderPanels(); initTopnav(); initFolds(); initDaLive();   /* v1.15.0 打板直答引擎启动 */
   fadeAll(); particles();
   /* v1.9 移动端适配: 图表随容器宽度重绘(旋转/窗口缩放后画布不再溢出) */
