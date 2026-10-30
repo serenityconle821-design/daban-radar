@@ -167,7 +167,7 @@ body::before {
 </div>
 
 <script src="data.js"></script>
-  <script src="./orders_data.js?v=106"></script>
+  <script src="./orders_data.js?v=107"></script>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -226,7 +226,8 @@ function daTradingBJ(){
    可排队仅: 低开/平开回封(成交~90%) 与 高开>5%已封板(≥7%约30%成交·一字基本排不到) */
 function daLiveCell(code, q){
   if (!q) return '<span class="da-wait">非交易时段 · 交易日盘中自动判定</span>';
-  /* [v1.21.1] 账本门控(与主站同口径): 只对 ORDERS_DATA 实挂单/在持做成交复盘;
+  /* [v1.21.1] 账本门控(与主站同口径): 只对 ORDERS_DATA 账本内名单/在持做成交复盘
+     (v1.22.1起账本默认全挂=策略模拟口径·orders_track v1.4.0);
      盘中名单为今晚预览(10:30定型复查实时刷新), 未挂单者不再显示"隔夜单已成交/已撤" */
   const OL = window.ORDERS_DATA || {};
   const oOrd = (OL.orders || []).find(x => x.code === code) || null;

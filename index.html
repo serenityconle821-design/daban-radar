@@ -1902,7 +1902,7 @@ tr.pt-excluded-row td { opacity:.52; }
 
 <script src="echarts.min.js"></script>
   <script src="data.js"></script>
-  <script src="./orders_data.js?v=106"></script>
+  <script src="./orders_data.js?v=107"></script>
   <script src="score_data.js"></script>
 <script>
 'use strict';
@@ -2543,7 +2543,8 @@ function daPhaseCell(code){
   const morning = !weekend && hm < 9*60 + 15;          /* 清晨: 名单=昨日盘后, 今日9:25竞价 */
   const nextDay = (wd === 5 || wd === 6) ? '下周一' : '次日';
   /* [v1.21.1] 账本门控(与daLiveCell同口径): 在持→持仓指引; 昨挂未成交→已撤提示;
-     清晨仅实挂单显示「9:25自动成交」· 未挂单显示「今日无单」(防幽灵单误读) */
+     清晨账本内名单显示「9:25自动成交」· 账本外显示「今日无单」(防幽灵单误读)
+     [v1.22.1] ORDERS_DATA自orders_track v1.4.0起默认全挂(名单=已挂·按策略模拟执行) */
   const OL = window.ORDERS_DATA || {};
   const oHold = (OL.holdings || []).find(x => x.code === code) || null;
   const oOrd = (OL.orders || []).find(x => x.code === code) || null;
@@ -2583,7 +2584,8 @@ function daLiveCell(code, q){
      今日首板票今晨不存在隔夜单, 不做fill5复盘(旧文案会被误读成"旧名单已撤单") */
   if (!daTradingBJ()) return daPhaseCell(code);
   if (!q) return '<span class="da-wait">行情加载中 · 盘中自动判定现在能不能买</span>';
-  /* [v1.21.1] 账本门控: 只对 ORDERS_DATA 实挂单/在持做「隔夜单成交」复盘。
+  /* [v1.21.1] 账本门控: 只对 ORDERS_DATA 账本内名单/在持做「隔夜单成交」复盘
+     (v1.22.1起账本默认全挂=策略模拟口径)。
      背景: 10:30定型复查会用盘中实时名单刷新候选(=今晚预览·非昨晚挂单),
      旧逻辑对任何候选都判「隔夜单已成交/已撤」→ 凭空显示从未挂过单的"继续持有" */
   const OL = window.ORDERS_DATA || {};
