@@ -472,6 +472,20 @@ function render(){
     </div>`).join('')}
   </div>`;
 
+  /* 免盯盘券商条件单速抄卡 (成交后直接按实际成本抄进券商App) */
+  const defCost = c.price > 0 ? (c.price * 1.02).toFixed(2) : '';
+  const condCard = (!skip && defCost) ? `
+  <div class="card">
+    <div class="sec-h"><span class="ico" style="background:var(--primary-soft);color:var(--primary);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span>
+      免盯盘 · 成交后券商条件单 3 件套</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;font-size:12.5px;">
+      <span>输入明早实际成交价（默认昨收+2%预估）：</span>
+      <input id="condCostInp" type="number" step="0.01" value="${defCost}" oninput="recalcCond(this.value)" style="width:92px;padding:4px 8px;border-radius:8px;border:1px solid var(--sep);font-size:13px;font-weight:700;" />
+    </div>
+    <div id="condOut" style="font-size:12.5px;line-height:1.7;"></div>
+  </div>` : '';
+
   /* 因子明细 */
   const factors = [
     { l:'换手率', v: fNA ? '—' : (c.turn ?? 0).toFixed(2) + '%', s: fNA ? '' : (SP.turn ?? 0).toFixed(1) + '/20', good: !fNA && c.turn < 10, bad: !fNA && c.turn >= 20 },
@@ -528,7 +542,18 @@ function render(){
     <p class="bt-note" style="text-align:center;">登记后主站「我的打板仓」每天盘中自动提示 持有 / 止盈 / 离场</p>
   </div>`;
 
-  $('app').innerHTML = headCard + liveCard + flagCard + planCard + factorCard + btCard + btnCard;
+  $('app').innerHTML = headCard + liveCard + flagCard + planCard + condCard + factorCard + btCard + btnCard;
+  window.recalcCond = function(v){
+    const box = document.getElementById('condOut');
+    if (!box) return;
+    const cost = parseFloat(v);
+    if (!isFinite(cost) || cost <= 0){ box.innerHTML = '请输入有效的成交价'; return; }
+    box.innerHTML = `
+      <div>① <b>回落止盈单</b>：涨超 <b style="color:var(--red);">${(cost*1.03).toFixed(2)}</b>(+3%) 后回落 <b>2.5%</b> 卖出（买三价；封板自然续持）</div>
+      <div>② <b>SL2%硬止损</b>：跌破 <b style="color:var(--green);">${(cost*0.98).toFixed(2)}</b>(-2%) 卖出（买三价；防阴跌拖尾盘/跌停）</div>
+      <div>③ <b>尾盘兜底单</b>：设 <b>14:50</b> 定时卖出剩余仓位（不留隔夜）</div>`;
+  };
+  if (defCost) window.recalcCond(defCost);
   renderBtns();
   daTick();
   flagLoad(code);                       /* [v1.16.2] 公告红旗核查 */

@@ -2437,6 +2437,17 @@ function holdVerdict(h, q){
   return { t:'⚪ 未触发 · 尾盘卖', c:'var(--secondary)',
     s:`现价 ${q.px.toFixed(3)}（浮盈 ${pnl >= 0 ? '+' : ''}${pnl.toFixed(1)}%）· 今日本档止盈线 ${tpTxt}（${gapOpen < 0 ? '低开日+2%' : '+3%'}）还差 ${toGo.toFixed(1)}% · 冲高回落≥2.5%/破昨收/击穿止损线 ${slL.toFixed(3)} 均离场 · 14:50 未触发则尾盘卖${own}` };
 }
+function condOrdersHtml(cost){
+  const c = +cost;
+  if (!isFinite(c) || c <= 0) return '';
+  const tp3 = (c * 1.03).toFixed(2), sl2 = (c * 0.98).toFixed(2);
+  return `<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--primary-soft);border:1px solid var(--sep);font-size:12px;line-height:1.6;">
+    <div style="font-weight:700;color:var(--primary);margin-bottom:2px;">📱 免盯盘 · 券商条件单 3 件套（成本 ${c.toFixed(2)} · 直接抄进券商App）</div>
+    <div>① <b>回落止盈单</b>：涨超 <b>${tp3}</b>(+3%) 后回落 <b>2.5%</b> 卖出（买三价；收盘封板续持）</div>
+    <div>② <b>SL2%硬止损</b>：跌破 <b>${sl2}</b>(-2%) 卖出（买三价；影子轨实盘验证省负尾）</div>
+    <div>③ <b>尾盘兜底单</b>：设 <b>14:50</b> 定时卖出剩余仓位（未封板不留隔夜）</div>
+  </div>`;
+}
 function renderHoldNow(){
   const sec = $('sec-holdnow');
   if (!sec) return;
@@ -2460,6 +2471,7 @@ function renderHoldNow(){
         <div class="mv-txt da-wait">等待交易时段…</div>
         <div class="mv-sub">封板续持 · 断板按优化B+E · 盘中30秒自动判定</div>
       </div>
+      ${condOrdersHtml(+h.cost)}
     </div>`).join('');
 }
 /* ── 我的打板仓渲染 (localStorage, 不上传) ── */
@@ -2481,6 +2493,7 @@ function renderMine(){
         <div class="mv-txt da-wait">等待交易时段…</div>
         <div class="mv-sub">封板续持 · 断板就走 · 盘中自动提示</div>
       </div>
+      ${condOrdersHtml(+x.buy)}
       <button class="da-btn del" onclick="daRemove('${x.code}')">移除</button>
     </div>`).join('');
 }
